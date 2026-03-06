@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<usi:tdm version="1.0" xmlns:usi="http://www.ni.com/Schemas/USI/1_0">
+  <usi:model modelName="valuemapping" modelVersion="1.0">
+    <usi:include nsUri="http://www.ni.com/DataModels/USI/1_0"/>
+
+    <usi:entity derivation="redeclaration" name="valuemapper" superTypes="aoany">
+       <usi:attribute base="name" name="name"/>
+       <usi:attribute base="description" name="description"/>
+       <usi:attribute maxOccurs="unbounded" minOccurs="0" name="separators" type="eStringUsi"/>
+       <usi:reference maxOccurs="unbounded" minOccurs="0" inverse="mapper" name="entity_value_mappings" reftype="composition" reference="entity_value_mapping"/>
+    </usi:entity>
+    
+    <usi:entity derivation="redeclaration" name="entity_value_mapping" superTypes="aoany">
+       <usi:attribute base="name" name="entityname"/>
+       <usi:reference maxOccurs="unbounded" minOccurs="0" inverse="entity_value_mapping" name="value_mappings" reftype="composition" reference="value_mapping"/>
+       <usi:reference maxOccurs="1" minOccurs="1" inverse="entity_value_mappings" name="mapper" reftype="aggregation" reference="valuemapper"/>
+    </usi:entity>
+    
+    <usi:entity derivation="redeclaration" name="value_mapping" superTypes="aoany">
+       <usi:attribute base="name" name="propertyname"/>
+       <usi:reference maxOccurs="1" minOccurs="1" inverse="value_mappings" name="entity_value_mapping" reftype="composition" reference="entity_value_mapping"/>
+       <usi:attribute maxOccurs="unbounded" minOccurs="0" name="separators" type="eStringUsi"/>
+       <usi:reference maxOccurs="unbounded" minOccurs="0" inverse="value_mapping" name="value_rules" reftype="composition" reference="rule"/>
+    </usi:entity>
+    
+    <usi:entity derivation="redeclaration" name="rule" superTypes="aoany">
+       <usi:attribute base="name" name="example_text"/>
+       <usi:attribute base="description" name="description"/>
+       <usi:attribute maxOccurs="1" minOccurs="1" name="pattern" type="eStringUsi"/>
+       <usi:attribute maxOccurs="1" minOccurs="1" name="schema"  type="eStringUsi"/>
+       <usi:reference maxOccurs="1" minOccurs="1" inverse="value_rules" name="value_mapping" reftype="aggregation" reference="value_mapping"/>
+    </usi:entity>
+  </usi:model>
+</usi:tdm>

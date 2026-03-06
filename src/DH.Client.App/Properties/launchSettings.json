@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "DH.Client.App": {
+      "commandName": "Project",
+      "workingDirectory": "D:\\desktop\\东华性能最新测试\\DH\\bin\\Debug\\net6.0-windows7.0"
+    }
+  }
+}

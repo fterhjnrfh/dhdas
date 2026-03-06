@@ -1,0 +1,38 @@
+﻿2026-01-26 10:37:13.273 ERROR [49588] [LogCollection@130] MultiControlDeviceBase.cpp[532]: CMultiControlDeviceBase Init 0 NUMANode 0
+2026-01-26 10:37:13.276 ERROR [49588] [LogCollection@130] IOCPClientEx.cpp[1209]: CIOCPClient::SetupIOWorkerThreads m_bNUMA 0 m_nWorkerThread 64
+2026-01-26 10:37:13.287 ERROR [49588] [LogCollection@130] IOCPClientEx.cpp[1108]: SetupListner false|nRet == SOCKET_ERROR
+2026-01-26 10:37:13.287 ERROR [49588] [LogCollection@130] IOCPClientEx.cpp[941]: Start false|SetupListner false
+2026-01-26 10:40:35.609 ERROR [38364] [LogCollection@130] MultiControlDeviceBase.cpp[532]: CMultiControlDeviceBase Init 0 NUMANode 0
+2026-01-26 10:40:35.611 ERROR [38364] [LogCollection@130] IOCPClientEx.cpp[1209]: CIOCPClient::SetupIOWorkerThreads m_bNUMA 0 m_nWorkerThread 64
+2026-01-26 10:40:35.623 ERROR [38364] [LogCollection@130] IOCPClientEx.cpp[1108]: SetupListner false|nRet == SOCKET_ERROR
+2026-01-26 10:40:35.623 ERROR [38364] [LogCollection@130] IOCPClientEx.cpp[941]: Start false|SetupListner false
+2026-01-26 10:42:52.062 ERROR [40432] [LogCollection@130] MultiControlDeviceBase.cpp[532]: CMultiControlDeviceBase Init 0 NUMANode 0
+2026-01-26 10:42:52.065 ERROR [40432] [LogCollection@130] IOCPClientEx.cpp[1209]: CIOCPClient::SetupIOWorkerThreads m_bNUMA 0 m_nWorkerThread 64
+2026-01-26 10:42:52.077 ERROR [40432] [LogCollection@130] IOCPClientEx.cpp[1108]: SetupListner false|nRet == SOCKET_ERROR
+2026-01-26 10:42:52.077 ERROR [40432] [LogCollection@130] IOCPClientEx.cpp[941]: Start false|SetupListner false
+2026-01-26 10:49:14.001 ERROR [27992] [LogCollection@130] MultiControlDeviceBase.cpp[532]: CMultiControlDeviceBase Init 0 NUMANode 0
+2026-01-26 10:49:14.002 ERROR [27992] [LogCollection@130] IOCPClientEx.cpp[1209]: CIOCPClient::SetupIOWorkerThreads m_bNUMA 0 m_nWorkerThread 64
+2026-01-26 10:49:14.013 ERROR [27992] [LogCollection@130] IOCPClientEx.cpp[1108]: SetupListner false|nRet == SOCKET_ERROR
+2026-01-26 10:49:14.013 ERROR [27992] [LogCollection@130] IOCPClientEx.cpp[941]: Start false|SetupListner false
+2026-01-26 10:52:59.303 ERROR [44788] [LogCollection@130] MultiControlDeviceBase.cpp[532]: CMultiControlDeviceBase Init 0 NUMANode 0
+2026-01-26 10:52:59.305 ERROR [44788] [LogCollection@130] IOCPClientEx.cpp[1209]: CIOCPClient::SetupIOWorkerThreads m_bNUMA 0 m_nWorkerThread 64
+2026-01-26 10:52:59.316 ERROR [44788] [LogCollection@130] IOCPClientEx.cpp[1108]: SetupListner false|nRet == SOCKET_ERROR
+2026-01-26 10:52:59.316 ERROR [44788] [LogCollection@130] IOCPClientEx.cpp[941]: Start false|SetupListner false
+2026-01-27 10:51:51.900 ERROR [50184] [LogCollection@130] MultiControlDeviceBase.cpp[532]: CMultiControlDeviceBase Init 0 NUMANode 0
+2026-01-27 10:51:51.902 ERROR [50184] [LogCollection@130] IOCPClientEx.cpp[1209]: CIOCPClient::SetupIOWorkerThreads m_bNUMA 0 m_nWorkerThread 64
+2026-01-27 10:58:23.050 ERROR [30308] [LogCollection@130] MultiControlDeviceBase.cpp[532]: CMultiControlDeviceBase Init 0 NUMANode 0
+2026-01-27 10:58:23.053 ERROR [30308] [LogCollection@130] IOCPClientEx.cpp[1209]: CIOCPClient::SetupIOWorkerThreads m_bNUMA 0 m_nWorkerThread 64
+2026-01-27 10:59:00.217 ERROR [30308] [LogCollection@130] MultiControlDeviceBase.cpp[532]: CMultiControlDeviceBase Init 0 NUMANode 0
+2026-01-27 10:59:00.217 ERROR [30308] [LogCollection@130] MultiControlDeviceBase.cpp[532]: CMultiControlDeviceBase Init 0 NUMANode 0
+2026-01-27 10:59:00.217 ERROR [30308] [LogCollection@130] MultiControlDeviceBase.cpp[532]: CMultiControlDeviceBase Init 0 NUMANode 0
+2026-01-27 10:59:00.218 ERROR [30308] [LogCollection@130] IOCPClientEx.cpp[1209]: CIOCPClient::SetupIOWorkerThreads m_bNUMA 0 m_nWorkerThread 64
+2026-01-27 10:59:00.218 ERROR [30308] [LogCollection@130] IOCPClientEx.cpp[1209]: CIOCPClient::SetupIOWorkerThreads m_bNUMA 0 m_nWorkerThread 64
+2026-01-27 10:59:00.218 ERROR [30308] [LogCollection@130] IOCPClientEx.cpp[1209]: CIOCPClient::SetupIOWorkerThreads m_bNUMA 0 m_nWorkerThread 64
+2026-01-27 12:18:51.525 ERROR [57412] [LogCollection@130] MultiControlDeviceBase.cpp[532]: CMultiControlDeviceBase Init 0 NUMANode 0
+2026-01-27 12:18:51.527 ERROR [57412] [LogCollection@130] IOCPClientEx.cpp[1209]: CIOCPClient::SetupIOWorkerThreads m_bNUMA 0 m_nWorkerThread 64
+2026-01-27 12:19:06.576 ERROR [57412] [LogCollection@130] MultiControlDeviceBase.cpp[532]: CMultiControlDeviceBase Init 0 NUMANode 0
+2026-01-27 12:19:06.576 ERROR [57412] [LogCollection@130] MultiControlDeviceBase.cpp[532]: CMultiControlDeviceBase Init 0 NUMANode 0
+2026-01-27 12:19:06.577 ERROR [57412] [LogCollection@130] IOCPClientEx.cpp[1209]: CIOCPClient::SetupIOWorkerThreads m_bNUMA 0 m_nWorkerThread 64
+2026-01-27 12:19:06.577 ERROR [57412] [LogCollection@130] IOCPClientEx.cpp[1209]: CIOCPClient::SetupIOWorkerThreads m_bNUMA 0 m_nWorkerThread 64
+2026-01-28 15:55:16.713 ERROR [13760] [LogCollection@130] MultiControlDeviceBase.cpp[532]: CMultiControlDeviceBase Init 0 NUMANode 0
+2026-01-28 15:55:16.715 ERROR [13760] [LogCollection@130] IOCPClientEx.cpp[1209]: CIOCPClient::SetupIOWorkerThreads m_bNUMA 0 m_nWorkerThread 64

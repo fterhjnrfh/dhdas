@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+<usi:tdm usi:version="1.0" xmlns:usi="http://www.ni.com/Schemas/USI/1_0">
+  <usi:model usi:modelName="TDM model" usi:modelVersion="1.0">
+    
+    <usi:include nsUri="http://www.ni.com/DataModels/USI/1_0"/>
+    
+    <usi:enumeration name="t_FilterElement">
+      <usi:item name="eSelectCriterionDa" value="0"/>
+      <usi:item name="eAndDa" value="1"/>
+    </usi:enumeration>
+    <usi:enumeration name="t_bool">
+      <usi:item name="false" value="0"/>
+      <usi:item name="true" value="1"/>
+    </usi:enumeration>
+    <usi:enumeration name="t_FilterOperator">
+      <usi:item name="eNotEqualDa" value="1"/>
+      <usi:item name="eLessDa" value="2"/>
+      <usi:item name="eLessEqualDa" value="3"/>
+      <usi:item name="eGreaterDa" value="4"/>
+      <usi:item name="eGreaterEqualDa" value="5"/>
+      <usi:item name="eLikeDa" value="6"/>
+    </usi:enumeration>  
+    
+    <usi:entity derivation="redeclaration" name="filter" superTypes="aoany">
+      <usi:attribute base="name" name="entity_name"/>
+      <usi:reference maxOccurs="unbounded" minOccurs="0" name="elements" reference="filter_element" refType="composition"/>
+    </usi:entity>
+    <usi:entity derivation="redeclaration" name="filter_element" superTypes="aoany">
+      <usi:attribute base="name" name="attribute_name"/>
+      <usi:attribute maxOccurs="1" minOccurs="1" name="element_type" reference="t_FilterElement" type="eEnumUsi"/>
+      <usi:attribute maxOccurs="1" minOccurs="1" name="case_sensitive" reference="t_bool" type="eEnumUsi"/>
+      <usi:attribute maxOccurs="1" minOccurs="1" name="operator" reference="t_FilterOperator" type="eEnumUsi"/>
+      <usi:attribute maxOccurs="1" minOccurs="1" name="wildcard_onechar" type="eStringUsi"><value>?</value></usi:attribute>      
+      <usi:attribute maxOccurs="1" minOccurs="1" name="wildcard_nchar" type="eStringUsi"><value>*</value></usi:attribute>      
+      <usi:attribute maxOccurs="1" minOccurs="1" name="wildcard_escape" type="eStringUsi"><value>\</value></usi:attribute>      
+      <usi:reference maxOccurs="1" minOccurs="0" name="operand" reference="operand" refType="composition"/>
+    </usi:entity>
+    
+    <usi:entity derivation="redeclaration" name="operand" superTypes="aoany">
+    </usi:entity>
+    <usi:entity derivation="extension" name="byte_values" superTypes="operand">
+      <usi:attribute maxOccurs="1" minOccurs="0" name="values" type="eUInt8Usi"/>
+    </usi:entity>
+    <usi:entity derivation="extension" name="short_values" superTypes="operand">
+      <usi:attribute maxOccurs="1" minOccurs="0" name="values" type="eInt16Usi"/>
+    </usi:entity>
+    <usi:entity derivation="extension" name="int32_values" superTypes="operand">
+      <usi:attribute maxOccurs="1" minOccurs="0" name="values" type="eInt32Usi"/>
+    </usi:entity>
+    <usi:entity derivation="extension" name="int64_values" superTypes="operand">
+      <usi:attribute maxOccurs="1" minOccurs="0" name="values" type="eInt64Usi"/>
+    </usi:entity>
+    <usi:entity derivation="extension" name="float_values" superTypes="operand">
+      <usi:attribute maxOccurs="1" minOccurs="0" name="values" type="eFloat32Usi"/>
+    </usi:entity>
+    <usi:entity derivation="extension" name="double_values" superTypes="operand">
+      <usi:attribute maxOccurs="1" minOccurs="0" name="values" type="eFloat64Usi"/>
+    </usi:entity>
+    <usi:entity derivation="extension" name="string_values" superTypes="operand">
+      <usi:attribute maxOccurs="1" minOccurs="0" name="values" type="eStringUsi"/>
+    </usi:entity>
+    <usi:entity derivation="extension" name="time_values" superTypes="operand">
+      <usi:attribute maxOccurs="1" minOccurs="0" name="values" type="eTimeUsi"/>
+    </usi:entity>
+    
+  </usi:model>
+</usi:tdm>

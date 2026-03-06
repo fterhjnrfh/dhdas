@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:DH.Client.App.ViewModels"
+             xmlns:local="clr-namespace:DH.Client.App.Controls"
+             x:Class="DH.Client.App.Views.TdmsViewerView"
+             x:DataType="vm:TdmsViewerViewModel"
+             mc:Ignorable="d">
+  <Grid RowDefinitions="Auto,*">
+    <!-- 顶部控制区域 -->
+    <Border Grid.Row="0" Background="#F5F5F5" Padding="12" BorderBrush="#DDD" BorderThickness="0,0,0,1">
+      <Grid RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="Auto,*">
+        <!-- 第一行：文件选择 -->
+        <StackPanel Grid.Row="0" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="12" Margin="0,0,0,10">
+          <TextBlock Text="TDMS文件:" VerticalAlignment="Center" FontWeight="SemiBold"/>
+          <TextBlock Text="{Binding SelectedFile}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" 
+                     Foreground="#333" VerticalAlignment="Center" MaxWidth="500" 
+                     ToolTip.Tip="{Binding SelectedFile}"/>
+          <Button Content="选择文件..." Click="OnPickFileClicked" Padding="16,6"/>
+        </StackPanel>
+        
+        <!-- 第二行：设备和通道选择 -->
+        <Grid Grid.Row="1" Grid.ColumnSpan="2" ColumnDefinitions="Auto,200,20,Auto,*,Auto" Margin="0,0,0,10">
+          <!-- 设备选择 -->
+          <TextBlock Grid.Column="0" Text="设备:" VerticalAlignment="Center" Margin="0,0,8,0" FontWeight="SemiBold"/>
+          <ComboBox Grid.Column="1" ItemsSource="{Binding Devices}" SelectedItem="{Binding SelectedDevice}" 
+                    Width="200" IsEnabled="{Binding HasDevices}">
+            <ComboBox.ItemTemplate>
+              <DataTemplate>
+                <TextBlock Text="{Binding}"/>
+              </DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
+          
+          <!-- 通道选择（多选） -->
+          <TextBlock Grid.Column="3" Text="通道:" VerticalAlignment="Center" Margin="0,0,8,0" FontWeight="SemiBold"/>
+          <Border Grid.Column="4" BorderBrush="#CCC" BorderThickness="1" CornerRadius="4" Background="White" 
+                  MinWidth="300" MaxWidth="600" Padding="4">
+            <ScrollViewer MaxHeight="100" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+              <ItemsControl ItemsSource="{Binding ChannelSelectionItems}">
+                <ItemsControl.ItemsPanel>
+                  <ItemsPanelTemplate>
+                    <WrapPanel Orientation="Horizontal"/>
+                  </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}" Margin="4,2" Padding="4,2">
+                      <StackPanel Orientation="Horizontal" Spacing="4">
+                        <Border Width="12" Height="12" Background="{Binding ColorBrush}" CornerRadius="2"/>
+                        <TextBlock Text="{Binding DisplayName}" VerticalAlignment="Center"/>
+                      </StackPanel>
+                    </CheckBox>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </ScrollViewer>
+          </Border>
+          
+          <!-- 通道批量操作 -->
+          <StackPanel Grid.Column="5" Orientation="Horizontal" Spacing="4" Margin="8,0,0,0">
+            <Button Content="全选" Command="{Binding SelectAllChannelsCommand}" Padding="8,4" FontSize="11"/>
+            <Button Content="全不选" Command="{Binding DeselectAllChannelsCommand}" Padding="8,4" FontSize="11"/>
+          </StackPanel>
+        </Grid>
+        
+        <!-- 第三行：操作按钮 -->
+        <StackPanel Grid.Row="2" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="12">
+          <Button Content="绘制选中通道" Command="{Binding PlotSelectedChannelsCommand}" 
+                  Padding="16,8" Background="#2196F3" Foreground="White" FontWeight="SemiBold"/>
+          <Button Content="重置视图" Click="OnResetViewClicked" Padding="12,6"/>
+          <Button Content="跳转至末端" Click="OnJumpToEndClicked" Padding="12,6"/>
+          
+          <!-- 状态信息 -->
+          <TextBlock Text="{Binding StatusMessage}" VerticalAlignment="Center" Foreground="#666" Margin="20,0,0,0"/>
+          
+          <!-- 跳转进度 -->
+          <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" IsVisible="{Binding IsJumping}">
+            <ProgressBar Width="120" Minimum="0" Maximum="100" Value="{Binding JumpProgress}"/>
+          </StackPanel>
+        </StackPanel>
+      </Grid>
+    </Border>
+
+    <!-- 曲线视图 -->
+    <Grid Grid.Row="1">
+      <local:SkiaMultiChannelView x:Name="TdmsCurveView"/>
+      
+      <!-- 空状态提示 -->
+      <Border Background="#F8F8F8" IsVisible="{Binding !HasPlottedData}" HorizontalAlignment="Center" 
+              VerticalAlignment="Center" Padding="40,30" CornerRadius="8">
+        <StackPanel Spacing="12" HorizontalAlignment="Center">
+          <TextBlock Text="请选择TDMS文件、设备和通道，然后点击绘制按钮" 
+                     FontSize="14" Foreground="#888" HorizontalAlignment="Center"/>
+        </StackPanel>
+      </Border>
+    </Grid>
+  </Grid>
+</UserControl>

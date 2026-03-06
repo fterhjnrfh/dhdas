@@ -1,0 +1,411 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window xmlns="https://github.com/avaloniaui" 
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" 
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" xmlns:vm="using:DH.Client.App.ViewModels" 
+    xmlns:sp="using:ScottPlot.Avalonia" 
+    xmlns:models="using:DH.Contracts" 
+    xmlns:local="clr-namespace:DH.Client.App.Controls" 
+    xmlns:views="using:DH.Client.App.Views"
+    xmlns:ap="clr-namespace:Avalonia.Controls.Primitives;assembly=Avalonia.Controls"
+    xmlns:dhui="using:NewAvalonia.Views"
+    xmlns:dhc="using:NewAvalonia.Controls"
+    xmlns:converters="clr-namespace:DH.Client.App.Converters"
+    x:Class="DH.Client.App.Views.MainWindow" 
+    x:DataType="vm:MainWindowViewModel" 
+    Width="1000" 
+    Height="700" 
+    Title="DH Minimal Demo" 
+    mc:Ignorable="d">
+	<Design.DataContext>
+		<vm:MainWindowViewModel/>
+	</Design.DataContext>
+	<TabControl x:Name="RootTabs" SelectedIndex="{Binding SelectedTab}">
+		<TabItem Header="通道管理">
+			<ScrollViewer VerticalScrollBarVisibility="Auto">
+			<StackPanel Margin="10" Spacing="15">
+				<!-- 数据源模式选择 -->
+				<Border BorderBrush="#007ACC" BorderThickness="2" Background="#F0F8FF" CornerRadius="4" Padding="15">
+					<StackPanel Spacing="10">
+						<TextBlock Text="📡 数据源模式选择" FontWeight="Bold" FontSize="14" Foreground="#007ACC"/>
+						<StackPanel Orientation="Horizontal" Spacing="20">
+							<RadioButton GroupName="DataSource" Content="TCP 网络模式" IsChecked="{Binding DataSourceMode, Converter={x:Static converters:IntToBoolConverter.Instance}, ConverterParameter=0}"/>
+							<RadioButton GroupName="DataSource" Content="SDK 本地模式（对接Demo_C#模拟器）" IsChecked="{Binding DataSourceMode, Converter={x:Static converters:IntToBoolConverter.Instance}, ConverterParameter=1}"/>
+						</StackPanel>
+						<TextBlock Text="提示：TCP模式用于网络传输，SDK模式用于本地对接Demo_C#模拟器（同一台电脑）" FontSize="11" Foreground="Gray"/>
+					</StackPanel>
+				</Border>
+
+				<!-- TCP 服务器连接 (DataSourceMode == 0) -->
+				<Border BorderBrush="#E0E0E0" BorderThickness="1" Background="#F8F9FA" CornerRadius="4" Padding="15"
+				        IsVisible="{Binding DataSourceMode, Converter={x:Static converters:IntToBoolConverter.Instance}, ConverterParameter=0}">
+					<StackPanel Spacing="10">
+						<TextBlock Text="🌐 TCP 服务器连接" FontWeight="Bold" FontSize="14"/>
+						<StackPanel Orientation="Horizontal" Spacing="15" VerticalAlignment="Center">
+							<TextBlock Text="TCP Server IP:" VerticalAlignment="Center" MinWidth="100"/>
+							<TextBox x:Name="TcpIpTextBox" Text="{Binding TcpServerIp}" Watermark="例如: 192.168.1.100" Width="150"/>
+							<TextBlock Text="TCP Port:" VerticalAlignment="Center" MinWidth="70" Margin="20,0,0,0"/>
+							<TextBox x:Name="TcpPortTextBox" Text="{Binding TcpServerPort}" Watermark="例如: 8080" Width="80"/>
+							<Button Content="连接" Command="{Binding ConnectTcpCommand}" Padding="15,5" Background="#28a745" Foreground="White" Margin="20,0,0,0"/>
+							<Button Content="断开" Command="{Binding DisconnectTcpCommand}" Padding="15,5" Background="#dc3545" Foreground="White"/>
+						</StackPanel>
+						<!-- 连接状态显示 -->
+						<StackPanel Orientation="Horizontal" Spacing="10">
+							<TextBlock Text="状态:" FontWeight="SemiBold"/>
+							<TextBlock Text="{Binding TcpConnectionStatus}" Foreground="{Binding TcpStatusColor}"/>
+						</StackPanel>
+					</StackPanel>
+				</Border>
+
+				<!-- SDK 本地模式配置 (DataSourceMode == 1) -->
+				<Border BorderBrush="#E0E0E0" BorderThickness="1" Background="#FFF8E7" CornerRadius="4" Padding="15"
+				        IsVisible="{Binding DataSourceMode, Converter={x:Static converters:IntToBoolConverter.Instance}, ConverterParameter=1}">
+					<StackPanel Spacing="10">
+						<TextBlock Text="🔌 SDK 本地模式（对接东华模拟器）" FontWeight="Bold" FontSize="14"/>
+						<TextBlock Text="此模式用于接收Demo_C#模拟器通过SDK发送的数据，两个程序需运行在同一台电脑上。" FontSize="11" Foreground="Gray" TextWrapping="Wrap"/>
+						
+						<!-- 配置路径 -->
+						<StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+							<TextBlock Text="配置路径:" VerticalAlignment="Center" MinWidth="80"/>
+							<TextBox Text="{Binding SdkConfigPath}" Watermark="SDK配置文件夹路径" Width="400"/>
+							<Button Content="浏览..." Command="{Binding BrowseSdkConfigCommand}" Padding="10,5"/>
+						</StackPanel>
+						
+						<!-- SDK控制按钮 -->
+						<StackPanel Orientation="Horizontal" Spacing="15" Margin="0,5,0,0">
+							<Button Content="1. 初始化SDK" Command="{Binding InitializeSdkCommand}" Padding="15,5" Background="#17a2b8" Foreground="White"/>
+							<Button Content="2. 启动采样" Command="{Binding StartSdkSamplingCommand}" Padding="15,5" Background="#28a745" Foreground="White"/>
+							<Button Content="停止采样" Command="{Binding StopSdkSamplingCommand}" Padding="15,5" Background="#dc3545" Foreground="White"/>
+						</StackPanel>
+						
+						<!-- SDK状态显示 -->
+						<StackPanel Orientation="Horizontal" Spacing="10">
+							<TextBlock Text="SDK状态:" FontWeight="SemiBold"/>
+							<TextBlock Text="{Binding SdkConnectionStatus}" Foreground="{Binding SdkStatusColor}"/>
+						</StackPanel>
+
+						<!-- 使用说明 -->
+						<Border Background="#FFF3CD" CornerRadius="4" Padding="10" Margin="0,5,0,0">
+							<StackPanel Spacing="3">
+								<TextBlock Text="📋 使用步骤:" FontWeight="Bold" FontSize="12"/>
+								<TextBlock Text="1. 先启动Demo_C#程序，配置好东华软件参数" FontSize="11"/>
+								<TextBlock Text="2. 在Demo_C#中点击【启动采样】" FontSize="11"/>
+								<TextBlock Text="3. 回到本程序，设置配置路径（通常与Demo_C#的Config目录一致）" FontSize="11"/>
+								<TextBlock Text="4. 点击【初始化SDK】→【启动采样】" FontSize="11"/>
+								<TextBlock Text="5. 在【算法配置】或【结果显示】界面查看波形" FontSize="11"/>
+							</StackPanel>
+						</Border>
+					</StackPanel>
+				</Border>
+                <!-- 在线设备状态 -->
+                <Border BorderBrush="#E0E0E0" BorderThickness="1" Background="#F8F9FA" CornerRadius="4" Padding="15">
+                    <StackPanel Spacing="10">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <TextBlock Text="在线设备状态" FontWeight="Bold" FontSize="14"/>
+                            <TextBlock Text="{Binding DeviceSummary}" FontSize="12" Foreground="#007ACC" VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <ScrollViewer MaxHeight="180" VerticalScrollBarVisibility="Auto">
+                            <ItemsControl ItemsSource="{Binding Devices}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <UniformGrid Columns="16"/>
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border BorderBrush="#C0C0C0" BorderThickness="1" CornerRadius="4" Margin="4" Padding="8" Background="{Binding Online, Converter={x:Static converters:BoolToColorConverter.Instance}}" Tag="{Binding DeviceId}" PointerReleased="OnDeviceTilePointerReleased">
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding DeviceId, StringFormat=AI{0:D2}}" HorizontalAlignment="Center" FontWeight="Bold"/>
+                                                <TextBlock Text="{Binding OnlineChannelCount, StringFormat={}{0}CH}" HorizontalAlignment="Center"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </StackPanel>
+                </Border>
+
+                <!-- 通道在线状态（选中设备） -->
+                <Border BorderBrush="#E0E0E0" BorderThickness="1" Background="#F8F9FA" CornerRadius="4" Padding="15">
+                    <StackPanel Spacing="10">
+                        <TextBlock Text="{Binding SelectedDeviceTitle}" FontWeight="Bold" FontSize="14"/>
+                        <ScrollViewer MaxHeight="220" VerticalScrollBarVisibility="Auto">
+                            <ItemsControl ItemsSource="{Binding DeviceChannels}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <UniformGrid Columns="16"/>
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border BorderBrush="#C0C0C0" BorderThickness="1" CornerRadius="4" Margin="4" Padding="8" Background="{Binding IsOnline, Converter={x:Static converters:BoolToColorConverter.Instance}}">
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding ChannelNumber, StringFormat=CH{0:D2}}" HorizontalAlignment="Center" FontWeight="Bold"/>
+                                                <TextBlock Text="{Binding OnlineTimeText}" HorizontalAlignment="Center" FontSize="10"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </StackPanel>
+                </Border>
+				<!-- 控制按钮：移除 MockDriver -->
+			</StackPanel>
+			</ScrollViewer>
+		</TabItem>
+		<TabItem Header="存储配置">
+			<Grid RowDefinitions="Auto,Auto,*" Margin="10">
+				
+				<!-- 1. 写入配置区域 -->
+				<Border Grid.Row="0" Background="#f5f6f8" CornerRadius="6" Padding="15" Margin="0,0,0,10" BorderBrush="#e0e0e0" BorderThickness="1">
+					<StackPanel Spacing="12">
+						<TextBlock Text="⚙️ 写入配置" FontWeight="Bold" FontSize="14" Foreground="#333333"/>
+						
+						<!-- 路径设置 -->
+						<Grid ColumnDefinitions="Auto, *" VerticalAlignment="Center">
+							<TextBlock Text="输出目录" VerticalAlignment="Center" Width="70" Foreground="#444444"/>
+							<TextBox Grid.Column="1" Watermark="例如 ./data" Text="{Binding StoragePath}"/>
+						</Grid>
+
+						<!-- 模式与会话名 -->
+						<Grid ColumnDefinitions="Auto, *, 20, Auto, *" VerticalAlignment="Center">
+							<TextBlock Text="存储模式" Grid.Column="0" VerticalAlignment="Center" Width="70" Foreground="#444444"/>
+							<ComboBox Grid.Column="1" SelectedIndex="{Binding StorageModeIndex}" HorizontalAlignment="Stretch">
+								<ComboBoxItem Content="单文件（会话单 .tdms）"/>
+								<ComboBoxItem Content="多文件（每通道一 .tdms）"/>
+							</ComboBox>
+							
+							<TextBlock Text="会话名称" Grid.Column="3" VerticalAlignment="Center" Width="70" Foreground="#444444"/>
+							<TextBox Grid.Column="4" Text="{Binding StorageSessionName}"/>
+						</Grid>
+
+						<!-- 压缩与预处理 -->
+						<Grid ColumnDefinitions="Auto, *, 20, Auto, *" VerticalAlignment="Center">
+							<TextBlock Text="压缩算法" Grid.Column="0" VerticalAlignment="Center" Width="70" Foreground="#444444"/>
+							<ComboBox Grid.Column="1" SelectedIndex="{Binding CompressionTypeIndex}" HorizontalAlignment="Stretch">
+								<ComboBoxItem Content="不压缩"/>
+								<ComboBoxItem Content="LZ4 (极速)"/>
+								<ComboBoxItem Content="Zstd (高维)"/>
+								<ComboBoxItem Content="Brotli (高压)"/>
+								<ComboBoxItem Content="Snappy"/>
+								<ComboBoxItem Content="Zlib"/>
+								<ComboBoxItem Content="LZ4_HC"/>
+								<ComboBoxItem Content="BZip2"/>
+							</ComboBox>
+
+							<TextBlock Text="预处理" Grid.Column="3" VerticalAlignment="Center" Width="70" Foreground="#444444"/>
+							<ComboBox Grid.Column="4" SelectedIndex="{Binding PreprocessTypeIndex}" HorizontalAlignment="Stretch">
+								<ComboBoxItem Content="不预处理"/>
+								<ComboBoxItem Content="一阶差分编码"/>
+								<ComboBoxItem Content="二阶差分编码"/>
+								<ComboBoxItem Content="线性预测编码"/>
+							</ComboBox>
+						</Grid>
+
+						<!-- 压缩算法参数配置 -->
+						<!-- LZ4 参数：压缩等级 0~12 -->
+						<Border Background="#eef2ff" CornerRadius="4" Padding="10,6" Margin="0,2,0,0"
+								IsVisible="{Binding CompressionTypeIndex, Converter={x:Static converters:CompressionParamVisibilityConverter.Instance}, ConverterParameter=1}">
+							<Grid ColumnDefinitions="Auto, *, Auto" VerticalAlignment="Center">
+								<TextBlock Text="LZ4 压缩等级" VerticalAlignment="Center" Width="100" Foreground="#555" FontSize="12"/>
+								<Slider Grid.Column="1" Minimum="0" Maximum="12" Value="{Binding Lz4Level}" TickFrequency="1" IsSnapToTickEnabled="True" Margin="5,0"/>
+								<TextBlock Grid.Column="2" Text="{Binding Lz4Level, StringFormat='{}{0}'}" Width="30" TextAlignment="Center" FontFamily="Consolas" FontWeight="Bold" Foreground="#1a73e8"/>
+							</Grid>
+						</Border>
+
+						<!-- LZ4_HC 参数：压缩等级 3~12 -->
+						<Border Background="#eef2ff" CornerRadius="4" Padding="10,6" Margin="0,2,0,0"
+								IsVisible="{Binding CompressionTypeIndex, Converter={x:Static converters:CompressionParamVisibilityConverter.Instance}, ConverterParameter=6}">
+							<Grid ColumnDefinitions="Auto, *, Auto" VerticalAlignment="Center">
+								<TextBlock Text="LZ4_HC 压缩等级" VerticalAlignment="Center" Width="100" Foreground="#555" FontSize="12"/>
+								<Slider Grid.Column="1" Minimum="3" Maximum="12" Value="{Binding Lz4hcLevel}" TickFrequency="1" IsSnapToTickEnabled="True" Margin="5,0"/>
+								<TextBlock Grid.Column="2" Text="{Binding Lz4hcLevel, StringFormat='{}{0}'}" Width="30" TextAlignment="Center" FontFamily="Consolas" FontWeight="Bold" Foreground="#1a73e8"/>
+							</Grid>
+						</Border>
+
+						<!-- Zstd 参数：压缩等级 1~22 -->
+						<Border Background="#eef2ff" CornerRadius="4" Padding="10,6" Margin="0,2,0,0"
+								IsVisible="{Binding CompressionTypeIndex, Converter={x:Static converters:CompressionParamVisibilityConverter.Instance}, ConverterParameter=2}">
+							<StackPanel Spacing="4">
+								<Grid ColumnDefinitions="Auto, *, Auto" VerticalAlignment="Center">
+									<TextBlock Text="Zstd 压缩等级" VerticalAlignment="Center" Width="100" Foreground="#555" FontSize="12"/>
+									<Slider Grid.Column="1" Minimum="1" Maximum="22" Value="{Binding ZstdLevel}" TickFrequency="1" IsSnapToTickEnabled="True" Margin="5,0"/>
+									<TextBlock Grid.Column="2" Text="{Binding ZstdLevel, StringFormat='{}{0}'}" Width="30" TextAlignment="Center" FontFamily="Consolas" FontWeight="Bold" Foreground="#1a73e8"/>
+								</Grid>
+								<Grid ColumnDefinitions="Auto, *, Auto" VerticalAlignment="Center">
+									<TextBlock Text="窗口大小(log2)" VerticalAlignment="Center" Width="100" Foreground="#555" FontSize="12"/>
+									<Slider Grid.Column="1" Minimum="10" Maximum="31" Value="{Binding ZstdWindowLog}" TickFrequency="1" IsSnapToTickEnabled="True" Margin="5,0"/>
+									<TextBlock Grid.Column="2" Text="{Binding ZstdWindowLog, StringFormat='{}{0}'}" Width="30" TextAlignment="Center" FontFamily="Consolas" FontWeight="Bold" Foreground="#1a73e8"/>
+								</Grid>
+							</StackPanel>
+						</Border>
+
+						<!-- Brotli 参数：质量 0~11, 窗口位数 10~24 -->
+						<Border Background="#eef2ff" CornerRadius="4" Padding="10,6" Margin="0,2,0,0"
+								IsVisible="{Binding CompressionTypeIndex, Converter={x:Static converters:CompressionParamVisibilityConverter.Instance}, ConverterParameter=3}">
+							<StackPanel Spacing="4">
+								<Grid ColumnDefinitions="Auto, *, Auto" VerticalAlignment="Center">
+									<TextBlock Text="Brotli 质量" VerticalAlignment="Center" Width="100" Foreground="#555" FontSize="12"/>
+									<Slider Grid.Column="1" Minimum="0" Maximum="11" Value="{Binding BrotliQuality}" TickFrequency="1" IsSnapToTickEnabled="True" Margin="5,0"/>
+									<TextBlock Grid.Column="2" Text="{Binding BrotliQuality, StringFormat='{}{0}'}" Width="30" TextAlignment="Center" FontFamily="Consolas" FontWeight="Bold" Foreground="#1a73e8"/>
+								</Grid>
+								<Grid ColumnDefinitions="Auto, *, Auto" VerticalAlignment="Center">
+									<TextBlock Text="窗口位数" VerticalAlignment="Center" Width="100" Foreground="#555" FontSize="12"/>
+									<Slider Grid.Column="1" Minimum="10" Maximum="24" Value="{Binding BrotliWindowBits}" TickFrequency="1" IsSnapToTickEnabled="True" Margin="5,0"/>
+									<TextBlock Grid.Column="2" Text="{Binding BrotliWindowBits, StringFormat='{}{0}'}" Width="30" TextAlignment="Center" FontFamily="Consolas" FontWeight="Bold" Foreground="#1a73e8"/>
+								</Grid>
+							</StackPanel>
+						</Border>
+
+						<!-- Zlib 参数：压缩等级 0~9 -->
+						<Border Background="#eef2ff" CornerRadius="4" Padding="10,6" Margin="0,2,0,0"
+								IsVisible="{Binding CompressionTypeIndex, Converter={x:Static converters:CompressionParamVisibilityConverter.Instance}, ConverterParameter=5}">
+							<Grid ColumnDefinitions="Auto, *, Auto" VerticalAlignment="Center">
+								<TextBlock Text="Zlib 压缩等级" VerticalAlignment="Center" Width="100" Foreground="#555" FontSize="12"/>
+								<Slider Grid.Column="1" Minimum="0" Maximum="9" Value="{Binding ZlibLevel}" TickFrequency="1" IsSnapToTickEnabled="True" Margin="5,0"/>
+								<TextBlock Grid.Column="2" Text="{Binding ZlibLevel, StringFormat='{}{0}'}" Width="30" TextAlignment="Center" FontFamily="Consolas" FontWeight="Bold" Foreground="#1a73e8"/>
+							</Grid>
+						</Border>
+
+						<!-- BZip2 参数：块大小 1~9 -->
+						<Border Background="#eef2ff" CornerRadius="4" Padding="10,6" Margin="0,2,0,0"
+								IsVisible="{Binding CompressionTypeIndex, Converter={x:Static converters:CompressionParamVisibilityConverter.Instance}, ConverterParameter=7}">
+							<Grid ColumnDefinitions="Auto, *, Auto" VerticalAlignment="Center">
+								<TextBlock Text="BZip2 块大小" VerticalAlignment="Center" Width="100" Foreground="#555" FontSize="12"/>
+								<Slider Grid.Column="1" Minimum="1" Maximum="9" Value="{Binding Bzip2BlockSize}" TickFrequency="1" IsSnapToTickEnabled="True" Margin="5,0"/>
+								<TextBlock Grid.Column="2" Text="{Binding Bzip2BlockSize, StringFormat='{}{0} × 100K'}" Width="80" TextAlignment="Center" FontFamily="Consolas" FontWeight="Bold" Foreground="#1a73e8"/>
+							</Grid>
+						</Border>
+					</StackPanel>
+				</Border>
+
+				<!-- 2. 控制面板 -->
+				<Border Grid.Row="1" Background="#f5f6f8" CornerRadius="6" Padding="15" Margin="0,0,0,10" BorderBrush="#e0e0e0" BorderThickness="1">
+					<Grid ColumnDefinitions="Auto, *, Auto">
+						<StackPanel Orientation="Horizontal" Spacing="15">
+							<Button Content="▶ 开始写入" Command="{Binding StartStorageCommand}" Padding="20,8" Background="#28a745" Foreground="White" FontWeight="Bold"/>
+							<Button Content="⏹ 停止写入" Command="{Binding StopStorageCommand}" Padding="20,8" Background="#dc3545" Foreground="White" FontWeight="Bold"/>
+							
+							<Border Background="#ffffff" CornerRadius="4" Padding="12,6" VerticalAlignment="Center" BorderBrush="#d0d0d0" BorderThickness="1">
+								<StackPanel Orientation="Horizontal" Spacing="8">
+									<TextBlock Text="⏱" VerticalAlignment="Center" FontSize="14"/>
+									<TextBlock Text="{Binding StorageElapsed}" VerticalAlignment="Center" FontFamily="Consolas,Courier New,monospace" FontSize="16" FontWeight="Bold" 
+											   Foreground="{Binding StorageEnabled, Converter={x:Static converters:BoolToTextColorConverter.Instance}}"/>
+								</StackPanel>
+							</Border>
+						</StackPanel>
+						
+						<TextBlock Grid.Column="2" Text="{Binding StorageStatusMessage}" VerticalAlignment="Center" 
+								   Foreground="{Binding StorageEnabled, Converter={x:Static converters:BoolToTextColorConverter.Instance}}" 
+								   FontWeight="SemiBold"/>
+					</Grid>
+				</Border>
+
+				<!-- 3. 文件管理区域 -->
+				<Border Grid.Row="2" Background="#f5f6f8" CornerRadius="6" Padding="15" BorderBrush="#e0e0e0" BorderThickness="1">
+					<Grid RowDefinitions="Auto, *, 150">
+						<Grid Grid.Row="0" ColumnDefinitions="Auto, *, Auto" Margin="0,0,0,10">
+							<TextBlock Text="📂 最近文件与验证" FontWeight="Bold" FontSize="14" VerticalAlignment="Center" Foreground="#333333"/>
+							
+							<StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
+								<Button Content="📂 打开目录" Command="{Binding OpenOutputFolderCommand}"/>
+								<Button Content="🔄 刷新列表" Command="{Binding RefreshRecentFilesCommand}"/>
+								<Button Content="🔎 测试读取" Command="{Binding TestReadSelectedFileCommand}"/>
+								<Button Content="🛡️ 验证无损" Command="{Binding VerifyStoredFileCommand}" Background="#0d6efd" Foreground="White"/>
+							</StackPanel>
+						</Grid>
+
+						<!-- 最近文件列表 (Row 1, takes remaining space) -->
+						<ListBox Grid.Row="1" ItemsSource="{Binding RecentTdmsFiles}" SelectedItem="{Binding SelectedTdmsFile}" 
+								 Background="#ffffff" BorderBrush="#d0d0d0" BorderThickness="1" CornerRadius="4" Margin="0,0,0,10">
+							<ListBox.ItemTemplate>
+								<DataTemplate>
+									<TextBlock Text="{Binding DisplayText}" FontFamily="Consolas,Courier New,monospace" FontSize="12" Foreground="#333333"/>
+								</DataTemplate>
+							</ListBox.ItemTemplate>
+						</ListBox>
+
+						<!-- 验证结果报告 (Row 2, fixed 150px with scroll) -->
+						<Border Grid.Row="2" 
+								BorderBrush="{Binding FileVerifyPassed, Converter={x:Static converters:BoolToVerifyColorConverter.Instance}}"
+								BorderThickness="1" CornerRadius="4" Background="#ffffff" Padding="8">
+							<ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+								<TextBlock Text="{Binding FileVerifyResult}" TextWrapping="NoWrap" FontSize="11" FontFamily="Consolas,Courier New,monospace"
+										   Foreground="{Binding FileVerifyPassed, Converter={x:Static converters:BoolToVerifyColorConverter.Instance}}"/>
+							</ScrollViewer>
+						</Border>
+					</Grid>
+				</Border>
+				
+			</Grid>
+		</TabItem>
+        <TabItem Header="算法配置">
+            <dhc:SimplifiedWaveformDisplay Margin="10"/>
+        </TabItem>
+        <TabItem Header="结果显示">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <!-- 顶部：左侧可视化控件组 + 右侧视图管理按钮 -->
+                <Grid Margin="0,0,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- 左侧：可视化控件组（去除采样频率调节，仅保留必要的控件） -->
+                    <StackPanel x:Name="ResultsControlsPanel"
+                                Grid.Column="0"
+                                Orientation="Horizontal"
+                                VerticalAlignment="Center"
+                                Spacing="8"
+                                Margin="10,10,10,20">
+                        <!-- 重置缩放 -->
+                        <Button Content="重置" Width="48" Height="32" CornerRadius="6" Background="#4A4A4A" Foreground="White" FontSize="11" Click="OnGlobalResetZoom"/>
+
+                        <!-- 通道选择（针对当前激活视图） -->
+                        <Button x:Name="GlobalChannelSelectorButton"
+                                Content="通道选择"
+                                Width="100" Height="32" CornerRadius="6"
+                                Background="#4A4A4A" Foreground="White">
+                            <ToolTip.Tip>选择在当前激活视图中显示的通道</ToolTip.Tip>
+                            <Button.Flyout>
+                                <Flyout Placement="Bottom" ShowMode="Standard">
+                                    <Border BorderBrush="#3A3A3A" BorderThickness="1" CornerRadius="8"
+                                            Background="#1E1E1E" MinWidth="450" MaxHeight="500">
+                                        <views:ChannelSelector x:Name="GlobalChannelSelector"/>
+                                    </Border>
+                                </Flyout>
+                            </Button.Flyout>
+                        </Button>
+                    </StackPanel>
+
+                    <!-- 中间占位，保证右侧按钮靠右 -->
+                    <Border Grid.Column="1"/>
+
+                    <!-- 右侧：视图管理按钮，与左侧控件水平对齐 -->
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Spacing="8" Margin="10,10,10,20">
+                        <Button x:Name="AddViewButton" Content="＋ 添加视图" Padding="10,6"/>
+                        <Button x:Name="RemoveViewButton" Content="－ 删除视图" Padding="10,6"/>
+                    </StackPanel>
+                </Grid>
+
+                <!-- 均分 8×8 的视图容器：UniformGrid -->
+                <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Disabled">
+                    <ap:UniformGrid x:Name="ViewsContainer" Rows="8" Columns="8" Margin="10"/>
+                </ScrollViewer>
+            </Grid>
+        </TabItem>
+        <TabItem Header="TDMS查看">
+            <views:TdmsViewerView SelectedFile="{Binding SelectedTdmsFile}" SelectedDeviceId="{Binding SelectedDeviceId}" OnlineChannelManager="{Binding OnlineChannelManager}"/>
+        </TabItem>
+        <TabItem Header="GUI设计">
+            <dhui:DesignerWorkbenchView/>
+        </TabItem>
+    </TabControl>
+</Window>

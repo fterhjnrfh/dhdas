@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+<usi:tdm usi:version="1.0" xmlns:usi="http://www.ni.com/Schemas/USI/1_0">
+  <usi:model usi:modelName="USI Configuration model" usi:modelVersion="1.0">
+    <usi:include nsUri="http://www.ni.com/DataModels/USI/1_0"/>
+        
+    <usi:enumeration name="t_0_1">
+      <usi:item name="0" value="0"/>
+      <usi:item name="1" value="1"/>
+    </usi:enumeration>
+    
+    <usi:enumeration name="t_plugin_type">
+      <usi:item name="undefined" value="0"/>
+      <usi:item name="C++"       value="1"/>
+      <usi:item name="VBS"       value="2"/>
+      <usi:item name="LabVIEW"   value="3"/>
+      <usi:item name="VBCrypt"   value="4"/>
+      <usi:item name="Python"    value="5"/>
+      <usi:item name="PythonCrypt" value="6"/>
+    </usi:enumeration>
+    
+    <usi:enumeration name="t_model_type">
+      <usi:item name="undefined" value="0"/>
+      <usi:item name="Dynamic"   value="2"/>
+      <usi:item name="TDM_1_0"   value="4"/>
+    </usi:enumeration>
+    
+    <usi:entity derivation="redeclaration" name="data_store_manager" superTypes="aoany">
+      <usi:attribute base="name" name="name"/>
+      <usi:attribute base="version" name="version"/>
+      <usi:attribute base="description" name="description"/>
+      <usi:reference maxOccurs="unbounded" minOccurs="1" inverse="manager" name="storetypes" reference="store_type" refType="composition"/>
+    </usi:entity>
+
+    <usi:entity derivation="redeclaration" name="store_type" superTypes="aoany">
+      <usi:attribute base="name" name="name"/>
+      <usi:attribute base="version" name="version"/>
+      <usi:attribute base="description" name="description"/>
+      <usi:attribute maxOccurs="1" minOccurs="0" name="alias" type="eStringUsi"/>
+      <usi:attribute maxOccurs="1" minOccurs="0" name="importsupported" reference="t_0_1" type="eEnumUsi"/>
+      <usi:attribute maxOccurs="1" minOccurs="0" name="exportsupported" reference="t_0_1" type="eEnumUsi"/>
+      <usi:attribute maxOccurs="1" minOccurs="1" name="filepath" type="eStringUsi"/>
+      <usi:attribute maxOccurs="1" minOccurs="0" name="helpfile" type="eStringUsi"/>
+      <usi:attribute maxOccurs="1" minOccurs="0" name="helpid" type="eStringUsi"/>
+      <usi:attribute maxOccurs="1" minOccurs="0" name="defaultconfiguration" type="eStringUsi"/>
+      <usi:attribute maxOccurs="1" minOccurs="0" name="easypluginparam" type="eStringUsi"/>
+      <usi:attribute maxOccurs="1" minOccurs="0" name="caching" reference="t_0_1" type="eEnumUsi"/>
+      <usi:attribute maxOccurs="1" minOccurs="0" name="filtercasesensitive" reference="t_0_1" type="eEnumUsi"/>
+      <usi:attribute maxOccurs="1" minOccurs="0" name="guifilepath" type="eStringUsi"/>
+      <usi:attribute maxOccurs="1" minOccurs="0" name="guiprogid" type="eStringUsi"/>
+      <usi:attribute maxOccurs="1" minOccurs="0" name="guiclsid" type="eStringUsi"/>
+      <usi:attribute maxOccurs="1" minOccurs="0" name="system" reference="t_0_1" type="eEnumUsi"/>
+      <usi:attribute maxOccurs="1" minOccurs="0" name="refcount" type="eInt32Usi"/>
+      <usi:attribute maxOccurs="1" minOccurs="0" name="model" reference="t_model_type" type="eEnumUsi"/>
+      <usi:attribute maxOccurs="1" minOccurs="0" name="type" reference="t_plugin_type" type="eEnumUsi"/>
+      <usi:attribute maxOccurs="1" minOccurs="0" name="iconfile" type="eStringUsi"/>
+      <usi:attribute maxOccurs="unbounded" minOccurs="0" name="icon" type="eUInt8Usi"/>
+      <usi:attribute maxOccurs="1" minOccurs="1" name="protected" reference="t_0_1" type="eEnumUsi">
+        <usi:value>0</usi:value>
+      </usi:attribute>
+      <usi:attribute maxOccurs="1" minOccurs="0" name="editmode" reference="t_0_1" type="eEnumUsi"/>
+      <usi:reference maxOccurs="1" minOccurs="0" name="defaultfilefilter" reference="file_filter"/>
+      <usi:reference maxOccurs="unbounded" minOccurs="0" inverse="storetype" name="filefilters" reference="file_filter" refType="composition"/>
+      <usi:reference maxOccurs="unbounded" minOccurs="0" inverse="storetype" name="storedefinitions" reference="store_definition" refType="composition"/>
+      <usi:reference maxOccurs="1" minOccurs="1" inverse="storetypes" name="manager" reference="data_store_manager"/>
+      <usi:attribute maxOccurs="1" minOccurs="0" name="scriptfile" type="eStringUsi"/>
+      <usi:attribute maxOccurs="1" minOccurs="1" name="querysupported" reference="t_0_1" type="eEnumUsi">
+        <usi:value>0</usi:value>
+      </usi:attribute>
+      <usi:attribute maxOccurs="1" minOccurs="1" name="fastloadsupported" reference="t_0_1" type="eEnumUsi"/>
+      <usi:attribute maxOccurs="1" minOccurs="1" name="documentplugin" reference="t_0_1" type="eEnumUsi">
+        <usi:value>0</usi:value>
+      </usi:attribute>
+
+    </usi:entity>
+    
+    <usi:entity derivation="redeclaration" name="file_filter" superTypes="aoany">
+      <usi:attribute base="name" name="extension"/>
+      <usi:attribute base="description" name="description"/>
+      <usi:attribute maxOccurs="1" minOccurs="1" name="protected" reference="t_0_1" type="eEnumUsi">
+        <usi:value>0</usi:value>
+      </usi:attribute>
+      <usi:attribute maxOccurs="1" minOccurs="1" name="userdefined" reference="t_0_1" type="eEnumUsi">
+        <usi:value>0</usi:value>
+      </usi:attribute>
+      <usi:reference maxOccurs="1" minOccurs="1" inverse="filefilters" name="storetype" reference="store_type"/>
+    </usi:entity>
+
+    <usi:entity derivation="redeclaration" name="store_definition" superTypes="aoany">
+      <usi:attribute base="name" name="name"/>
+      <usi:attribute maxOccurs="1" minOccurs="0" name="parameter" type="eStringUsi"/>
+      <usi:attribute maxOccurs="1" minOccurs="1" name="protected" reference="t_0_1" type="eEnumUsi">
+        <usi:value>0</usi:value>
+      </usi:attribute>
+      <usi:reference maxOccurs="1" minOccurs="1" inverse="storedefinitions" name="storetype" reference="store_type"/>
+    </usi:entity>
+
+  </usi:model>
+</usi:tdm>

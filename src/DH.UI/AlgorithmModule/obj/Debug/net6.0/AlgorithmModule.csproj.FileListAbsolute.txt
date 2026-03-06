@@ -1,0 +1,12 @@
+D:\desktop\东华\DH\src\DH.UI\AlgorithmModule\bin\Debug\net6.0\AlgorithmModule.deps.json
+D:\desktop\东华\DH\src\DH.UI\AlgorithmModule\bin\Debug\net6.0\AlgorithmModule.dll
+D:\desktop\东华\DH\src\DH.UI\AlgorithmModule\bin\Debug\net6.0\AlgorithmModule.pdb
+D:\desktop\东华\DH\src\DH.UI\AlgorithmModule\obj\Debug\net6.0\AlgorithmModule.GeneratedMSBuildEditorConfig.editorconfig
+D:\desktop\东华\DH\src\DH.UI\AlgorithmModule\obj\Debug\net6.0\AlgorithmModule.AssemblyInfoInputs.cache
+D:\desktop\东华\DH\src\DH.UI\AlgorithmModule\obj\Debug\net6.0\AlgorithmModule.AssemblyInfo.cs
+D:\desktop\东华\DH\src\DH.UI\AlgorithmModule\obj\Debug\net6.0\AlgorithmModule.csproj.CoreCompileInputs.cache
+D:\desktop\东华\DH\src\DH.UI\AlgorithmModule\obj\Debug\net6.0\AlgorithmModule.sourcelink.json
+D:\desktop\东华\DH\src\DH.UI\AlgorithmModule\obj\Debug\net6.0\AlgorithmModule.dll
+D:\desktop\东华\DH\src\DH.UI\AlgorithmModule\obj\Debug\net6.0\refint\AlgorithmModule.dll
+D:\desktop\东华\DH\src\DH.UI\AlgorithmModule\obj\Debug\net6.0\AlgorithmModule.pdb
+D:\desktop\东华\DH\src\DH.UI\AlgorithmModule\obj\Debug\net6.0\ref\AlgorithmModule.dll

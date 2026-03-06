@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+<usi:tdm version="1.0" xmlns:usi="http://www.ni.com/Schemas/USI/1_0">
+  <usi:model modelName="USI Identifier Mapping" modelVersion="1.0">
+    <usi:include nsUri="http://www.ni.com/DataModels/USI/1_0"/>
+ 
+    <usi:entity derivation="redeclaration" name="environment" superTypes="aoenvironment">
+      <usi:attribute base="name" name="name"/>
+      <usi:attribute base="meaning_of_aliases" name="meaning_of_aliases"/>
+      <usi:reference base="entity_mapping" inverse="environment" name="entity_mapping" reference="namemap"/>
+    </usi:entity>
+
+    <usi:entity derivation="redeclaration" name="namemap" superTypes="aonamemap">
+      <usi:attribute base="name" name="name"/>
+      <usi:attribute base="entity_name" name="entity_name"/>
+      <usi:attribute base="alias_names" name="alias_names"/>
+      <usi:reference base="environment" inverse="entity_mapping" name="environment" reference="environment"/>
+      <usi:reference base="attribute_mapping" inverse="name_mapping" name="attribute_mapping" reference="attributemap"/>
+    </usi:entity>
+
+    <usi:entity derivation="redeclaration" name="attributemap" superTypes="aoattributemap">
+      <usi:attribute base="name" name="name"/>
+      <usi:attribute base="attribute_name" name="attribute_name"/>
+      <usi:attribute base="alias_names" name="alias_names"/>
+      <usi:reference base="name_mapping" inverse="attribute_mapping" name="name_mapping" reference="namemap"/>
+    </usi:entity>
+  </usi:model>
+</usi:tdm>

@@ -1,0 +1,36 @@
+D:\desktop\东华\DH\src\DH.UI\AlgorithmModule\bin\Debug\net6.0-windows7.0\AlgorithmModule.deps.json
+D:\desktop\东华\DH\src\DH.UI\AlgorithmModule\bin\Debug\net6.0-windows7.0\AlgorithmModule.dll
+D:\desktop\东华\DH\src\DH.UI\AlgorithmModule\bin\Debug\net6.0-windows7.0\AlgorithmModule.pdb
+D:\desktop\东华\DH\src\DH.UI\AlgorithmModule\obj\Debug\net6.0-windows7.0\AlgorithmModule.GeneratedMSBuildEditorConfig.editorconfig
+D:\desktop\东华\DH\src\DH.UI\AlgorithmModule\obj\Debug\net6.0-windows7.0\AlgorithmModule.AssemblyInfoInputs.cache
+D:\desktop\东华\DH\src\DH.UI\AlgorithmModule\obj\Debug\net6.0-windows7.0\AlgorithmModule.AssemblyInfo.cs
+D:\desktop\东华\DH\src\DH.UI\AlgorithmModule\obj\Debug\net6.0-windows7.0\AlgorithmModule.csproj.CoreCompileInputs.cache
+D:\desktop\东华\DH\src\DH.UI\AlgorithmModule\obj\Debug\net6.0-windows7.0\AlgorithmModule.sourcelink.json
+D:\desktop\东华\DH\src\DH.UI\AlgorithmModule\obj\Debug\net6.0-windows7.0\AlgorithmModule.dll
+D:\desktop\东华\DH\src\DH.UI\AlgorithmModule\obj\Debug\net6.0-windows7.0\refint\AlgorithmModule.dll
+D:\desktop\东华\DH\src\DH.UI\AlgorithmModule\obj\Debug\net6.0-windows7.0\AlgorithmModule.pdb
+D:\desktop\东华\DH\src\DH.UI\AlgorithmModule\obj\Debug\net6.0-windows7.0\ref\AlgorithmModule.dll
+D:\desktop\东华性能最新测试\DH\src\DH.UI\AlgorithmModule\bin\Debug\net6.0-windows7.0\AlgorithmModule.deps.json
+D:\desktop\东华性能最新测试\DH\src\DH.UI\AlgorithmModule\bin\Debug\net6.0-windows7.0\AlgorithmModule.dll
+D:\desktop\东华性能最新测试\DH\src\DH.UI\AlgorithmModule\bin\Debug\net6.0-windows7.0\AlgorithmModule.pdb
+D:\desktop\东华性能最新测试\DH\src\DH.UI\AlgorithmModule\obj\Debug\net6.0-windows7.0\AlgorithmModule.GeneratedMSBuildEditorConfig.editorconfig
+D:\desktop\东华性能最新测试\DH\src\DH.UI\AlgorithmModule\obj\Debug\net6.0-windows7.0\AlgorithmModule.AssemblyInfoInputs.cache
+D:\desktop\东华性能最新测试\DH\src\DH.UI\AlgorithmModule\obj\Debug\net6.0-windows7.0\AlgorithmModule.AssemblyInfo.cs
+D:\desktop\东华性能最新测试\DH\src\DH.UI\AlgorithmModule\obj\Debug\net6.0-windows7.0\AlgorithmModule.csproj.CoreCompileInputs.cache
+D:\desktop\东华性能最新测试\DH\src\DH.UI\AlgorithmModule\obj\Debug\net6.0-windows7.0\AlgorithmModule.sourcelink.json
+D:\desktop\东华性能最新测试\DH\src\DH.UI\AlgorithmModule\obj\Debug\net6.0-windows7.0\AlgorithmModule.dll
+D:\desktop\东华性能最新测试\DH\src\DH.UI\AlgorithmModule\obj\Debug\net6.0-windows7.0\refint\AlgorithmModule.dll
+D:\desktop\东华性能最新测试\DH\src\DH.UI\AlgorithmModule\obj\Debug\net6.0-windows7.0\AlgorithmModule.pdb
+D:\desktop\东华性能最新测试\DH\src\DH.UI\AlgorithmModule\obj\Debug\net6.0-windows7.0\ref\AlgorithmModule.dll
+C:\DASH Project\DH\src\DH.UI\AlgorithmModule\bin\Debug\net6.0-windows7.0\AlgorithmModule.deps.json
+C:\DASH Project\DH\src\DH.UI\AlgorithmModule\bin\Debug\net6.0-windows7.0\AlgorithmModule.dll
+C:\DASH Project\DH\src\DH.UI\AlgorithmModule\bin\Debug\net6.0-windows7.0\AlgorithmModule.pdb
+C:\DASH Project\DH\src\DH.UI\AlgorithmModule\obj\Debug\net6.0-windows7.0\AlgorithmModule.GeneratedMSBuildEditorConfig.editorconfig
+C:\DASH Project\DH\src\DH.UI\AlgorithmModule\obj\Debug\net6.0-windows7.0\AlgorithmModule.AssemblyInfoInputs.cache
+C:\DASH Project\DH\src\DH.UI\AlgorithmModule\obj\Debug\net6.0-windows7.0\AlgorithmModule.AssemblyInfo.cs
+C:\DASH Project\DH\src\DH.UI\AlgorithmModule\obj\Debug\net6.0-windows7.0\AlgorithmModule.csproj.CoreCompileInputs.cache
+C:\DASH Project\DH\src\DH.UI\AlgorithmModule\obj\Debug\net6.0-windows7.0\AlgorithmModule.sourcelink.json
+C:\DASH Project\DH\src\DH.UI\AlgorithmModule\obj\Debug\net6.0-windows7.0\AlgorithmModule.dll
+C:\DASH Project\DH\src\DH.UI\AlgorithmModule\obj\Debug\net6.0-windows7.0\refint\AlgorithmModule.dll
+C:\DASH Project\DH\src\DH.UI\AlgorithmModule\obj\Debug\net6.0-windows7.0\AlgorithmModule.pdb
+C:\DASH Project\DH\src\DH.UI\AlgorithmModule\obj\Debug\net6.0-windows7.0\ref\AlgorithmModule.dll

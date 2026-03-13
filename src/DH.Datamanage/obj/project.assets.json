@@ -32,14 +32,14 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\DASH Project\\DH\\src\\DH.Datamanage\\DH.Datamanage.csproj",
+      "projectUniqueName": "C:\\GIt\\dhdas\\src\\DH.Datamanage\\DH.Datamanage.csproj",
       "projectName": "DH.Datamanage",
-      "projectPath": "C:\\DASH Project\\DH\\src\\DH.Datamanage\\DH.Datamanage.csproj",
+      "projectPath": "C:\\GIt\\dhdas\\src\\DH.Datamanage\\DH.Datamanage.csproj",
       "packagesPath": "C:\\Users\\26453\\.nuget\\packages\\",
-      "outputPath": "C:\\DASH Project\\DH\\src\\DH.Datamanage\\obj\\",
+      "outputPath": "C:\\GIt\\dhdas\\src\\DH.Datamanage\\obj\\",
       "projectStyle": "PackageReference",
       "configFilePaths": [
-        "C:\\DASH Project\\DH\\NuGet.Config",
+        "C:\\GIt\\dhdas\\NuGet.Config",
         "C:\\Users\\26453\\AppData\\Roaming\\NuGet\\NuGet.Config",
         "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
       ],
@@ -53,8 +53,8 @@
         "net6.0-windows7.0": {
           "targetAlias": "net6.0-windows7.0",
           "projectReferences": {
-            "C:\\DASH Project\\DH\\src\\DH.Contracts\\DH.Contracts.csproj": {
-              "projectPath": "C:\\DASH Project\\DH\\src\\DH.Contracts\\DH.Contracts.csproj"
+            "C:\\GIt\\dhdas\\src\\DH.Contracts\\DH.Contracts.csproj": {
+              "projectPath": "C:\\GIt\\dhdas\\src\\DH.Contracts\\DH.Contracts.csproj"
             }
           }
         }

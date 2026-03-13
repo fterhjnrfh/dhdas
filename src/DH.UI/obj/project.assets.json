@@ -5092,14 +5092,14 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\DASH Project\\DH\\src\\DH.UI\\NewAvalonia.csproj",
+      "projectUniqueName": "C:\\GIt\\dhdas\\src\\DH.UI\\NewAvalonia.csproj",
       "projectName": "NewAvalonia",
-      "projectPath": "C:\\DASH Project\\DH\\src\\DH.UI\\NewAvalonia.csproj",
+      "projectPath": "C:\\GIt\\dhdas\\src\\DH.UI\\NewAvalonia.csproj",
       "packagesPath": "C:\\Users\\26453\\.nuget\\packages\\",
-      "outputPath": "C:\\DASH Project\\DH\\src\\DH.UI\\obj\\",
+      "outputPath": "C:\\GIt\\dhdas\\src\\DH.UI\\obj\\",
       "projectStyle": "PackageReference",
       "configFilePaths": [
-        "C:\\DASH Project\\DH\\NuGet.Config",
+        "C:\\GIt\\dhdas\\NuGet.Config",
         "C:\\Users\\26453\\AppData\\Roaming\\NuGet\\NuGet.Config",
         "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
       ],
@@ -5113,11 +5113,11 @@
         "net6.0-windows7.0": {
           "targetAlias": "net6.0-windows7.0",
           "projectReferences": {
-            "C:\\DASH Project\\DH\\src\\DH.Driver\\DH.Driver.csproj": {
-              "projectPath": "C:\\DASH Project\\DH\\src\\DH.Driver\\DH.Driver.csproj"
+            "C:\\GIt\\dhdas\\src\\DH.Driver\\DH.Driver.csproj": {
+              "projectPath": "C:\\GIt\\dhdas\\src\\DH.Driver\\DH.Driver.csproj"
             },
-            "C:\\DASH Project\\DH\\src\\DH.UI\\AlgorithmModule\\AlgorithmModule.csproj": {
-              "projectPath": "C:\\DASH Project\\DH\\src\\DH.UI\\AlgorithmModule\\AlgorithmModule.csproj"
+            "C:\\GIt\\dhdas\\src\\DH.UI\\AlgorithmModule\\AlgorithmModule.csproj": {
+              "projectPath": "C:\\GIt\\dhdas\\src\\DH.UI\\AlgorithmModule\\AlgorithmModule.csproj"
             }
           }
         }

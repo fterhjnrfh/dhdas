@@ -46,3 +46,19 @@ C:\DASH Project\DH\src\DH.Datamanage\obj\Debug\net6.0-windows7.0\DH.Datamanage.d
 C:\DASH Project\DH\src\DH.Datamanage\obj\Debug\net6.0-windows7.0\refint\DH.Datamanage.dll
 C:\DASH Project\DH\src\DH.Datamanage\obj\Debug\net6.0-windows7.0\DH.Datamanage.pdb
 C:\DASH Project\DH\src\DH.Datamanage\obj\Debug\net6.0-windows7.0\ref\DH.Datamanage.dll
+C:\GIt\dhdas\src\DH.Datamanage\bin\Debug\net6.0-windows7.0\DH.Datamanage.deps.json
+C:\GIt\dhdas\src\DH.Datamanage\bin\Debug\net6.0-windows7.0\DH.Datamanage.dll
+C:\GIt\dhdas\src\DH.Datamanage\bin\Debug\net6.0-windows7.0\DH.Datamanage.pdb
+C:\GIt\dhdas\src\DH.Datamanage\bin\Debug\net6.0-windows7.0\DH.Contracts.dll
+C:\GIt\dhdas\src\DH.Datamanage\bin\Debug\net6.0-windows7.0\DH.Contracts.pdb
+C:\GIt\dhdas\src\DH.Datamanage\obj\Debug\net6.0-windows7.0\DH.Datamanage.csproj.AssemblyReference.cache
+C:\GIt\dhdas\src\DH.Datamanage\obj\Debug\net6.0-windows7.0\DH.Datamanage.GeneratedMSBuildEditorConfig.editorconfig
+C:\GIt\dhdas\src\DH.Datamanage\obj\Debug\net6.0-windows7.0\DH.Datamanage.AssemblyInfoInputs.cache
+C:\GIt\dhdas\src\DH.Datamanage\obj\Debug\net6.0-windows7.0\DH.Datamanage.AssemblyInfo.cs
+C:\GIt\dhdas\src\DH.Datamanage\obj\Debug\net6.0-windows7.0\DH.Datamanage.csproj.CoreCompileInputs.cache
+C:\GIt\dhdas\src\DH.Datamanage\obj\Debug\net6.0-windows7.0\DH.Datamanage.sourcelink.json
+C:\GIt\dhdas\src\DH.Datamanage\obj\Debug\net6.0-windows7.0\DH.Datam.7C7361E4.Up2Date
+C:\GIt\dhdas\src\DH.Datamanage\obj\Debug\net6.0-windows7.0\DH.Datamanage.dll
+C:\GIt\dhdas\src\DH.Datamanage\obj\Debug\net6.0-windows7.0\refint\DH.Datamanage.dll
+C:\GIt\dhdas\src\DH.Datamanage\obj\Debug\net6.0-windows7.0\DH.Datamanage.pdb
+C:\GIt\dhdas\src\DH.Datamanage\obj\Debug\net6.0-windows7.0\ref\DH.Datamanage.dll

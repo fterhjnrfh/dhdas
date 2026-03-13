@@ -52,3 +52,21 @@ C:\DASH Project\DH\src\DH.Algorithms\obj\Debug\net6.0-windows7.0\DH.Algorithms.d
 C:\DASH Project\DH\src\DH.Algorithms\obj\Debug\net6.0-windows7.0\refint\DH.Algorithms.dll
 C:\DASH Project\DH\src\DH.Algorithms\obj\Debug\net6.0-windows7.0\DH.Algorithms.pdb
 C:\DASH Project\DH\src\DH.Algorithms\obj\Debug\net6.0-windows7.0\ref\DH.Algorithms.dll
+C:\GIt\dhdas\src\DH.Algorithms\bin\Debug\net6.0-windows7.0\DH.Algorithms.deps.json
+C:\GIt\dhdas\src\DH.Algorithms\bin\Debug\net6.0-windows7.0\DH.Algorithms.dll
+C:\GIt\dhdas\src\DH.Algorithms\bin\Debug\net6.0-windows7.0\DH.Algorithms.pdb
+C:\GIt\dhdas\src\DH.Algorithms\bin\Debug\net6.0-windows7.0\DH.Contracts.dll
+C:\GIt\dhdas\src\DH.Algorithms\bin\Debug\net6.0-windows7.0\DH.Datamanage.dll
+C:\GIt\dhdas\src\DH.Algorithms\bin\Debug\net6.0-windows7.0\DH.Contracts.pdb
+C:\GIt\dhdas\src\DH.Algorithms\bin\Debug\net6.0-windows7.0\DH.Datamanage.pdb
+C:\GIt\dhdas\src\DH.Algorithms\obj\Debug\net6.0-windows7.0\DH.Algorithms.csproj.AssemblyReference.cache
+C:\GIt\dhdas\src\DH.Algorithms\obj\Debug\net6.0-windows7.0\DH.Algorithms.GeneratedMSBuildEditorConfig.editorconfig
+C:\GIt\dhdas\src\DH.Algorithms\obj\Debug\net6.0-windows7.0\DH.Algorithms.AssemblyInfoInputs.cache
+C:\GIt\dhdas\src\DH.Algorithms\obj\Debug\net6.0-windows7.0\DH.Algorithms.AssemblyInfo.cs
+C:\GIt\dhdas\src\DH.Algorithms\obj\Debug\net6.0-windows7.0\DH.Algorithms.csproj.CoreCompileInputs.cache
+C:\GIt\dhdas\src\DH.Algorithms\obj\Debug\net6.0-windows7.0\DH.Algorithms.sourcelink.json
+C:\GIt\dhdas\src\DH.Algorithms\obj\Debug\net6.0-windows7.0\DH.Algor.4B7F03C3.Up2Date
+C:\GIt\dhdas\src\DH.Algorithms\obj\Debug\net6.0-windows7.0\DH.Algorithms.dll
+C:\GIt\dhdas\src\DH.Algorithms\obj\Debug\net6.0-windows7.0\refint\DH.Algorithms.dll
+C:\GIt\dhdas\src\DH.Algorithms\obj\Debug\net6.0-windows7.0\DH.Algorithms.pdb
+C:\GIt\dhdas\src\DH.Algorithms\obj\Debug\net6.0-windows7.0\ref\DH.Algorithms.dll

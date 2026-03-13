@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "nMC7LVcUuzg=",
+  "dgSpecHash": "AssU2vMrZpo=",
   "success": true,
-  "projectFilePath": "C:\\DASH Project\\DH\\src\\DH.Display\\DH.Display.csproj",
+  "projectFilePath": "C:\\GIt\\dhdas\\src\\DH.Display\\DH.Display.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\26453\\.nuget\\packages\\avalonia\\11.0.2\\avalonia.11.0.2.nupkg.sha512",
     "C:\\Users\\26453\\.nuget\\packages\\avalonia.buildservices\\0.0.28\\avalonia.buildservices.0.0.28.nupkg.sha512",

@@ -5708,14 +5708,14 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\DASH Project\\DH\\DH.AppHost.csproj",
+      "projectUniqueName": "C:\\GIt\\dhdas\\DH.AppHost.csproj",
       "projectName": "DH.AppHost",
-      "projectPath": "C:\\DASH Project\\DH\\DH.AppHost.csproj",
+      "projectPath": "C:\\GIt\\dhdas\\DH.AppHost.csproj",
       "packagesPath": "C:\\Users\\26453\\.nuget\\packages\\",
-      "outputPath": "C:\\DASH Project\\DH\\obj\\",
+      "outputPath": "C:\\GIt\\dhdas\\obj\\",
       "projectStyle": "PackageReference",
       "configFilePaths": [
-        "C:\\DASH Project\\DH\\NuGet.Config",
+        "C:\\GIt\\dhdas\\NuGet.Config",
         "C:\\Users\\26453\\AppData\\Roaming\\NuGet\\NuGet.Config",
         "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
       ],
@@ -5729,8 +5729,8 @@
         "net6.0-windows7.0": {
           "targetAlias": "net6.0-windows7.0",
           "projectReferences": {
-            "C:\\DASH Project\\DH\\src\\DH.Client.App\\DH.Client.App.csproj": {
-              "projectPath": "C:\\DASH Project\\DH\\src\\DH.Client.App\\DH.Client.App.csproj"
+            "C:\\GIt\\dhdas\\src\\DH.Client.App\\DH.Client.App.csproj": {
+              "projectPath": "C:\\GIt\\dhdas\\src\\DH.Client.App\\DH.Client.App.csproj"
             }
           }
         }

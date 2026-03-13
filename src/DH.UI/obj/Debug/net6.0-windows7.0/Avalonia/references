@@ -1,4 +1,4 @@
-C:\DASH Project\DH\src\DH.UI\AlgorithmModule\obj\Debug\net6.0-windows7.0\ref\AlgorithmModule.dll
+C:\GIt\dhdas\src\DH.UI\AlgorithmModule\obj\Debug\net6.0-windows7.0\ref\AlgorithmModule.dll
 C:\Users\26453\.nuget\packages\avalonia\11.0.10\ref\net6.0\Avalonia.Base.dll
 C:\Users\26453\.nuget\packages\avalonia.controls.colorpicker\11.0.10\lib\net6.0\Avalonia.Controls.ColorPicker.dll
 C:\Users\26453\.nuget\packages\avalonia.controls.datagrid\11.0.10\lib\net6.0\Avalonia.Controls.DataGrid.dll
@@ -24,10 +24,10 @@ C:\Users\26453\.nuget\packages\avalonia.win32\11.0.10\lib\net6.0\Avalonia.Win32.
 C:\Users\26453\.nuget\packages\avalonia.x11\11.0.10\lib\net6.0\Avalonia.X11.dll
 C:\Users\26453\.nuget\packages\colortextblock.avalonia\11.0.0-d1\lib\net6.0\ColorTextBlock.Avalonia.dll
 C:\Users\26453\.nuget\packages\communitytoolkit.mvvm\8.2.1\lib\net6.0\CommunityToolkit.Mvvm.dll
-C:\DASH Project\DH\src\DH.Configmanage\obj\Debug\net6.0-windows7.0\ref\DH.Configmanage.dll
-C:\DASH Project\DH\src\DH.Contracts\obj\Debug\net6.0-windows7.0\ref\DH.Contracts.dll
-C:\DASH Project\DH\src\DH.Datamanage\obj\Debug\net6.0-windows7.0\ref\DH.Datamanage.dll
-C:\DASH Project\DH\src\DH.Driver\obj\Debug\net6.0-windows7.0\ref\DH.Driver.dll
+C:\GIt\dhdas\src\DH.Configmanage\obj\Debug\net6.0-windows7.0\ref\DH.Configmanage.dll
+C:\GIt\dhdas\src\DH.Contracts\obj\Debug\net6.0-windows7.0\ref\DH.Contracts.dll
+C:\GIt\dhdas\src\DH.Datamanage\obj\Debug\net6.0-windows7.0\ref\DH.Datamanage.dll
+C:\GIt\dhdas\src\DH.Driver\obj\Debug\net6.0-windows7.0\ref\DH.Driver.dll
 C:\Users\26453\.nuget\packages\dialoghost.avalonia\0.7.5\lib\netstandard2.0\DialogHost.Avalonia.dll
 C:\Users\26453\.nuget\packages\harfbuzzsharp\7.3.0\lib\net6.0\HarfBuzzSharp.dll
 C:\Users\26453\.nuget\packages\markdown.avalonia.tight\11.0.0-d1\lib\net6.0\Markdown.Avalonia.dll

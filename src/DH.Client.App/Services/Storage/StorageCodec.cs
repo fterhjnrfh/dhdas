@@ -7,6 +7,7 @@ using System.Linq;
 using System.Text;
 using K4os.Compression.LZ4;
 using ZstdSharp;
+using ZstdSharp.Unsafe;
 using Snappier;
 
 namespace DH.Client.App.Services.Storage
@@ -89,7 +90,7 @@ namespace DH.Client.App.Services.Storage
             {
                 case CompressionType.LZ4:
                 {
-                    // LZ4Level: 0(L00_FAST) ~ 16, 映射到 LZ4Level 枚举
+                    // LZ4Level: 0(L00_FAST) ~ 12, 映射到 LZ4Level 枚举
                     var level = (K4os.Compression.LZ4.LZ4Level)Math.Clamp(opts.LZ4Level, 0, 12);
                     var buf = new byte[LZ4Codec.MaximumOutputSize(rawBytes.Length)];
                     int size = LZ4Codec.Encode(rawBytes, 0, rawBytes.Length, buf, 0, buf.Length, level);
@@ -105,9 +106,11 @@ namespace DH.Client.App.Services.Storage
                 }
                 case CompressionType.Zstd:
                 {
-                    // Zstd: level 1~22
+                    // Zstd: level 1~22, windowLog 10~31
                     int level = Math.Clamp(opts.ZstdLevel, 1, 22);
+                    int windowLog = Math.Clamp(opts.ZstdWindowLog, 10, 31);
                     using var compressor = new Compressor(level);
+                    compressor.SetParameter(ZSTD_cParameter.ZSTD_c_windowLog, windowLog);
                     var compressed = compressor.Wrap(rawBytes);
                     var bytes = compressed.ToArray();
                     return (bytes, bytes.Length);

@@ -34,3 +34,15 @@ C:\DASH Project\DH\src\DH.Contracts\obj\Debug\net6.0-windows7.0\DH.Contracts.dll
 C:\DASH Project\DH\src\DH.Contracts\obj\Debug\net6.0-windows7.0\refint\DH.Contracts.dll
 C:\DASH Project\DH\src\DH.Contracts\obj\Debug\net6.0-windows7.0\DH.Contracts.pdb
 C:\DASH Project\DH\src\DH.Contracts\obj\Debug\net6.0-windows7.0\ref\DH.Contracts.dll
+C:\GIt\dhdas\src\DH.Contracts\bin\Debug\net6.0-windows7.0\DH.Contracts.deps.json
+C:\GIt\dhdas\src\DH.Contracts\bin\Debug\net6.0-windows7.0\DH.Contracts.dll
+C:\GIt\dhdas\src\DH.Contracts\bin\Debug\net6.0-windows7.0\DH.Contracts.pdb
+C:\GIt\dhdas\src\DH.Contracts\obj\Debug\net6.0-windows7.0\DH.Contracts.GeneratedMSBuildEditorConfig.editorconfig
+C:\GIt\dhdas\src\DH.Contracts\obj\Debug\net6.0-windows7.0\DH.Contracts.AssemblyInfoInputs.cache
+C:\GIt\dhdas\src\DH.Contracts\obj\Debug\net6.0-windows7.0\DH.Contracts.AssemblyInfo.cs
+C:\GIt\dhdas\src\DH.Contracts\obj\Debug\net6.0-windows7.0\DH.Contracts.csproj.CoreCompileInputs.cache
+C:\GIt\dhdas\src\DH.Contracts\obj\Debug\net6.0-windows7.0\DH.Contracts.sourcelink.json
+C:\GIt\dhdas\src\DH.Contracts\obj\Debug\net6.0-windows7.0\DH.Contracts.dll
+C:\GIt\dhdas\src\DH.Contracts\obj\Debug\net6.0-windows7.0\refint\DH.Contracts.dll
+C:\GIt\dhdas\src\DH.Contracts\obj\Debug\net6.0-windows7.0\DH.Contracts.pdb
+C:\GIt\dhdas\src\DH.Contracts\obj\Debug\net6.0-windows7.0\ref\DH.Contracts.dll

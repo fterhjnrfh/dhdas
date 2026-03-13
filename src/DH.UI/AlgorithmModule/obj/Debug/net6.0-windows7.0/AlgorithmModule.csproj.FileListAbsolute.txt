@@ -34,3 +34,15 @@ C:\DASH Project\DH\src\DH.UI\AlgorithmModule\obj\Debug\net6.0-windows7.0\Algorit
 C:\DASH Project\DH\src\DH.UI\AlgorithmModule\obj\Debug\net6.0-windows7.0\refint\AlgorithmModule.dll
 C:\DASH Project\DH\src\DH.UI\AlgorithmModule\obj\Debug\net6.0-windows7.0\AlgorithmModule.pdb
 C:\DASH Project\DH\src\DH.UI\AlgorithmModule\obj\Debug\net6.0-windows7.0\ref\AlgorithmModule.dll
+C:\GIt\dhdas\src\DH.UI\AlgorithmModule\bin\Debug\net6.0-windows7.0\AlgorithmModule.deps.json
+C:\GIt\dhdas\src\DH.UI\AlgorithmModule\bin\Debug\net6.0-windows7.0\AlgorithmModule.dll
+C:\GIt\dhdas\src\DH.UI\AlgorithmModule\bin\Debug\net6.0-windows7.0\AlgorithmModule.pdb
+C:\GIt\dhdas\src\DH.UI\AlgorithmModule\obj\Debug\net6.0-windows7.0\AlgorithmModule.GeneratedMSBuildEditorConfig.editorconfig
+C:\GIt\dhdas\src\DH.UI\AlgorithmModule\obj\Debug\net6.0-windows7.0\AlgorithmModule.AssemblyInfoInputs.cache
+C:\GIt\dhdas\src\DH.UI\AlgorithmModule\obj\Debug\net6.0-windows7.0\AlgorithmModule.AssemblyInfo.cs
+C:\GIt\dhdas\src\DH.UI\AlgorithmModule\obj\Debug\net6.0-windows7.0\AlgorithmModule.csproj.CoreCompileInputs.cache
+C:\GIt\dhdas\src\DH.UI\AlgorithmModule\obj\Debug\net6.0-windows7.0\AlgorithmModule.sourcelink.json
+C:\GIt\dhdas\src\DH.UI\AlgorithmModule\obj\Debug\net6.0-windows7.0\AlgorithmModule.dll
+C:\GIt\dhdas\src\DH.UI\AlgorithmModule\obj\Debug\net6.0-windows7.0\refint\AlgorithmModule.dll
+C:\GIt\dhdas\src\DH.UI\AlgorithmModule\obj\Debug\net6.0-windows7.0\AlgorithmModule.pdb
+C:\GIt\dhdas\src\DH.UI\AlgorithmModule\obj\Debug\net6.0-windows7.0\ref\AlgorithmModule.dll

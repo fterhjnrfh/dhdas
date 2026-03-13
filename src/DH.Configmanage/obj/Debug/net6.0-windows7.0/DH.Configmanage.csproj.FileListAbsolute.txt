@@ -46,3 +46,19 @@ C:\DASH Project\DH\src\DH.Configmanage\obj\Debug\net6.0-windows7.0\DH.Configmana
 C:\DASH Project\DH\src\DH.Configmanage\obj\Debug\net6.0-windows7.0\refint\DH.Configmanage.dll
 C:\DASH Project\DH\src\DH.Configmanage\obj\Debug\net6.0-windows7.0\DH.Configmanage.pdb
 C:\DASH Project\DH\src\DH.Configmanage\obj\Debug\net6.0-windows7.0\ref\DH.Configmanage.dll
+C:\GIt\dhdas\src\DH.Configmanage\bin\Debug\net6.0-windows7.0\DH.Configmanage.deps.json
+C:\GIt\dhdas\src\DH.Configmanage\bin\Debug\net6.0-windows7.0\DH.Configmanage.dll
+C:\GIt\dhdas\src\DH.Configmanage\bin\Debug\net6.0-windows7.0\DH.Configmanage.pdb
+C:\GIt\dhdas\src\DH.Configmanage\bin\Debug\net6.0-windows7.0\DH.Contracts.dll
+C:\GIt\dhdas\src\DH.Configmanage\bin\Debug\net6.0-windows7.0\DH.Contracts.pdb
+C:\GIt\dhdas\src\DH.Configmanage\obj\Debug\net6.0-windows7.0\DH.Configmanage.csproj.AssemblyReference.cache
+C:\GIt\dhdas\src\DH.Configmanage\obj\Debug\net6.0-windows7.0\DH.Configmanage.GeneratedMSBuildEditorConfig.editorconfig
+C:\GIt\dhdas\src\DH.Configmanage\obj\Debug\net6.0-windows7.0\DH.Configmanage.AssemblyInfoInputs.cache
+C:\GIt\dhdas\src\DH.Configmanage\obj\Debug\net6.0-windows7.0\DH.Configmanage.AssemblyInfo.cs
+C:\GIt\dhdas\src\DH.Configmanage\obj\Debug\net6.0-windows7.0\DH.Configmanage.csproj.CoreCompileInputs.cache
+C:\GIt\dhdas\src\DH.Configmanage\obj\Debug\net6.0-windows7.0\DH.Configmanage.sourcelink.json
+C:\GIt\dhdas\src\DH.Configmanage\obj\Debug\net6.0-windows7.0\DH.Confi.0B237972.Up2Date
+C:\GIt\dhdas\src\DH.Configmanage\obj\Debug\net6.0-windows7.0\DH.Configmanage.dll
+C:\GIt\dhdas\src\DH.Configmanage\obj\Debug\net6.0-windows7.0\refint\DH.Configmanage.dll
+C:\GIt\dhdas\src\DH.Configmanage\obj\Debug\net6.0-windows7.0\DH.Configmanage.pdb
+C:\GIt\dhdas\src\DH.Configmanage\obj\Debug\net6.0-windows7.0\ref\DH.Configmanage.dll

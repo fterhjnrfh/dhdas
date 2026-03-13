@@ -58,3 +58,23 @@ C:\DASH Project\DH\src\DH.Driver\obj\Debug\net6.0-windows7.0\DH.Driver.dll
 C:\DASH Project\DH\src\DH.Driver\obj\Debug\net6.0-windows7.0\refint\DH.Driver.dll
 C:\DASH Project\DH\src\DH.Driver\obj\Debug\net6.0-windows7.0\DH.Driver.pdb
 C:\DASH Project\DH\src\DH.Driver\obj\Debug\net6.0-windows7.0\ref\DH.Driver.dll
+C:\GIt\dhdas\src\DH.Driver\bin\Debug\net6.0-windows7.0\DH.Driver.deps.json
+C:\GIt\dhdas\src\DH.Driver\bin\Debug\net6.0-windows7.0\DH.Driver.dll
+C:\GIt\dhdas\src\DH.Driver\bin\Debug\net6.0-windows7.0\DH.Driver.pdb
+C:\GIt\dhdas\src\DH.Driver\bin\Debug\net6.0-windows7.0\DH.Configmanage.dll
+C:\GIt\dhdas\src\DH.Driver\bin\Debug\net6.0-windows7.0\DH.Contracts.dll
+C:\GIt\dhdas\src\DH.Driver\bin\Debug\net6.0-windows7.0\DH.Datamanage.dll
+C:\GIt\dhdas\src\DH.Driver\bin\Debug\net6.0-windows7.0\DH.Datamanage.pdb
+C:\GIt\dhdas\src\DH.Driver\bin\Debug\net6.0-windows7.0\DH.Contracts.pdb
+C:\GIt\dhdas\src\DH.Driver\bin\Debug\net6.0-windows7.0\DH.Configmanage.pdb
+C:\GIt\dhdas\src\DH.Driver\obj\Debug\net6.0-windows7.0\DH.Driver.csproj.AssemblyReference.cache
+C:\GIt\dhdas\src\DH.Driver\obj\Debug\net6.0-windows7.0\DH.Driver.GeneratedMSBuildEditorConfig.editorconfig
+C:\GIt\dhdas\src\DH.Driver\obj\Debug\net6.0-windows7.0\DH.Driver.AssemblyInfoInputs.cache
+C:\GIt\dhdas\src\DH.Driver\obj\Debug\net6.0-windows7.0\DH.Driver.AssemblyInfo.cs
+C:\GIt\dhdas\src\DH.Driver\obj\Debug\net6.0-windows7.0\DH.Driver.csproj.CoreCompileInputs.cache
+C:\GIt\dhdas\src\DH.Driver\obj\Debug\net6.0-windows7.0\DH.Driver.sourcelink.json
+C:\GIt\dhdas\src\DH.Driver\obj\Debug\net6.0-windows7.0\DH.Driver.csproj.Up2Date
+C:\GIt\dhdas\src\DH.Driver\obj\Debug\net6.0-windows7.0\DH.Driver.dll
+C:\GIt\dhdas\src\DH.Driver\obj\Debug\net6.0-windows7.0\refint\DH.Driver.dll
+C:\GIt\dhdas\src\DH.Driver\obj\Debug\net6.0-windows7.0\DH.Driver.pdb
+C:\GIt\dhdas\src\DH.Driver\obj\Debug\net6.0-windows7.0\ref\DH.Driver.dll

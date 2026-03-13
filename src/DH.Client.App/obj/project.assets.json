@@ -5690,14 +5690,14 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\DASH Project\\DH\\src\\DH.Client.App\\DH.Client.App.csproj",
+      "projectUniqueName": "C:\\GIt\\dhdas\\src\\DH.Client.App\\DH.Client.App.csproj",
       "projectName": "DH.Client.App",
-      "projectPath": "C:\\DASH Project\\DH\\src\\DH.Client.App\\DH.Client.App.csproj",
+      "projectPath": "C:\\GIt\\dhdas\\src\\DH.Client.App\\DH.Client.App.csproj",
       "packagesPath": "C:\\Users\\26453\\.nuget\\packages\\",
-      "outputPath": "C:\\DASH Project\\DH\\src\\DH.Client.App\\obj\\",
+      "outputPath": "C:\\GIt\\dhdas\\src\\DH.Client.App\\obj\\",
       "projectStyle": "PackageReference",
       "configFilePaths": [
-        "C:\\DASH Project\\DH\\NuGet.Config",
+        "C:\\GIt\\dhdas\\NuGet.Config",
         "C:\\Users\\26453\\AppData\\Roaming\\NuGet\\NuGet.Config",
         "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
       ],
@@ -5711,20 +5711,20 @@
         "net6.0-windows7.0": {
           "targetAlias": "net6.0-windows7.0",
           "projectReferences": {
-            "C:\\DASH Project\\DH\\src\\DH.Configmanage\\DH.Configmanage.csproj": {
-              "projectPath": "C:\\DASH Project\\DH\\src\\DH.Configmanage\\DH.Configmanage.csproj"
+            "C:\\GIt\\dhdas\\src\\DH.Configmanage\\DH.Configmanage.csproj": {
+              "projectPath": "C:\\GIt\\dhdas\\src\\DH.Configmanage\\DH.Configmanage.csproj"
             },
-            "C:\\DASH Project\\DH\\src\\DH.Contracts\\DH.Contracts.csproj": {
-              "projectPath": "C:\\DASH Project\\DH\\src\\DH.Contracts\\DH.Contracts.csproj"
+            "C:\\GIt\\dhdas\\src\\DH.Contracts\\DH.Contracts.csproj": {
+              "projectPath": "C:\\GIt\\dhdas\\src\\DH.Contracts\\DH.Contracts.csproj"
             },
-            "C:\\DASH Project\\DH\\src\\DH.Display\\DH.Display.csproj": {
-              "projectPath": "C:\\DASH Project\\DH\\src\\DH.Display\\DH.Display.csproj"
+            "C:\\GIt\\dhdas\\src\\DH.Display\\DH.Display.csproj": {
+              "projectPath": "C:\\GIt\\dhdas\\src\\DH.Display\\DH.Display.csproj"
             },
-            "C:\\DASH Project\\DH\\src\\DH.Driver\\DH.Driver.csproj": {
-              "projectPath": "C:\\DASH Project\\DH\\src\\DH.Driver\\DH.Driver.csproj"
+            "C:\\GIt\\dhdas\\src\\DH.Driver\\DH.Driver.csproj": {
+              "projectPath": "C:\\GIt\\dhdas\\src\\DH.Driver\\DH.Driver.csproj"
             },
-            "C:\\DASH Project\\DH\\src\\DH.UI\\NewAvalonia.csproj": {
-              "projectPath": "C:\\DASH Project\\DH\\src\\DH.UI\\NewAvalonia.csproj"
+            "C:\\GIt\\dhdas\\src\\DH.UI\\NewAvalonia.csproj": {
+              "projectPath": "C:\\GIt\\dhdas\\src\\DH.UI\\NewAvalonia.csproj"
             }
           }
         }

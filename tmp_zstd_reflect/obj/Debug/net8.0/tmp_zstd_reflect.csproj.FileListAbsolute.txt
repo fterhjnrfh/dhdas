@@ -1,0 +1,15 @@
+c:\GIt\dhdas\tmp_zstd_reflect\bin\Debug\net8.0\tmp_zstd_reflect.exe
+c:\GIt\dhdas\tmp_zstd_reflect\bin\Debug\net8.0\tmp_zstd_reflect.deps.json
+c:\GIt\dhdas\tmp_zstd_reflect\bin\Debug\net8.0\tmp_zstd_reflect.runtimeconfig.json
+c:\GIt\dhdas\tmp_zstd_reflect\bin\Debug\net8.0\tmp_zstd_reflect.dll
+c:\GIt\dhdas\tmp_zstd_reflect\bin\Debug\net8.0\tmp_zstd_reflect.pdb
+c:\GIt\dhdas\tmp_zstd_reflect\obj\Debug\net8.0\tmp_zstd_reflect.GeneratedMSBuildEditorConfig.editorconfig
+c:\GIt\dhdas\tmp_zstd_reflect\obj\Debug\net8.0\tmp_zstd_reflect.AssemblyInfoInputs.cache
+c:\GIt\dhdas\tmp_zstd_reflect\obj\Debug\net8.0\tmp_zstd_reflect.AssemblyInfo.cs
+c:\GIt\dhdas\tmp_zstd_reflect\obj\Debug\net8.0\tmp_zstd_reflect.csproj.CoreCompileInputs.cache
+c:\GIt\dhdas\tmp_zstd_reflect\obj\Debug\net8.0\tmp_zstd_reflect.sourcelink.json
+c:\GIt\dhdas\tmp_zstd_reflect\obj\Debug\net8.0\tmp_zstd_reflect.dll
+c:\GIt\dhdas\tmp_zstd_reflect\obj\Debug\net8.0\refint\tmp_zstd_reflect.dll
+c:\GIt\dhdas\tmp_zstd_reflect\obj\Debug\net8.0\tmp_zstd_reflect.pdb
+c:\GIt\dhdas\tmp_zstd_reflect\obj\Debug\net8.0\tmp_zstd_reflect.genruntimeconfig.cache
+c:\GIt\dhdas\tmp_zstd_reflect\obj\Debug\net8.0\ref\tmp_zstd_reflect.dll

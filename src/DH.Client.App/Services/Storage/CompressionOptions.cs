@@ -7,7 +7,7 @@ namespace DH.Client.App.Services.Storage;
 public sealed class CompressionOptions
 {
     /// <summary>
-    /// LZ4 压缩级别 (0-16)：0=快速, 16=最优
+    /// LZ4 压缩级别 (0-12)：0=快速, 12=最优
     /// </summary>
     public int LZ4Level { get; set; } = 0;
 

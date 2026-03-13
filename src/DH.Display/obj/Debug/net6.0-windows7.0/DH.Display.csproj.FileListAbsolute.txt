@@ -67,3 +67,26 @@ C:\DASH Project\DH\src\DH.Display\obj\Debug\net6.0-windows7.0\DH.Display.dll
 C:\DASH Project\DH\src\DH.Display\obj\Debug\net6.0-windows7.0\refint\DH.Display.dll
 C:\DASH Project\DH\src\DH.Display\obj\Debug\net6.0-windows7.0\DH.Display.pdb
 C:\DASH Project\DH\src\DH.Display\obj\Debug\net6.0-windows7.0\ref\DH.Display.dll
+C:\GIt\dhdas\src\DH.Display\bin\Debug\net6.0-windows7.0\DH.Display.deps.json
+C:\GIt\dhdas\src\DH.Display\bin\Debug\net6.0-windows7.0\DH.Display.dll
+C:\GIt\dhdas\src\DH.Display\bin\Debug\net6.0-windows7.0\DH.Display.pdb
+C:\GIt\dhdas\src\DH.Display\bin\Debug\net6.0-windows7.0\DH.Algorithms.dll
+C:\GIt\dhdas\src\DH.Display\bin\Debug\net6.0-windows7.0\DH.Configmanage.dll
+C:\GIt\dhdas\src\DH.Display\bin\Debug\net6.0-windows7.0\DH.Contracts.dll
+C:\GIt\dhdas\src\DH.Display\bin\Debug\net6.0-windows7.0\DH.Datamanage.dll
+C:\GIt\dhdas\src\DH.Display\bin\Debug\net6.0-windows7.0\DH.Contracts.pdb
+C:\GIt\dhdas\src\DH.Display\bin\Debug\net6.0-windows7.0\DH.Algorithms.pdb
+C:\GIt\dhdas\src\DH.Display\bin\Debug\net6.0-windows7.0\DH.Datamanage.pdb
+C:\GIt\dhdas\src\DH.Display\bin\Debug\net6.0-windows7.0\DH.Configmanage.pdb
+C:\GIt\dhdas\src\DH.Display\obj\Debug\net6.0-windows7.0\DH.Display.csproj.AssemblyReference.cache
+C:\GIt\dhdas\src\DH.Display\obj\Debug\net6.0-windows7.0\Avalonia\Resources.Inputs.cache
+C:\GIt\dhdas\src\DH.Display\obj\Debug\net6.0-windows7.0\DH.Display.GeneratedMSBuildEditorConfig.editorconfig
+C:\GIt\dhdas\src\DH.Display\obj\Debug\net6.0-windows7.0\DH.Display.AssemblyInfoInputs.cache
+C:\GIt\dhdas\src\DH.Display\obj\Debug\net6.0-windows7.0\DH.Display.AssemblyInfo.cs
+C:\GIt\dhdas\src\DH.Display\obj\Debug\net6.0-windows7.0\DH.Display.csproj.CoreCompileInputs.cache
+C:\GIt\dhdas\src\DH.Display\obj\Debug\net6.0-windows7.0\DH.Display.sourcelink.json
+C:\GIt\dhdas\src\DH.Display\obj\Debug\net6.0-windows7.0\DH.Display.csproj.Up2Date
+C:\GIt\dhdas\src\DH.Display\obj\Debug\net6.0-windows7.0\DH.Display.dll
+C:\GIt\dhdas\src\DH.Display\obj\Debug\net6.0-windows7.0\refint\DH.Display.dll
+C:\GIt\dhdas\src\DH.Display\obj\Debug\net6.0-windows7.0\DH.Display.pdb
+C:\GIt\dhdas\src\DH.Display\obj\Debug\net6.0-windows7.0\ref\DH.Display.dll

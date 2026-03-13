@@ -1,20 +1,20 @@
 {
   "format": 1,
   "restore": {
-    "C:\\DASH Project\\DH\\src\\DH.UI\\AlgorithmModule\\AlgorithmModule.csproj": {}
+    "C:\\GIt\\dhdas\\src\\DH.UI\\AlgorithmModule\\AlgorithmModule.csproj": {}
   },
   "projects": {
-    "C:\\DASH Project\\DH\\src\\DH.UI\\AlgorithmModule\\AlgorithmModule.csproj": {
+    "C:\\GIt\\dhdas\\src\\DH.UI\\AlgorithmModule\\AlgorithmModule.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\DASH Project\\DH\\src\\DH.UI\\AlgorithmModule\\AlgorithmModule.csproj",
+        "projectUniqueName": "C:\\GIt\\dhdas\\src\\DH.UI\\AlgorithmModule\\AlgorithmModule.csproj",
         "projectName": "AlgorithmModule",
-        "projectPath": "C:\\DASH Project\\DH\\src\\DH.UI\\AlgorithmModule\\AlgorithmModule.csproj",
+        "projectPath": "C:\\GIt\\dhdas\\src\\DH.UI\\AlgorithmModule\\AlgorithmModule.csproj",
         "packagesPath": "C:\\Users\\26453\\.nuget\\packages\\",
-        "outputPath": "C:\\DASH Project\\DH\\src\\DH.UI\\AlgorithmModule\\obj\\",
+        "outputPath": "C:\\GIt\\dhdas\\src\\DH.UI\\AlgorithmModule\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
-          "C:\\DASH Project\\DH\\NuGet.Config",
+          "C:\\GIt\\dhdas\\NuGet.Config",
           "C:\\Users\\26453\\AppData\\Roaming\\NuGet\\NuGet.Config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],

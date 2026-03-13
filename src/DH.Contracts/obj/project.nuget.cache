@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "e7fpsYytYOI=",
+  "dgSpecHash": "5b4/Ikm8nlQ=",
   "success": true,
-  "projectFilePath": "C:\\DASH Project\\DH\\src\\DH.Contracts\\DH.Contracts.csproj",
+  "projectFilePath": "C:\\GIt\\dhdas\\src\\DH.Contracts\\DH.Contracts.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\26453\\.nuget\\packages\\microsoft.netcore.app.ref\\6.0.36\\microsoft.netcore.app.ref.6.0.36.nupkg.sha512",
     "C:\\Users\\26453\\.nuget\\packages\\microsoft.windowsdesktop.app.ref\\6.0.36\\microsoft.windowsdesktop.app.ref.6.0.36.nupkg.sha512",

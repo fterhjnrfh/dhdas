@@ -10,6 +10,7 @@
     xmlns:ap="clr-namespace:Avalonia.Controls.Primitives;assembly=Avalonia.Controls"
     xmlns:dhui="using:NewAvalonia.Views"
     xmlns:dhc="using:NewAvalonia.Controls"
+    xmlns:storage="using:DH.Client.App.Services.Storage"
     xmlns:converters="clr-namespace:DH.Client.App.Converters"
     x:Class="DH.Client.App.Views.MainWindow" 
     x:DataType="vm:MainWindowViewModel" 
@@ -284,17 +285,23 @@
 				<!-- 2. 控制面板 -->
 				<Border Grid.Row="1" Background="#f5f6f8" CornerRadius="6" Padding="15" Margin="0,0,0,10" BorderBrush="#e0e0e0" BorderThickness="1">
 					<Grid ColumnDefinitions="Auto, *, Auto">
-						<StackPanel Orientation="Horizontal" Spacing="15">
-							<Button Content="▶ 开始写入" Command="{Binding StartStorageCommand}" Padding="20,8" Background="#28a745" Foreground="White" FontWeight="Bold"/>
-							<Button Content="⏹ 停止写入" Command="{Binding StopStorageCommand}" Padding="20,8" Background="#dc3545" Foreground="White" FontWeight="Bold"/>
-							
-							<Border Background="#ffffff" CornerRadius="4" Padding="12,6" VerticalAlignment="Center" BorderBrush="#d0d0d0" BorderThickness="1">
-								<StackPanel Orientation="Horizontal" Spacing="8">
-									<TextBlock Text="⏱" VerticalAlignment="Center" FontSize="14"/>
-									<TextBlock Text="{Binding StorageElapsed}" VerticalAlignment="Center" FontFamily="Consolas,Courier New,monospace" FontSize="16" FontWeight="Bold" 
-											   Foreground="{Binding StorageEnabled, Converter={x:Static converters:BoolToTextColorConverter.Instance}}"/>
-								</StackPanel>
-							</Border>
+						<StackPanel Spacing="10">
+							<StackPanel Orientation="Horizontal" Spacing="15">
+								<Button Content="▶ 开始写入" Command="{Binding StartStorageCommand}" Padding="20,8" Background="#28a745" Foreground="White" FontWeight="Bold"/>
+								<Button Content="⏹ 停止写入" Command="{Binding StopStorageCommand}" Padding="20,8" Background="#dc3545" Foreground="White" FontWeight="Bold"/>
+								
+								<Border Background="#ffffff" CornerRadius="4" Padding="12,6" VerticalAlignment="Center" BorderBrush="#d0d0d0" BorderThickness="1">
+									<StackPanel Orientation="Horizontal" Spacing="8">
+										<TextBlock Text="⏱" VerticalAlignment="Center" FontSize="14"/>
+										<TextBlock Text="{Binding StorageElapsed}" VerticalAlignment="Center" FontFamily="Consolas,Courier New,monospace" FontSize="16" FontWeight="Bold" 
+												   Foreground="{Binding StorageEnabled, Converter={x:Static converters:BoolToTextColorConverter.Instance}}"/>
+									</StackPanel>
+								</Border>
+							</StackPanel>
+							<StackPanel Orientation="Horizontal" Spacing="10">
+								<Button Content="查看性能报告" Command="{Binding ViewCompressionReportCommand}" IsEnabled="{Binding CanViewCompressionReport}" Padding="16,6"/>
+								<TextBlock Text="{Binding CompressionReportStatusMessage}" VerticalAlignment="Center" Foreground="#555555"/>
+							</StackPanel>
 						</StackPanel>
 						
 						<TextBlock Grid.Column="2" Text="{Binding StorageStatusMessage}" VerticalAlignment="Center" 
@@ -406,6 +413,161 @@
         </TabItem>
         <TabItem Header="GUI设计">
             <dhui:DesignerWorkbenchView/>
+        </TabItem>
+        <TabItem Header="压缩性能">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="10" Spacing="12">
+                    <Border Background="#f5f6f8" CornerRadius="6" Padding="15" BorderBrush="#e0e0e0" BorderThickness="1">
+                        <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="*,Auto">
+                            <StackPanel Spacing="4" Margin="0,0,10,8">
+                                <TextBlock Text="压缩性能报告" FontSize="16" FontWeight="Bold" Foreground="#333333"/>
+                                <TextBlock Text="{Binding CompressionReportStatusMessage}" Foreground="#555555" TextWrapping="Wrap"/>
+                            </StackPanel>
+                            <Button Grid.Column="1" Content="返回存储配置" Command="{Binding BackToStorageConfigCommand}" Padding="14,6"/>
+                            <ProgressBar Grid.Row="1" Grid.ColumnSpan="2" Margin="0,8,0,0" IsVisible="{Binding IsCompressionReportGenerating}" IsIndeterminate="True" Height="6"/>
+                        </Grid>
+                    </Border>
+
+                    <Border Background="#ffffff" CornerRadius="6" Padding="20" BorderBrush="#e0e0e0" BorderThickness="1"
+                            IsVisible="{Binding ShowCompressionReportPlaceholder}">
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="停止写入后会自动生成压缩性能报告。" FontSize="15" FontWeight="SemiBold" Foreground="#333333"/>
+                            <TextBlock Text="报告会包含本次真实写入的压缩比、压缩带宽、写盘带宽，以及基于采样批次的多算法对比结果。" Foreground="#666666" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Border>
+
+                    <StackPanel Spacing="12" IsVisible="{Binding HasCompressionReport}">
+                        <Border Background="#fdfdfd" CornerRadius="6" Padding="15" BorderBrush="#e0e0e0" BorderThickness="1">
+                            <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto,Auto">
+                                <TextBlock Text="会话摘要" FontSize="14" FontWeight="Bold" Grid.ColumnSpan="2"/>
+                                <TextBlock Grid.Row="1" Margin="0,6,20,0" Text="{Binding CurrentCompressionReport.SessionName, StringFormat='会话: {0}'}"/>
+                                <TextBlock Grid.Row="1" Grid.Column="1" Margin="0,6,0,0" Text="{Binding CurrentCompressionReport.StorageModeText, StringFormat='模式: {0}'}"/>
+                                <TextBlock Grid.Row="2" Margin="0,6,20,0" Text="{Binding CurrentCompressionReport.CompressionTypeText, StringFormat='算法: {0}'}"/>
+                                <TextBlock Grid.Row="2" Grid.Column="1" Margin="0,6,0,0" Text="{Binding CurrentCompressionReport.PreprocessTypeText, StringFormat='预处理: {0}'}"/>
+                                <TextBlock Grid.Row="3" Margin="0,6,20,0" Text="{Binding CurrentCompressionReport.SampleRateText, StringFormat='采样率: {0}'}"/>
+                                <TextBlock Grid.Row="3" Grid.Column="1" Margin="0,6,0,0" Text="{Binding CurrentCompressionReport.ParameterSummary, StringFormat='参数: {0}'}" TextWrapping="Wrap"/>
+                            </Grid>
+                        </Border>
+
+                        <Border Background="#fdfdfd" CornerRadius="6" Padding="15" BorderBrush="#e0e0e0" BorderThickness="1">
+                            <StackPanel Spacing="10">
+                                <TextBlock Text="关键指标" FontSize="14" FontWeight="Bold"/>
+                                <ItemsControl ItemsSource="{Binding CompressionSummaryCards}">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <ap:UniformGrid Columns="4"/>
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="storage:CompressionMetricCard">
+                                            <Border Margin="4" Padding="12" CornerRadius="6" Background="#ffffff" BorderBrush="#d9d9d9" BorderThickness="1">
+                                                <StackPanel Spacing="4">
+                                                    <TextBlock Text="{Binding Title}" FontSize="12" Foreground="#666666"/>
+                                                    <TextBlock Text="{Binding Value}" FontSize="18" FontWeight="Bold" Foreground="#1f4f82"/>
+                                                    <TextBlock Text="{Binding Hint}" FontSize="11" Foreground="#888888" TextWrapping="Wrap"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Background="#fdfdfd" CornerRadius="6" Padding="15" BorderBrush="#e0e0e0" BorderThickness="1">
+                            <StackPanel Spacing="10">
+                                <TextBlock Text="当前算法真实表现" FontSize="14" FontWeight="Bold"/>
+                                <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto">
+                                    <TextBlock Margin="0,0,20,0" Text="{Binding CurrentCompressionReport.RawBytesText, StringFormat='原始数据: {0}'}"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding CurrentCompressionReport.CodecBytesText, StringFormat='压缩载荷: {0}'}"/>
+                                    <TextBlock Grid.Row="1" Margin="0,6,20,0" Text="{Binding CurrentCompressionReport.TdmsPayloadBytesText, StringFormat='TDMS载荷: {0}'}"/>
+                                    <TextBlock Grid.Row="1" Grid.Column="1" Margin="0,6,0,0" Text="{Binding CurrentCompressionReport.StoredBytesText, StringFormat='最终文件: {0}'}"/>
+                                    <TextBlock Grid.Row="2" Margin="0,6,20,0" Text="{Binding CurrentCompressionReport.PayloadCompressionRatioText, StringFormat='落盘压缩比: {0}'}"/>
+                                    <TextBlock Grid.Row="2" Grid.Column="1" Margin="0,6,0,0" Text="{Binding CurrentCompressionReport.SpaceSavingText, StringFormat='空间节省率: {0}'}"/>
+                                    <TextBlock Grid.Row="3" Margin="0,6,20,0" Text="{Binding CurrentCompressionReport.P50EncodeText, StringFormat='P50压缩耗时: {0}'}"/>
+                                    <TextBlock Grid.Row="3" Grid.Column="1" Margin="0,6,0,0" Text="{Binding CurrentCompressionReport.P95EncodeText, StringFormat='P95压缩耗时: {0}'}"/>
+                                    <TextBlock Grid.Row="4" Margin="0,6,20,0" Text="{Binding CurrentCompressionReport.WorstEncodeText, StringFormat='最慢压缩批次: {0}'}"/>
+                                    <TextBlock Grid.Row="4" Grid.Column="1" Margin="0,6,0,0" Text="{Binding CurrentCompressionReport.SessionTimeText, StringFormat='起止时间: {0}'}"/>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Background="#fdfdfd" CornerRadius="6" Padding="15" BorderBrush="#e0e0e0" BorderThickness="1">
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="算法对比" FontSize="14" FontWeight="Bold"/>
+                                <TextBlock Text="{Binding CompressionBenchmarkStatusText}" Foreground="#666666" TextWrapping="Wrap"/>
+                                <Border Background="#f3f5f7" Padding="8" CornerRadius="4">
+                                    <Grid ColumnDefinitions="80,180,80,80,110,90,120,50">
+                                        <TextBlock Text="算法" FontWeight="Bold"/>
+                                        <TextBlock Grid.Column="1" Text="参数" FontWeight="Bold"/>
+                                        <TextBlock Grid.Column="2" Text="压缩比" FontWeight="Bold"/>
+                                        <TextBlock Grid.Column="3" Text="节省率" FontWeight="Bold"/>
+                                        <TextBlock Grid.Column="4" Text="压缩带宽" FontWeight="Bold"/>
+                                        <TextBlock Grid.Column="5" Text="P95耗时" FontWeight="Bold"/>
+                                        <TextBlock Grid.Column="6" Text="预计文件" FontWeight="Bold"/>
+                                        <TextBlock Grid.Column="7" Text="标记" FontWeight="Bold"/>
+                                    </Grid>
+                                </Border>
+                                <ItemsControl ItemsSource="{Binding CompressionBenchmarkRows}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="storage:CompressionBenchmarkRow">
+                                            <Border Padding="8" BorderBrush="#ececec" BorderThickness="0,0,0,1">
+                                                <Grid ColumnDefinitions="80,180,80,80,110,90,120,50">
+                                                    <TextBlock Text="{Binding AlgorithmText}"/>
+                                                    <TextBlock Grid.Column="1" Text="{Binding ParameterSummary}" TextWrapping="Wrap"/>
+                                                    <TextBlock Grid.Column="2" Text="{Binding CompressionRatioText}"/>
+                                                    <TextBlock Grid.Column="3" Text="{Binding SavingText}"/>
+                                                    <TextBlock Grid.Column="4" Text="{Binding EncodeBandwidthText}"/>
+                                                    <TextBlock Grid.Column="5" Text="{Binding P95EncodeText}"/>
+                                                    <TextBlock Grid.Column="6" Text="{Binding EstimatedStoredBytesText}"/>
+                                                    <TextBlock Grid.Column="7" Text="{Binding CurrentTagText}" Foreground="#0d6efd" FontWeight="Bold"/>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Background="#fdfdfd" CornerRadius="6" Padding="15" BorderBrush="#e0e0e0" BorderThickness="1">
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="通道明细" FontSize="14" FontWeight="Bold"/>
+                                <Border Background="#f3f5f7" Padding="8" CornerRadius="4">
+                                    <Grid ColumnDefinitions="70,90,90,100,100,100,100,90">
+                                        <TextBlock Text="通道" FontWeight="Bold"/>
+                                        <TextBlock Grid.Column="1" Text="样本数" FontWeight="Bold"/>
+                                        <TextBlock Grid.Column="2" Text="批次数" FontWeight="Bold"/>
+                                        <TextBlock Grid.Column="3" Text="原始数据" FontWeight="Bold"/>
+                                        <TextBlock Grid.Column="4" Text="压缩载荷" FontWeight="Bold"/>
+                                        <TextBlock Grid.Column="5" Text="TDMS载荷" FontWeight="Bold"/>
+                                        <TextBlock Grid.Column="6" Text="压缩带宽" FontWeight="Bold"/>
+                                        <TextBlock Grid.Column="7" Text="最慢批次" FontWeight="Bold"/>
+                                    </Grid>
+                                </Border>
+                                <ScrollViewer MaxHeight="240" VerticalScrollBarVisibility="Auto">
+                                    <ItemsControl ItemsSource="{Binding CompressionChannelRows}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="storage:CompressionChannelSnapshot">
+                                                <Border Padding="8" BorderBrush="#ececec" BorderThickness="0,0,0,1">
+                                                    <Grid ColumnDefinitions="70,90,90,100,100,100,100,90">
+                                                        <TextBlock Text="{Binding ChannelText}"/>
+                                                        <TextBlock Grid.Column="1" Text="{Binding SampleCountText}"/>
+                                                        <TextBlock Grid.Column="2" Text="{Binding BatchCount}"/>
+                                                        <TextBlock Grid.Column="3" Text="{Binding RawBytesText}"/>
+                                                        <TextBlock Grid.Column="4" Text="{Binding CodecBytesText}"/>
+                                                        <TextBlock Grid.Column="5" Text="{Binding TdmsPayloadBytesText}"/>
+                                                        <TextBlock Grid.Column="6" Text="{Binding EncodeBandwidthText}"/>
+                                                        <TextBlock Grid.Column="7" Text="{Binding WorstEncodeText}"/>
+                                                    </Grid>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </StackPanel>
+            </ScrollViewer>
         </TabItem>
     </TabControl>
 </Window>

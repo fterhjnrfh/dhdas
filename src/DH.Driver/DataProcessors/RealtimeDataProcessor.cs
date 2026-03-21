@@ -21,7 +21,7 @@ namespace DH.Driver.DataProcessors;
         private readonly SynchronizationContext? _uiContext;
         private readonly List<byte> _rxBuffer = new();
         private readonly Dictionary<int, List<float>> _channelCaches = new();
-        private readonly int _chunkSize = 128;
+        private readonly int _chunkSize = 2048;
         private readonly Regex _nameRegex = new Regex("^(AI\\d+)-(\\d{1,2}),([A-Za-zµΩ%/]+)$", RegexOptions.Compiled);
         private const uint Magic = 0x55AAAA55;
         private const uint TimeSeriesCommand = 0x7C;

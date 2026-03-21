@@ -50,12 +50,16 @@ namespace DH.Client.App.Controls
 
         // 时间轴相关：将X轴从样本索引映射为时间
         public bool UseTimeAxis { get; set; } = true; // 开启时间格式标签
+        public bool UseDataXValues { get; set; } = false; // 使用 CurvePoint.X 作为横轴值，适合离线文件回放
         public double SampleRateHz { get; set; } = 100;  // 采样率（Hz），>0 生效，默认 100 Hz
         public DateTime? StartTimestampUtc { get; set; } = null; // 起始时间（UTC，可选），为空则显示相对时间
         public bool ShowAbsoluteTime { get; set; } = false; // 为true且StartTimestampUtc有值时显示绝对时间
         
         // 时间轴滚动窗口：固定显示 N 秒的数据
         public double TimeWindowSeconds { get; set; } = 20.0;
+        public bool UseFixedDataXRange { get; set; } = false;
+        public double FixedDataXMin { get; set; } = 0.0;
+        public double FixedDataXMax { get; set; } = 1.0;
         
         // 时间轴起始位置
         private double _timeWindowStartSeconds = 0.0;
@@ -84,6 +88,9 @@ namespace DH.Client.App.Controls
         private float _axCenterY;
         private float _axScaleY;
         private int _axDataStartIdx;
+        private bool _axUseDataXValues;
+        private double _axXMin;
+        private double _axXMax;
         // 每个时间窗口锁定 Y 缩放，避免前景/背景缩放不一致造成断续
         private double _lockedWindowStartSeconds = double.NaN;
         private float _lockedScaleBaseY = 1.0f;
@@ -338,7 +345,7 @@ namespace DH.Client.App.Controls
             if (multi is { Count: > 0 })
             {
                 RenderMulti(target, multi, width, height);
-                DrawAxisAndGrid(target, width, height, _axStart, _axCount, _axLeftPad, _axUsableWidth, _axCenterY, _axScaleY, _axDataStartIdx);
+                DrawAxisAndGrid(target, width, height, _axStart, _axCount, _axLeftPad, _axUsableWidth, _axCenterY, _axScaleY, _axDataStartIdx, _axUseDataXValues, _axXMin, _axXMax);
             }
             else
             {
@@ -420,7 +427,8 @@ namespace DH.Client.App.Controls
 
         private void DrawAxisAndGrid(SKCanvas canvas, float width, float height,
             int startIndex, int sampleCount, float leftPad, float usableWidth,
-            float centerY, float scaleY, int dataStartIdx = 0)
+            float centerY, float scaleY, int dataStartIdx = 0,
+            bool useDataXValues = false, double dataXMin = 0.0, double dataXMax = 0.0)
         {
             using var tickPen = new SKPaint { Color = new SKColor(0x88, 0x88, 0x88), StrokeWidth = 1f, IsAntialias = true };
             using var textPen = new SKPaint { Color = new SKColor(0x55, 0x55, 0x55), IsAntialias = true, TextSize = 11f };
@@ -437,6 +445,11 @@ namespace DH.Client.App.Controls
                 // 时间轴模式：介于时间窗口的焘内的时间（秒）
                 xMin = _timeWindowStartSeconds; // 窗口起始时间
                 xMax = _timeWindowStartSeconds + TimeWindowSeconds; // 窗口结束时间
+            }
+            else if (useDataXValues)
+            {
+                xMin = dataXMin;
+                xMax = dataXMax;
             }
             else
             {
@@ -616,6 +629,59 @@ namespace DH.Client.App.Controls
             int start = dataStartIdx;
             int count = displayCount;
             float xStep = usableWidth / Math.Max(1, count - 1);
+            bool useCurveX = !useTimeBasedX && UseDataXValues;
+            bool useFixedCurveXRange = useCurveX && UseFixedDataXRange;
+
+            double xValueMin = start;
+            double xValueMax = start + Math.Max(1, count - 1);
+            if (useCurveX)
+            {
+                if (useFixedCurveXRange)
+                {
+                    xValueMin = FixedDataXMin;
+                    xValueMax = FixedDataXMax;
+                }
+                else
+                {
+                    bool hasVisibleX = false;
+                    double visibleMin = double.MaxValue;
+                    double visibleMax = double.MinValue;
+
+                    foreach (int channelId in ordered)
+                    {
+                        var data = multi[channelId];
+                        if (data == null || data.Count == 0)
+                        {
+                            continue;
+                        }
+
+                        int visibleStart = Math.Clamp(start, 0, data.Count - 1);
+                        int visibleEnd = Math.Clamp(Math.Min(start + count - 1, data.Count - 1), 0, data.Count - 1);
+                        if (visibleEnd < visibleStart)
+                        {
+                            continue;
+                        }
+
+                        double startX = data[visibleStart].X;
+                        double endX = data[visibleEnd].X;
+                        visibleMin = Math.Min(visibleMin, Math.Min(startX, endX));
+                        visibleMax = Math.Max(visibleMax, Math.Max(startX, endX));
+                        hasVisibleX = true;
+                    }
+
+                    if (hasVisibleX)
+                    {
+                        xValueMin = visibleMin;
+                        xValueMax = visibleMax;
+                    }
+                    else
+                    {
+                        useCurveX = false;
+                    }
+                }
+            }
+
+            double xValueSpan = Math.Max(1e-12, xValueMax - xValueMin);
 
             float centerY = height / 2f;
             double marginRatio = 0.90;
@@ -738,6 +804,11 @@ namespace DH.Client.App.Controls
                                 // 映射到画布上的X坐标
                                 x = leftPad + (float)((sampleTime - _timeWindowStartSeconds) / TimeWindowSeconds * usableWidth);
                             }
+                            else if (useCurveX)
+                            {
+                                double xValue = data[Math.Min(b0, dataEndIdx - 1)].X;
+                                x = leftPad + (float)((xValue - xValueMin) / xValueSpan * usableWidth);
+                            }
                             else
                             {
                                 x = leftPad + (float)((double)(b0 - start) / Math.Max(1, count - 1) * usableWidth);
@@ -754,6 +825,11 @@ namespace DH.Client.App.Controls
                         double sampleTime = binBg[0].Item2 / sampleRateForX;
                         prevX = leftPad + (float)((sampleTime - _timeWindowStartSeconds) / TimeWindowSeconds * usableWidth);
                     }
+                    else if (useCurveX)
+                    {
+                        double xValue = data[Math.Min(binBg[0].Item2, dataEndIdx - 1)].X;
+                        prevX = leftPad + (float)((xValue - xValueMin) / xValueSpan * usableWidth);
+                    }
                     else
                     {
                         prevX = leftPad + (float)((double)(binBg[0].Item2 - start) / Math.Max(1, count - 1) * usableWidth);
@@ -766,6 +842,11 @@ namespace DH.Client.App.Controls
                         {
                             double sampleTime = binBg[i].Item2 / sampleRateForX;
                             x = leftPad + (float)((sampleTime - _timeWindowStartSeconds) / TimeWindowSeconds * usableWidth);
+                        }
+                        else if (useCurveX)
+                        {
+                            double xValue = data[Math.Min(binBg[i].Item2, dataEndIdx - 1)].X;
+                            x = leftPad + (float)((xValue - xValueMin) / xValueSpan * usableWidth);
                         }
                         else
                         {
@@ -800,6 +881,11 @@ namespace DH.Client.App.Controls
                                 double sampleTime = b0 / sampleRateForX;
                                 x = leftPad + (float)((sampleTime - _timeWindowStartSeconds) / TimeWindowSeconds * usableWidth);
                             }
+                            else if (useCurveX)
+                            {
+                                double xValue = data[Math.Min(b0, dataEndIdx - 1)].X;
+                                x = leftPad + (float)((xValue - xValueMin) / xValueSpan * usableWidth);
+                            }
                             else
                             {
                                 x = leftPad + (float)((double)(b0 - start) / Math.Max(1, count - 1) * usableWidth);
@@ -816,6 +902,11 @@ namespace DH.Client.App.Controls
                         double sampleTime = binFg[0].Item2 / sampleRateForX;
                         prevXF = leftPad + (float)((sampleTime - _timeWindowStartSeconds) / TimeWindowSeconds * usableWidth);
                     }
+                    else if (useCurveX)
+                    {
+                        double xValue = data[Math.Min(binFg[0].Item2, dataEndIdx - 1)].X;
+                        prevXF = leftPad + (float)((xValue - xValueMin) / xValueSpan * usableWidth);
+                    }
                     else
                     {
                         prevXF = leftPad + (float)((double)(binFg[0].Item2 - start) / Math.Max(1, count - 1) * usableWidth);
@@ -828,6 +919,11 @@ namespace DH.Client.App.Controls
                         {
                             double sampleTime = binFg[i].Item2 / sampleRateForX;
                             x = leftPad + (float)((sampleTime - _timeWindowStartSeconds) / TimeWindowSeconds * usableWidth);
+                        }
+                        else if (useCurveX)
+                        {
+                            double xValue = data[Math.Min(binFg[i].Item2, dataEndIdx - 1)].X;
+                            x = leftPad + (float)((xValue - xValueMin) / xValueSpan * usableWidth);
                         }
                         else
                         {
@@ -850,6 +946,9 @@ namespace DH.Client.App.Controls
 
             // 记录坐标轴参数，供外层一次绘制
             _axStart = start; _axCount = count; _axLeftPad = leftPad; _axUsableWidth = usableWidth; _axCenterY = centerY; _axScaleY = scaleY; _axDataStartIdx = dataStartIdx;
+            _axUseDataXValues = useCurveX;
+            _axXMin = xValueMin;
+            _axXMax = xValueMax;
 
             // 图例（左上角）
             if (ShowLegend)

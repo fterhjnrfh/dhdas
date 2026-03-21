@@ -192,7 +192,7 @@ public partial class MainWindow : Window
         AddView();
     
         // 统一刷新策略（16ms），后续可由 DataHub 接管
-        _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(16) };
+        _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(50) };
         _timer.Tick += (_, __) =>
         {
             foreach (var p in _curvePanels)

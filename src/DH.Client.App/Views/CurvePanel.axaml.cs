@@ -40,6 +40,13 @@ namespace DH.Client.App.Views
         private int _deviceFilterId = 0; // 当前设备过滤（0=不限制）
         private bool _disableAutoSelection = false; // 禁用自动选择通道（用户主动清空时）
 
+        private const double SweepWindowSeconds = 10.0;
+        private const int SweepHistoryPointBudget = 8192;
+        private const int TotalPreviewPointBudget = 65536;
+        private const int MinPreviewPointsPerChannel = 128;
+        private const int MaxPreviewPointsPerChannel = 4096;
+        private double _sweepWindowStartSeconds;
+
         public CurvePanel()
         {
             InitializeComponent();
@@ -61,10 +68,14 @@ namespace DH.Client.App.Views
                 HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Stretch,
                 VerticalAlignment = Avalonia.Layout.VerticalAlignment.Stretch,
                 // 时间轴滚动模式
-                UseTimeAxis = true,  // 启用时间轴
+                UseTimeAxis = false,
+                UseDataXValues = true,
+                UseFixedDataXRange = true,
+                FixedDataXMin = 0.0,
+                FixedDataXMax = SweepWindowSeconds,
                 SampleRateHz = 100,  // 采样率 100 Hz（可根据实际调整）
                 TimeWindowSeconds = 20.0, // 固定显示 20 秒
-                ScrollMode = false,  // 时间轴模式下禁用滚动窗口
+                ScrollMode = false,
                 ScrollWindowSize = 2000, // 不使用
                 UseOscilloscopeMode = false, // 不使用示波器模式
                 ReverseXRendering = false // 禁用 X 轴反转
@@ -78,6 +89,8 @@ namespace DH.Client.App.Views
                 if (sec < 1.0) return $"{sec*1000:0} ms";
                 return $"{sec:0} s";
             };
+            _skView.TimeWindowSeconds = SweepWindowSeconds;
+            _skView.FormatXLabel = FormatSweepAxisLabel;
             
             // 添加到容器并保存引用（用于选中高亮）
             _openGLContainerRef = this.FindControl<Border>("OpenGLContainer");
@@ -260,7 +273,6 @@ namespace DH.Client.App.Views
             if (_dataBus != null)
             {
                 _dataBus.ChannelAdded += (_, __) => EnsureDefaultChannelSelection();
-                _dataBus.DataUpdated += (_, __) => EnsureDefaultChannelSelection();
             }
         }
 
@@ -348,6 +360,157 @@ namespace DH.Client.App.Views
         }
         
         // 获取多通道数据（合并显示）
+        private int GetPreviewSampleCount(int activeChannelCount)
+        {
+            double width = _skView?.Bounds.Width > 0 ? _skView.Bounds.Width : Bounds.Width;
+            if (width <= 0)
+            {
+                width = 900;
+            }
+
+            int widthBudget = Math.Max(MinPreviewPointsPerChannel, (int)Math.Ceiling(width * 2.0));
+            int perChannelBudget = Math.Max(MinPreviewPointsPerChannel, TotalPreviewPointBudget / Math.Max(1, activeChannelCount));
+            return Math.Clamp(Math.Min(widthBudget, perChannelBudget), MinPreviewPointsPerChannel, MaxPreviewPointsPerChannel);
+        }
+
+        private int GetSweepHistoryPointCount(int activeChannelCount)
+        {
+            return Math.Max(GetPreviewSampleCount(activeChannelCount), SweepHistoryPointBudget);
+        }
+
+        private List<int> GetRenderableChannels()
+        {
+            if (_selectedChannelIds.Count == 0)
+            {
+                return new List<int>();
+            }
+
+            return _selectedChannelIds
+                .Where(id => _onlineChannelManager?.IsChannelOnline(id) ?? true)
+                .ToList();
+        }
+
+        private static double GetSweepWindowStart(double latestSeconds)
+        {
+            if (latestSeconds <= 0.0)
+            {
+                return 0.0;
+            }
+
+            return Math.Floor(latestSeconds / SweepWindowSeconds) * SweepWindowSeconds;
+        }
+
+        private string FormatSweepAxisLabel(double valueSeconds)
+        {
+            double absoluteSeconds = _sweepWindowStartSeconds + valueSeconds;
+            if (Math.Abs(absoluteSeconds) < 0.0005)
+            {
+                absoluteSeconds = 0.0;
+            }
+
+            return $"{absoluteSeconds:0.#} s";
+        }
+
+        private static int FindFirstPointAtOrAfter(IReadOnlyList<DH.Contracts.Models.CurvePoint> data, double targetSeconds)
+        {
+            int low = 0;
+            int high = data.Count;
+            while (low < high)
+            {
+                int mid = low + ((high - low) / 2);
+                if (data[mid].X < targetSeconds)
+                {
+                    low = mid + 1;
+                }
+                else
+                {
+                    high = mid;
+                }
+            }
+
+            return low;
+        }
+
+        private IReadOnlyList<DH.Contracts.Models.CurvePoint> SliceSweepWindow(
+            IReadOnlyList<DH.Contracts.Models.CurvePoint> source,
+            double windowStartSeconds,
+            double windowEndSeconds)
+        {
+            if (source == null || source.Count == 0)
+            {
+                return Array.Empty<DH.Contracts.Models.CurvePoint>();
+            }
+
+            int startIndex = FindFirstPointAtOrAfter(source, windowStartSeconds);
+            if (startIndex >= source.Count)
+            {
+                return Array.Empty<DH.Contracts.Models.CurvePoint>();
+            }
+
+            int endIndex = FindFirstPointAtOrAfter(source, windowEndSeconds);
+            int count = endIndex - startIndex;
+            if (count <= 0)
+            {
+                return Array.Empty<DH.Contracts.Models.CurvePoint>();
+            }
+
+            if (windowStartSeconds <= 0.0 && startIndex == 0 && endIndex == source.Count)
+            {
+                return source;
+            }
+
+            var projected = new DH.Contracts.Models.CurvePoint[count];
+            for (int i = 0; i < count; i++)
+            {
+                var point = source[startIndex + i];
+                projected[i] = new DH.Contracts.Models.CurvePoint(point.X - windowStartSeconds, point.Y);
+            }
+
+            return projected;
+        }
+
+        private Dictionary<int, IReadOnlyList<DH.Contracts.Models.CurvePoint>> BuildSweepChannelData(IReadOnlyList<int> channels)
+        {
+            var result = new Dictionary<int, IReadOnlyList<DH.Contracts.Models.CurvePoint>>(channels.Count);
+            if (_dataBus == null || channels.Count == 0)
+            {
+                _sweepWindowStartSeconds = 0.0;
+                return result;
+            }
+
+            int historyCount = GetSweepHistoryPointCount(channels.Count);
+            double latestSeconds = double.NegativeInfinity;
+
+            foreach (int channelId in channels)
+            {
+                var channelData = _dataBus.GetLatestData(channelId, historyCount);
+                result[channelId] = channelData;
+                if (channelData.Count > 0)
+                {
+                    latestSeconds = Math.Max(latestSeconds, channelData[channelData.Count - 1].X);
+                }
+            }
+
+            if (double.IsNegativeInfinity(latestSeconds))
+            {
+                _sweepWindowStartSeconds = 0.0;
+                return result;
+            }
+
+            double windowStartSeconds = GetSweepWindowStart(latestSeconds);
+            double windowEndSeconds = windowStartSeconds + SweepWindowSeconds;
+            _sweepWindowStartSeconds = windowStartSeconds;
+            _skView.FixedDataXMin = 0.0;
+            _skView.FixedDataXMax = SweepWindowSeconds;
+
+            foreach (int channelId in channels)
+            {
+                result[channelId] = SliceSweepWindow(result[channelId], windowStartSeconds, windowEndSeconds);
+            }
+
+            return result;
+        }
+
         private IReadOnlyList<DH.Contracts.Models.CurvePoint> GetMultiChannelData()
         {
             if (_dataBus == null || !_selectedChannelIds.Any())
@@ -355,19 +518,19 @@ namespace DH.Client.App.Views
 
             // 简单实现：取第一个选中通道的数据
             // 更复杂的实现可以合并多个通道的数据
-            var primaryChannelId = _selectedChannelIds.First();
-            var data = _dataBus.GetLatestData(primaryChannelId);
+            var channels = GetRenderableChannels();
+            if (channels.Count == 0)
+            {
+                return Array.Empty<DH.Contracts.Models.CurvePoint>();
+            }
+
+            int primaryChannelId = channels[0];
+            var windowData = BuildSweepChannelData(channels);
             
             // 更新SkiaMultiChannelView的起始时间戳，实现时间轴实时更新
-            if (_skView != null && data != null && data.Count > 0)
-            {
-                var lastPoint = data[data.Count - 1];
-                var latestTimestamp = DateTime.MinValue.AddMilliseconds(lastPoint.X);
-                _skView.StartTimestampUtc = latestTimestamp;
-                _skView.ShowAbsoluteTime = true;
-            }
-            
-            return data;
+            return windowData.TryGetValue(primaryChannelId, out var data)
+                ? data
+                : Array.Empty<DH.Contracts.Models.CurvePoint>();
         }
 
         // 获取所有选中通道的数据字典
@@ -386,43 +549,36 @@ namespace DH.Client.App.Views
                 return result;
             }
 
-            IEnumerable<int> channels = _selectedChannelIds.Where(id => _onlineChannelManager?.IsChannelOnline(id) ?? true);
-
-            DateTime? latestTimestamp = null;
-            foreach (var channelId in channels)
+            var channels = GetRenderableChannels();
+            if (channels.Count == 0)
             {
-                var channelData = _dataBus.GetLatestData(channelId);
-                result[channelId] = channelData;
+                _sweepWindowStartSeconds = 0.0;
+                return result;
+            }
+
+            return BuildSweepChannelData(channels);
+        }
+
+        /*
                 
                 // 从数据中提取最新时间戳，用于设置StartTimestampUtc
-                if (channelData != null && channelData.Count > 0)
-                {
-                    var lastPoint = channelData[channelData.Count - 1];
-                    var pointTime = DateTime.MinValue.AddMilliseconds(lastPoint.X);
-                    if (latestTimestamp == null || pointTime > latestTimestamp)
-                    {
-                        latestTimestamp = pointTime;
-                    }
-                }
             }
 
             // 更新SkiaMultiChannelView的起始时间戳，实现时间轴实时更新
-            if (_skView != null && latestTimestamp.HasValue)
-            {
-                _skView.StartTimestampUtc = latestTimestamp.Value;
-                _skView.ShowAbsoluteTime = true;
-            }
-
-            return result;
         }
 
         // 获取单个通道的数据
+        */
         private IReadOnlyList<DH.Contracts.Models.CurvePoint> GetChannelData(int channelId)
         {
             if (_dataBus == null)
                 return Array.Empty<DH.Contracts.Models.CurvePoint>();
 
-            return _dataBus.GetLatestData(channelId);
+            var channels = new List<int> { channelId };
+            var windowData = BuildSweepChannelData(channels);
+            return windowData.TryGetValue(channelId, out var data)
+                ? data
+                : Array.Empty<DH.Contracts.Models.CurvePoint>();
         }
 
         // 更新选中通道显示文本
@@ -549,7 +705,19 @@ namespace DH.Client.App.Views
             if (_skView != null)
             {
                 _skView.SampleRateHz = sampleRate;
+                _autoFitX = true;
+                _zoomLevelX = 1.0f;
+                UpdateZoomFunctions();
+                _skView.UseDataXValues = true;
+                _skView.UseFixedDataXRange = true;
+                _skView.FixedDataXMin = 0.0;
+                _skView.FixedDataXMax = SweepWindowSeconds;
+                _skView.TimeWindowSeconds = SweepWindowSeconds;
                 _skView.UseTimeAxis = true; // 启用时间轴
+                _skView.InvalidateVisual();
+                _skView.UseTimeAxis = false;
+                _skView.ShowAbsoluteTime = false;
+                _skView.ResetView();
                 _skView.InvalidateVisual();
             }
         }

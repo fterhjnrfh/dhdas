@@ -45,8 +45,10 @@ public partial class TdmsViewerView : UserControl
         var skView = this.FindControl<SkiaMultiChannelView>("TdmsCurveView");
         if (skView is not null)
         {
-            // TDMS查看器配置：禁用时间轴模式，启用交互式拖动和缩放
-            skView.UseTimeAxis = false;  // 禁用时间轴模式，使用索引模式
+            // TDMS查看器使用离线数据的真实X值（秒），同时保留拖动和缩放交互。
+            skView.UseTimeAxis = false;
+            skView.UseDataXValues = true;
+            skView.FormatXLabel = FormatSecondsLabel;
             skView.ScrollMode = false;   // 关闭滚动窗口，启用全范围与交互视口
             skView.DesiredXTicks = 10;  // 增加X轴刻度数，更精细
             skView.DesiredYTicks = 8;   // 增加Y轴刻度数
@@ -97,6 +99,27 @@ public partial class TdmsViewerView : UserControl
     }
 
     private void InitializeComponent() => AvaloniaXamlLoader.Load(this);
+
+    private static string FormatSecondsLabel(double seconds)
+    {
+        double value = Math.Abs(seconds);
+        if (value >= 1000)
+        {
+            return $"{seconds:0} s";
+        }
+
+        if (value >= 100)
+        {
+            return $"{seconds:0.0} s";
+        }
+
+        if (value >= 10)
+        {
+            return $"{seconds:0.00} s";
+        }
+
+        return $"{seconds:0.000} s";
+    }
 
     private void OnResetViewClicked(object? sender, RoutedEventArgs e)
     {

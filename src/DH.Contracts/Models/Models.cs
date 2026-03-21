@@ -1,6 +1,6 @@
 namespace DH.Contracts.Models;
 
-public record CurvePoint(double X, double Y);
+public readonly record struct CurvePoint(double X, double Y);
 
 public record AlgorithmResult(string AlgorithmName, int ChannelId, DateTime Timestamp, float[] Data);
 

@@ -77,9 +77,43 @@ namespace DH.Client.App.Data
             if (items == null)
                 throw new ArgumentNullException(nameof(items));
 
-            foreach (var item in items)
+            lock (_syncLock)
             {
-                Add(item);
+                foreach (var item in items)
+                {
+                    if (_size == _capacity)
+                    {
+                        if (_allowExpand)
+                        {
+                            int newCap = Math.Max(16, _capacity * 2);
+                            var newBuf = new T[newCap];
+                            if (_size > 0)
+                            {
+                                int idx = 0;
+                                for (int i = 0; i < _size; i++)
+                                {
+                                    newBuf[idx++] = _buffer[(_head + i) % _capacity];
+                                }
+                            }
+
+                            _buffer = newBuf;
+                            _capacity = newCap;
+                            _head = 0;
+                            _tail = _size;
+                        }
+                        else
+                        {
+                            _head = (_head + 1) % _capacity;
+                        }
+                    }
+
+                    _buffer[_tail] = item;
+                    _tail = (_tail + 1) % _capacity;
+                    if (_size < _capacity)
+                    {
+                        _size++;
+                    }
+                }
             }
         }
 

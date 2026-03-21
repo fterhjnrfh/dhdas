@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.ObjectModel;
 using System.Collections.Generic;
 using System.Threading;
@@ -60,6 +61,8 @@ public partial class MainWindowViewModel : ObservableObject
     
     // 在线通道统计
     public string OnlineChannelStatus => $"在线通道: {Channels.Count(c => c.Online)}/{Channels.Count}";
+    private const int StorageConfigTabIndex = 1;
+    private const int CompressionReportTabIndex = 6;
     [ObservableProperty] private int _selectedTab = 3;
     [ObservableProperty] private string _storagePath = "./data";
     // 新增：存储控制与模式
@@ -101,6 +104,15 @@ public partial class MainWindowViewModel : ObservableObject
     private Avalonia.Threading.DispatcherTimer? _storageTimer;
     public ObservableCollection<TdmsFileItem> RecentTdmsFiles { get; } = new();
     [ObservableProperty] private TdmsFileItem? _selectedTdmsFile;
+    public ObservableCollection<CompressionMetricCard> CompressionSummaryCards { get; } = new();
+    public ObservableCollection<CompressionBenchmarkRow> CompressionBenchmarkRows { get; } = new();
+    public ObservableCollection<CompressionChannelSnapshot> CompressionChannelRows { get; } = new();
+    [ObservableProperty] private CompressionSessionSnapshot _currentCompressionReport = new();
+    [ObservableProperty] private bool _hasCompressionReport;
+    [ObservableProperty] private bool _isCompressionReportGenerating;
+    [ObservableProperty] private string _compressionReportStatusMessage = "尚未生成压缩性能报告";
+    private CompressionSessionSnapshot? _lastCompressionSessionSnapshot;
+    private CancellationTokenSource? _compressionReportCts;
 
     // 命令：存储控制
     public IRelayCommand StartStorageCommand { get; }
@@ -110,7 +122,11 @@ public partial class MainWindowViewModel : ObservableObject
     public IRelayCommand OpenOutputFolderCommand { get; }
     public IRelayCommand TestReadSelectedFileCommand { get; }
     public IRelayCommand VerifyStoredFileCommand { get; }
+    public IRelayCommand ViewCompressionReportCommand { get; }
+    public IRelayCommand BackToStorageConfigCommand { get; }
     private ITdmsStorage? _storage;
+    private CancellationTokenSource? _storagePumpCts;
+    private List<Task>? _storagePumpTasks;
     [ObservableProperty] private int _maWindow = 16;
     [ObservableProperty] private bool _isRunning;
     
@@ -142,6 +158,8 @@ public partial class MainWindowViewModel : ObservableObject
     private System.Timers.Timer? _channelTimeUpdateTimer; // 通道计时器
 
     // ==================== SDK模式相关属性 ====================
+    private readonly ConcurrentDictionary<int, byte> _pendingOnlineChannelIds = new();
+    private Avalonia.Threading.DispatcherTimer? _onlineStatusFlushTimer;
     private SdkDriverManager? _sdkDriverManager;
     
     /// <summary>
@@ -231,6 +249,31 @@ public partial class MainWindowViewModel : ObservableObject
     public DeviceInfo? SelectedDevice => Devices.FirstOrDefault(d => d.DeviceId == SelectedDeviceId);
     public string SelectedDeviceTitle => $"通道在线状态 - AI{SelectedDeviceId}";
 
+    public bool CanViewCompressionReport => HasCompressionReport || IsCompressionReportGenerating;
+    public bool ShowCompressionReportPlaceholder => !HasCompressionReport && !IsCompressionReportGenerating;
+    public string CompressionBenchmarkStatusText
+    {
+        get
+        {
+            if (!HasCompressionReport && !IsCompressionReportGenerating)
+            {
+                return "停止写入后会自动生成压缩性能报告。";
+            }
+
+            if (IsCompressionReportGenerating)
+            {
+                return "正在基于采样批次评估各压缩算法性能...";
+            }
+
+            if (CompressionBenchmarkRows.Count == 0)
+            {
+                return "当前会话仅生成了真实写入指标，未采集到可用于对比的 benchmark 样本。";
+            }
+
+            return $"对比基准：{CurrentCompressionReport.BenchmarkSampleSummaryText}。";
+        }
+    }
+
     public MainWindowViewModel()
     {
         _bus = new DataBus();
@@ -280,6 +323,13 @@ public partial class MainWindowViewModel : ObservableObject
         };
         _channelTimeUpdateTimer.Start();
 
+        _onlineStatusFlushTimer = new Avalonia.Threading.DispatcherTimer
+        {
+            Interval = TimeSpan.FromMilliseconds(100)
+        };
+        _onlineStatusFlushTimer.Tick += (_, _) => FlushPendingOnlineChannelUpdates();
+        _onlineStatusFlushTimer.Start();
+
         // 创建TCP驱动管理器，传入数据总线和流表       
         _tcpDriverManager = new TcpDriverManager(_bus, _table, OnTcpStatusChanged);
         _tcpDriverManager.VerifiedChanged += v => Avalonia.Threading.Dispatcher.UIThread.Post(() =>
@@ -322,34 +372,9 @@ public partial class MainWindowViewModel : ObservableObject
         _bus.ChannelRemoved += (_, ch) => { };
         _bus.DataUpdated += (_, e) =>
         {
-            // TCP模式：检查连接状态
-            bool tcpActive = IsTcpConnected && IsDataVerified && IsDataActive;
-            // SDK模式：检查SDK初始化和采样状态
-            bool sdkActive = DataSourceMode == 1 && IsSdkInitialized && IsSdkSampling;
-            
-            if (tcpActive || sdkActive)
+            if (IsRealtimePreviewActive())
             {
-                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
-                {
-                    try
-                    {
-                        var ci = Channels.FirstOrDefault(c => c.ChannelId == e.ChannelId);
-                        if (ci != null) ci.Online = true;
-                        _onlineChannelManager.SetChannelOnline(e.ChannelId, true);
-                        foreach (var dev in Devices.ToList())
-                        {
-                            int cnt = dev.Channels.Count(c => c.Online);
-                            dev.OnlineChannelCount = cnt;
-                            dev.Online = cnt > 0;
-                        }
-                        OnPropertyChanged(nameof(OnlineChannelStatus));
-                        UpdateDeviceChannels();
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"[DataUpdated] UI更新异常: {ex.Message}");
-                    }
-                });
+                QueueOnlineChannelUpdate(e.ChannelId);
             }
         };
 
@@ -386,6 +411,8 @@ public partial class MainWindowViewModel : ObservableObject
         OpenOutputFolderCommand = new RelayCommand(OpenOutputFolder);
         TestReadSelectedFileCommand = new RelayCommand(TestReadSelectedFile, () => !string.IsNullOrEmpty(SelectedTdmsFile?.FullPath));
         VerifyStoredFileCommand = new AsyncRelayCommand(VerifyStoredFileAsync, () => !string.IsNullOrEmpty(SelectedTdmsFile?.FullPath));
+        ViewCompressionReportCommand = new RelayCommand(ViewCompressionReport, () => CanViewCompressionReport);
+        BackToStorageConfigCommand = new RelayCommand(() => SelectedTab = StorageConfigTabIndex);
 
         // 运行时诊断：输出 TDMS 原生库可用性
         try
@@ -436,6 +463,7 @@ public partial class MainWindowViewModel : ObservableObject
                 // SDK数据到达时更新通道状态
                 if (active && DataSourceMode == 1 && Devices != null) // SDK模式
                 {
+                    UpdateDevicesFromSdk();
                     foreach (var dev in Devices.ToList()) // 使用ToList()避免并发修改
                     {
                         if (dev.Channels != null)
@@ -460,35 +488,7 @@ public partial class MainWindowViewModel : ObservableObject
         {
             if (DataSourceMode == 1 && IsSdkSampling && IsSdkDataActive) // SDK模式
             {
-                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
-                {
-                    try
-                    {
-                        var ci = Channels?.FirstOrDefault(c => c.ChannelId == e.ChannelId);
-                        if (ci != null) ci.Online = true;
-                        _onlineChannelManager?.SetChannelOnline(e.ChannelId, true);
-                        
-                        if (Devices != null)
-                        {
-                            foreach (var dev in Devices.ToList()) // 使用ToList()避免并发修改
-                            {
-                                if (dev.Channels != null)
-                                {
-                                    int cnt = dev.Channels.Count(c => c.Online);
-                                    dev.OnlineChannelCount = cnt;
-                                    dev.Online = cnt > 0;
-                                }
-                            }
-                        }
-                        
-                        OnPropertyChanged(nameof(OnlineChannelStatus));
-                        UpdateDeviceChannels();
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"[SDK] DataUpdated处理异常: {ex.Message}");
-                    }
-                });
+                QueueOnlineChannelUpdate(e.ChannelId);
             }
         };
 
@@ -577,7 +577,8 @@ public partial class MainWindowViewModel : ObservableObject
         // 只添加在线且有通道的设备
         foreach (var sdkDev in sdkDevices.Where(d => d.IsOnline && d.ChannelCount > 0))
         {
-            var dev = new DeviceInfo { DeviceId = sdkDev.DeviceIndex + 1 }; // UI显示从1开始，使用设备索引
+            int deviceId = ResolveSdkChannelDeviceId(sdkDev);
+            var dev = new DeviceInfo { DeviceId = deviceId };
             dev.Online = sdkDev.IsOnline;
             dev.OnlineChannelCount = sdkDev.ChannelCount;
             
@@ -585,7 +586,7 @@ public partial class MainWindowViewModel : ObservableObject
             for (int ch = 1; ch <= sdkDev.ChannelCount; ch++)
             {
                 // 使用 MachineId 构建通道ID（与SDK回调一致）
-                int channelId = sdkDev.MachineId * 100 + ch;
+                int channelId = deviceId * 100 + ch;
                 var channelInfo = new ChannelInfo
                 {
                     ChannelId = channelId,
@@ -603,7 +604,7 @@ public partial class MainWindowViewModel : ObservableObject
             }
             
             Devices.Add(dev);
-            Console.WriteLine($"[SDK] 添加设备: DeviceId={dev.DeviceId}, MachineId={sdkDev.MachineId}, 通道数={sdkDev.ChannelCount}, 在线={sdkDev.IsOnline}");
+            Console.WriteLine($"[SDK] 添加设备: DeviceId={dev.DeviceId}, MachineId={sdkDev.MachineId}, ChannelDeviceId={sdkDev.ChannelDeviceId}, 通道数={sdkDev.ChannelCount}, 在线={sdkDev.IsOnline}");
         }
         
         // 同步在线通道到OnlineChannelManager（供结果显示页面使用）
@@ -611,7 +612,7 @@ public partial class MainWindowViewModel : ObservableObject
         Console.WriteLine($"[SDK] 已同步 {onlineChannelIds.Count} 个在线通道到OnlineChannelManager");
         
         // 更新选中设备
-        if (Devices.Count > 0)
+        if (Devices.Count > 0 && Devices.All(d => d.DeviceId != SelectedDeviceId))
         {
             SelectedDeviceId = Devices[0].DeviceId;
         }
@@ -623,6 +624,102 @@ public partial class MainWindowViewModel : ObservableObject
         UpdateDeviceChannels();
     }
 
+    private static int ResolveSdkChannelDeviceId(SdkDeviceInfo sdkDevice)
+    {
+        if (sdkDevice.ChannelDeviceId > 0)
+        {
+            return sdkDevice.ChannelDeviceId;
+        }
+
+        return Math.Max(0, sdkDevice.DeviceIndex + 1);
+    }
+
+    private void EnsureSdkChannelRegistration(int channelId)
+    {
+        if (channelId <= 0)
+        {
+            return;
+        }
+
+        int deviceId = channelId / 100;
+        if (deviceId < 0)
+        {
+            return;
+        }
+
+        var channelInfo = Channels.FirstOrDefault(c => c.ChannelId == channelId);
+        if (channelInfo == null)
+        {
+            channelInfo = new ChannelInfo
+            {
+                ChannelId = channelId,
+                Name = DH.Contracts.ChannelNaming.ChannelName(channelId),
+                Online = true
+            };
+            Channels.Add(channelInfo);
+        }
+
+        var device = Devices.FirstOrDefault(d => d.DeviceId == deviceId);
+        if (device == null)
+        {
+            device = new DeviceInfo { DeviceId = deviceId, Online = true };
+            Devices.Add(device);
+        }
+
+        if (!device.Channels.Any(c => c.ChannelId == channelId))
+        {
+            device.Channels.Add(channelInfo);
+        }
+    }
+
+    private void AlignSdkSelectedDevice(int channelId)
+    {
+        if (DataSourceMode != 1)
+        {
+            return;
+        }
+
+        int deviceId = channelId / 100;
+        if (deviceId < 0 || SelectedDeviceId == deviceId)
+        {
+            return;
+        }
+
+        bool currentDeviceHasData = _bus.GetAvailableChannels().Any(id => id / 100 == SelectedDeviceId);
+        if (currentDeviceHasData)
+        {
+            return;
+        }
+
+        SelectedDeviceId = deviceId;
+        OnPropertyChanged(nameof(SelectedDevice));
+        OnPropertyChanged(nameof(SelectedDeviceTitle));
+        UpdateDeviceChannels();
+    }
+
+    private int[] ResolveStorageChannelIds()
+    {
+        if (DataSourceMode == 1)
+        {
+            var actualSdkChannels = _bus.GetAvailableChannels()
+                .Where(id => id > 0)
+                .Distinct()
+                .OrderBy(id => id)
+                .ToArray();
+            if (actualSdkChannels.Length > 0)
+            {
+                return actualSdkChannels;
+            }
+        }
+
+        return Channels
+            .Select(c => c.ChannelId)
+            .Where(id => id > 0)
+            .Distinct()
+            .OrderBy(id => id)
+            .ToArray();
+    }
+
     /// <summary>
     /// 启动SDK采样
     /// </summary>
@@ -630,6 +727,7 @@ public partial class MainWindowViewModel : ObservableObject
     {
         if (_sdkDriverManager == null || !IsSdkInitialized) return;
         
+        _bus.ResetPreviewTimeline();
         bool result = _sdkDriverManager.StartSampling();
         IsSdkSampling = result;
         
@@ -686,6 +784,7 @@ public partial class MainWindowViewModel : ObservableObject
             {
                 SdkConfigPath = folder[0].Path.LocalPath;
             }
+
         }
         catch (Exception ex)
         {
@@ -759,6 +858,7 @@ public partial class MainWindowViewModel : ObservableObject
     {
         if (int.TryParse(TcpServerPort, out var port))
         {
+            _bus.ResetPreviewTimeline();
             SelectedDeviceId = MapPortToDevice(port);
             _tcpDriverManager.Connect(TcpServerIp, port);
             OnPropertyChanged(nameof(SelectedDevice));
@@ -1214,12 +1314,13 @@ public partial class MainWindowViewModel : ObservableObject
     private async Task StartStorageAsync()
     {
         if (StorageEnabled) return;
+        ResetCompressionReportState("本次会话停止后将生成压缩性能报告");
         var basePath = ResolveStoragePath(StoragePath);
         Directory.CreateDirectory(basePath);
         _storage = StorageMode == StorageModeOption.SingleFile
             ? new TdmsSingleFileStorage() as ITdmsStorage
             : new TdmsPerChannelStorage() as ITdmsStorage;
-        var channelIds = Channels.Select(c => c.ChannelId).ToArray();
+        var channelIds = ResolveStorageChannelIds();
         await Task.Run(() =>
         {
             try
@@ -1239,8 +1340,11 @@ public partial class MainWindowViewModel : ObservableObject
                 
                 Avalonia.Threading.Dispatcher.UIThread.Post(() =>
                 {
-                    _bus.DataUpdated += OnDataUpdatedForStorage;
                     StorageEnabled = true;
+                    _storagePumpCts = new CancellationTokenSource();
+                    _storagePumpTasks = channelIds
+                        .Select(channelId => Task.Run(() => PumpStorageChannelAsync(channelId, _storagePumpCts.Token)))
+                        .ToList();
                     // 启动写入计时器
                     _storageStartTime = DateTime.Now;
                     StorageElapsed = "00:00:00";
@@ -1287,12 +1391,28 @@ public partial class MainWindowViewModel : ObservableObject
         _storageTimer = null;
         var finalElapsed = DateTime.Now - _storageStartTime;
         StorageElapsed = finalElapsed.ToString(@"hh\:mm\:ss");
+        CompressionSessionSnapshot? compressionSnapshot = null;
 
         // 先标记为未启用，防止新的写入
         StorageEnabled = false;
         
-        // 取消事件订阅
-        _bus.DataUpdated -= OnDataUpdatedForStorage;
+        var storagePumpCts = _storagePumpCts;
+        var storagePumpTasks = _storagePumpTasks;
+        _storagePumpCts = null;
+        _storagePumpTasks = null;
+        storagePumpCts?.Cancel();
+
+        if (storagePumpTasks != null && storagePumpTasks.Count > 0)
+        {
+            try
+            {
+                Task.WaitAll(storagePumpTasks.ToArray(), 1000);
+            }
+            catch
+            {
+                // Ignore cancellation/flush races during shutdown.
+            }
+        }
         
         // 停用断电保护（正常停止路径）
         StorageGuard.Deactivate();
@@ -1300,6 +1420,7 @@ public partial class MainWindowViewModel : ObservableObject
         try 
         { 
             _storage?.Flush();
+            compressionSnapshot = _storage?.GetCompressionSessionSnapshot();
 
             // 在 Stop 之前抓取写入期间的 SHA-256 指纹
             var hashes = _storage?.GetWriteHashes();
@@ -1363,10 +1484,23 @@ public partial class MainWindowViewModel : ObservableObject
         { 
             _storage = null; 
         }
+
+        if (compressionSnapshot != null)
+        {
+            compressionSnapshot.StartedAt = _storageStartTime;
+            compressionSnapshot.StoppedAt = DateTime.Now;
+            compressionSnapshot.Elapsed = finalElapsed;
+            compressionSnapshot.WrittenFiles = (_lastWrittenFiles ?? Array.Empty<string>()).ToArray();
+            compressionSnapshot.StoredBytes = CalculateStoredBytes(compressionSnapshot.WrittenFiles);
+        }
         
         RefreshRecentFiles();
         (StartStorageCommand as AsyncRelayCommand)?.NotifyCanExecuteChanged();
         (StopStorageCommand as RelayCommand)?.NotifyCanExecuteChanged();
+        if (compressionSnapshot != null)
+        {
+            BeginCompressionReportGeneration(compressionSnapshot);
+        }
 
         // 自动执行文件无损验证
         _ = AutoVerifyAfterStopAsync();
@@ -1418,6 +1552,117 @@ public partial class MainWindowViewModel : ObservableObject
         }
     }
 
+    private bool IsRealtimePreviewActive()
+    {
+        bool tcpActive = DataSourceMode == 0 && IsTcpConnected && IsDataVerified && IsDataActive;
+        bool sdkActive = DataSourceMode == 1 && IsSdkInitialized && IsSdkSampling && IsSdkDataActive;
+        return tcpActive || sdkActive;
+    }
+
+    private void QueueOnlineChannelUpdate(int channelId)
+    {
+        _pendingOnlineChannelIds[channelId] = 0;
+    }
+
+    private void FlushPendingOnlineChannelUpdates()
+    {
+        if (!IsRealtimePreviewActive())
+        {
+            _pendingOnlineChannelIds.Clear();
+            return;
+        }
+
+        if (_pendingOnlineChannelIds.IsEmpty)
+        {
+            return;
+        }
+
+        try
+        {
+            var channelIds = _pendingOnlineChannelIds.Keys.ToArray();
+            if (channelIds.Length == 0)
+            {
+                return;
+            }
+
+            foreach (var channelId in channelIds)
+            {
+                _pendingOnlineChannelIds.TryRemove(channelId, out _);
+
+                if (DataSourceMode == 1)
+                {
+                    EnsureSdkChannelRegistration(channelId);
+                    AlignSdkSelectedDevice(channelId);
+                }
+
+                var ci = Channels.FirstOrDefault(c => c.ChannelId == channelId);
+                if (ci != null)
+                {
+                    ci.Online = true;
+                }
+
+                _onlineChannelManager.SetChannelOnline(channelId, true);
+            }
+
+            foreach (var dev in Devices)
+            {
+                int cnt = dev.Channels.Count(c => c.Online);
+                dev.OnlineChannelCount = cnt;
+                dev.Online = cnt > 0;
+            }
+
+            OnPropertyChanged(nameof(OnlineChannelStatus));
+            UpdateDeviceChannels();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[OnlineFlush] UI状态合并刷新异常: {ex.Message}");
+        }
+    }
+
+    private async Task PumpStorageChannelAsync(int channelId, CancellationToken token)
+    {
+        try
+        {
+            await foreach (var frame in _table.Subscribe(channelId, token))
+            {
+                if (token.IsCancellationRequested)
+                    break;
+
+                var storage = _storage;
+                if (storage == null)
+                    break;
+
+                if (!StorageEnabled)
+                    continue;
+
+                var samples = frame.Samples;
+                if (samples.IsEmpty)
+                    continue;
+
+                var arr = new double[samples.Length];
+                for (int i = 0; i < samples.Length; i++)
+                {
+                    arr[i] = samples.Span[i];
+                }
+
+                storage.Write(channelId, arr);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Expected during shutdown.
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[StoragePump] Channel {channelId} failed: {ex.Message}");
+            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            {
+                StorageStatusMessage = $"写入错误: {ex.Message}";
+            });
+        }
+    }
+
     private void OnDataUpdatedForStorage(object? sender, DataUpdateEventArgs e)
     {
         try
@@ -1451,6 +1696,186 @@ public partial class MainWindowViewModel : ObservableObject
         }
     }
 
+    private void ViewCompressionReport()
+    {
+        if (!CanViewCompressionReport)
+        {
+            return;
+        }
+
+        SelectedTab = CompressionReportTabIndex;
+    }
+
+    private void ResetCompressionReportState(string statusMessage)
+    {
+        _compressionReportCts?.Cancel();
+        _compressionReportCts = null;
+        _lastCompressionSessionSnapshot = null;
+        HasCompressionReport = false;
+        IsCompressionReportGenerating = false;
+        CompressionReportStatusMessage = statusMessage;
+        CurrentCompressionReport = new CompressionSessionSnapshot();
+        CompressionSummaryCards.Clear();
+        CompressionBenchmarkRows.Clear();
+        CompressionChannelRows.Clear();
+        OnPropertyChanged(nameof(CompressionBenchmarkStatusText));
+    }
+
+    private void BeginCompressionReportGeneration(CompressionSessionSnapshot snapshot)
+    {
+        _compressionReportCts?.Cancel();
+        _compressionReportCts = null;
+        _lastCompressionSessionSnapshot = snapshot;
+        CurrentCompressionReport = snapshot;
+        HasCompressionReport = true;
+        CompressionChannelRows.Clear();
+        foreach (var channel in snapshot.Channels)
+        {
+            CompressionChannelRows.Add(channel);
+        }
+
+        CompressionBenchmarkRows.Clear();
+        if (snapshot.BenchmarkSamples.Count == 0)
+        {
+            IsCompressionReportGenerating = false;
+            CompressionReportStatusMessage = "压缩性能报告已生成，仅包含真实写入指标。";
+            OnPropertyChanged(nameof(CompressionBenchmarkStatusText));
+            return;
+        }
+
+        IsCompressionReportGenerating = true;
+        CompressionReportStatusMessage = "正在生成压缩性能报告...";
+        var cts = new CancellationTokenSource();
+        _compressionReportCts = cts;
+        _ = RunCompressionBenchmarkAsync(snapshot, cts.Token);
+    }
+
+    private async Task RunCompressionBenchmarkAsync(CompressionSessionSnapshot snapshot, CancellationToken token)
+    {
+        try
+        {
+            var rows = await Task.Run(() => CompressionBenchmarkService.BuildBenchmarkRows(snapshot, token), token);
+            if (token.IsCancellationRequested)
+            {
+                return;
+            }
+
+            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            {
+                if (token.IsCancellationRequested)
+                {
+                    return;
+                }
+
+                CompressionBenchmarkRows.Clear();
+                foreach (var row in rows)
+                {
+                    CompressionBenchmarkRows.Add(row);
+                }
+
+                IsCompressionReportGenerating = false;
+                CompressionReportStatusMessage = "压缩性能报告已生成。";
+                OnPropertyChanged(nameof(CompressionBenchmarkStatusText));
+            });
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception ex)
+        {
+            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            {
+                if (token.IsCancellationRequested)
+                {
+                    return;
+                }
+
+                IsCompressionReportGenerating = false;
+                CompressionReportStatusMessage = $"压缩性能报告生成失败: {ex.Message}";
+                OnPropertyChanged(nameof(CompressionBenchmarkStatusText));
+            });
+        }
+    }
+
+    private void RefreshCompressionMetricCards()
+    {
+        CompressionSummaryCards.Clear();
+        var snapshot = CurrentCompressionReport;
+        CompressionSummaryCards.Add(new CompressionMetricCard
+        {
+            Title = "原始数据量",
+            Value = snapshot.RawBytesText,
+            Hint = $"样本数 {snapshot.TotalSamplesText}"
+        });
+        CompressionSummaryCards.Add(new CompressionMetricCard
+        {
+            Title = "压缩载荷",
+            Value = snapshot.CodecBytesText,
+            Hint = $"TDMS载荷 {snapshot.TdmsPayloadBytesText}"
+        });
+        CompressionSummaryCards.Add(new CompressionMetricCard
+        {
+            Title = "最终文件",
+            Value = snapshot.StoredBytesText,
+            Hint = snapshot.FilesSummaryText
+        });
+        CompressionSummaryCards.Add(new CompressionMetricCard
+        {
+            Title = "压缩比",
+            Value = snapshot.CompressionRatioText,
+            Hint = $"落盘 {snapshot.StorageCompressionRatioText}"
+        });
+        CompressionSummaryCards.Add(new CompressionMetricCard
+        {
+            Title = "空间节省",
+            Value = snapshot.SpaceSavingText,
+            Hint = $"批次数 {snapshot.BatchCountText}"
+        });
+        CompressionSummaryCards.Add(new CompressionMetricCard
+        {
+            Title = "压缩带宽",
+            Value = snapshot.EncodeBandwidthText,
+            Hint = $"P95 {snapshot.P95EncodeText}"
+        });
+        CompressionSummaryCards.Add(new CompressionMetricCard
+        {
+            Title = "写盘带宽",
+            Value = snapshot.WriteBandwidthText,
+            Hint = $"P95 {snapshot.P95WriteText}"
+        });
+        CompressionSummaryCards.Add(new CompressionMetricCard
+        {
+            Title = "总耗时",
+            Value = snapshot.ElapsedText,
+            Hint = $"端到端 {snapshot.EndToEndBandwidthText}"
+        });
+    }
+
+    private static long CalculateStoredBytes(IEnumerable<string>? files)
+    {
+        if (files == null)
+        {
+            return 0;
+        }
+
+        long totalBytes = 0;
+        foreach (var file in files)
+        {
+            try
+            {
+                if (File.Exists(file))
+                {
+                    totalBytes += new FileInfo(file).Length;
+                }
+            }
+            catch
+            {
+            }
+        }
+
+        return totalBytes;
+    }
+
     partial void OnStorageModeIndexChanged(int value)
     {
         StorageMode = value == 0 ? StorageModeOption.SingleFile : StorageModeOption.PerChannel;
@@ -1469,6 +1894,28 @@ public partial class MainWindowViewModel : ObservableObject
     }
 
     // 压缩参数变化处理
+    partial void OnHasCompressionReportChanged(bool value)
+    {
+        OnPropertyChanged(nameof(CanViewCompressionReport));
+        OnPropertyChanged(nameof(ShowCompressionReportPlaceholder));
+        OnPropertyChanged(nameof(CompressionBenchmarkStatusText));
+        (ViewCompressionReportCommand as RelayCommand)?.NotifyCanExecuteChanged();
+    }
+
+    partial void OnIsCompressionReportGeneratingChanged(bool value)
+    {
+        OnPropertyChanged(nameof(CanViewCompressionReport));
+        OnPropertyChanged(nameof(ShowCompressionReportPlaceholder));
+        OnPropertyChanged(nameof(CompressionBenchmarkStatusText));
+        (ViewCompressionReportCommand as RelayCommand)?.NotifyCanExecuteChanged();
+    }
+
+    partial void OnCurrentCompressionReportChanged(CompressionSessionSnapshot value)
+    {
+        RefreshCompressionMetricCards();
+        OnPropertyChanged(nameof(CompressionBenchmarkStatusText));
+    }
+
     partial void OnLz4LevelChanged(int value) => _compressionOptions.LZ4Level = value;
     partial void OnZstdLevelChanged(int value) => _compressionOptions.ZstdLevel = value;
     partial void OnZstdWindowLogChanged(int value) => _compressionOptions.ZstdWindowLog = value;
@@ -1722,6 +2169,13 @@ public partial class MainWindowViewModel : ObservableObject
     // 清理资源（当窗口关闭时调用）
     public void Cleanup()
     {
+        _storagePumpCts?.Cancel();
+        _storagePumpCts = null;
+        _storagePumpTasks = null;
+        _compressionReportCts?.Cancel();
+        _compressionReportCts = null;
+        _onlineStatusFlushTimer?.Stop();
+        _onlineStatusFlushTimer = null;
         _channelTimeUpdateTimer?.Stop();
         _channelTimeUpdateTimer?.Dispose();
         _channelTimeUpdateTimer = null;

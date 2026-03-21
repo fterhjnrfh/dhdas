@@ -26,6 +26,11 @@ public class SdkDeviceInfo
     /// 机器ID
     /// </summary>
     public int MachineId { get; set; }
+
+    /// <summary>
+    /// 回调/通道使用的设备ID（与 nGroupID 保持一致）
+    /// </summary>
+    public int ChannelDeviceId { get; set; }
     
     /// <summary>
     /// 机器IP地址
@@ -58,7 +63,11 @@ public class SdkDataProcessor : IDisposable
     
     // 数据缓存 - 按通道缓冲
     private readonly ConcurrentDictionary<int, ConcurrentQueue<float>> _channelBuffers = new();
-    private readonly int _chunkSize = 128;
+    private const int MinChunkSize = 512;
+    private const int MaxChunkSize = 4096;
+    private const int TargetCallbackBytes = 4 * 1024 * 1024;
+    private int _chunkSize = 2048;
+    private int _sdkCallbackDataCount = 2048;
     
     // 日志标记，防止重复日志
     private readonly ConcurrentDictionary<int, bool> _firstDataLogged = new();
@@ -220,6 +229,7 @@ public class SdkDataProcessor : IDisposable
                         {
                             DeviceIndex = i,
                             MachineId = machineId,
+                            ChannelDeviceId = i + 1,
                             MachineIp = machineIp,
                             ChannelCount = channelCount,
                             IsOnline = isOnline
@@ -279,7 +289,9 @@ public class SdkDataProcessor : IDisposable
             _channelBuffers.Clear();
             
             // 设置每次获取的数据量
-            HardwareSDK.SetGetDataCountEveryTime(128);
+            RefreshIngestBatchSettings();
+            HardwareSDK.SetGetDataCountEveryTime(_sdkCallbackDataCount);
+            Console.WriteLine($"[SDK] Callback block size={_sdkCallbackDataCount}, publish chunk size={_chunkSize}, total channels={_totalChannelCount}, sample rate={_sampleRate}Hz");
             
             // 启动采样
             HardwareSDK.StartMacSample();
@@ -306,6 +318,7 @@ public class SdkDataProcessor : IDisposable
         try
         {
             HardwareSDK.StopMacSample();
+            FlushBufferedChannels();
             _isSampling = false;
             _isActive = false;
             DataActivityChanged?.Invoke(this, false);
@@ -338,6 +351,7 @@ public class SdkDataProcessor : IDisposable
         try
         {
             // 更新活动时间
+            UpdateObservedDeviceMapping(nMachineID, nGroupID);
             _lastDataTime = DateTime.UtcNow;
             if (!_isActive)
             {
@@ -360,8 +374,7 @@ public class SdkDataProcessor : IDisposable
             }
             
             // 从指针读取数据
-            byte[] rawData = new byte[nBufferCount];
-            Marshal.Copy((IntPtr)varSampleData, rawData, 0, nBufferCount);
+            
             
             // 计算通道数
             int floatCount = nBufferCount / sizeof(float);
@@ -370,7 +383,7 @@ public class SdkDataProcessor : IDisposable
             
             // 解析float数据
             float[] allData = new float[floatCount];
-            Buffer.BlockCopy(rawData, 0, allData, 0, nBufferCount);
+            Marshal.Copy((IntPtr)varSampleData, allData, 0, floatCount);
             
             // 使用 nGroupID 作为设备标识符（与SdkRealtimeIngestor保持一致）
             int deviceId = nGroupID;
@@ -416,9 +429,37 @@ public class SdkDataProcessor : IDisposable
         var buffer = _channelBuffers.GetOrAdd(channelId, _ => new ConcurrentQueue<float>());
         
         // 添加数据到缓冲区
-        foreach (var sample in samples)
+        int offset = 0;
+        if (buffer.IsEmpty)
         {
-            buffer.Enqueue(sample);
+            if (samples.Length >= _chunkSize)
+            {
+                while (offset + _chunkSize <= samples.Length)
+                {
+                    var directChunk = new float[_chunkSize];
+                    Array.Copy(samples, offset, directChunk, 0, _chunkSize);
+                    PublishChunk(channelId, directChunk);
+                    offset += _chunkSize;
+                }
+            }
+            else if (samples.Length >= MinChunkSize)
+            {
+                var directChunk = new float[samples.Length];
+                Array.Copy(samples, directChunk, samples.Length);
+                PublishChunk(channelId, directChunk);
+
+                if (_firstDataLogged.TryAdd(channelId, true))
+                {
+                    Console.WriteLine($"[SDK数据] 通道{channelId}直接发布回调块, 样本数={samples.Length}");
+                }
+
+                return;
+            }
+        }
+
+        for (int i = offset; i < samples.Length; i++)
+        {
+            buffer.Enqueue(samples[i]);
         }
         
         // 记录首次数据到达的日志
@@ -438,16 +479,10 @@ public class SdkDataProcessor : IDisposable
             }
             
             // 创建数据帧
-            var frame = new SimpleFrame
-            {
-                ChannelId = channelId,
-                Timestamp = DateTime.UtcNow,
-                Samples = chunk,
-                Header = new FrameHeader { SampleRate = (int)_sampleRate }
-            };
+            
             
             // 异步发布
-            _ = _streamTable.PublishAsync(frame, CancellationToken.None);
+            PublishChunk(channelId, chunk);
             
             // 记录发布日志（仅首次）
             if (_firstPublishLogged.TryAdd(channelId, true))
@@ -460,6 +495,102 @@ public class SdkDataProcessor : IDisposable
     /// <summary>
     /// 检查数据活动状态
     /// </summary>
+    private void PublishChunk(int channelId, float[] chunk)
+    {
+        var frame = new SimpleFrame
+        {
+            ChannelId = channelId,
+            Timestamp = DateTime.UtcNow,
+            Samples = chunk,
+            Header = new FrameHeader { SampleRate = (int)_sampleRate }
+        };
+
+        _ = _streamTable.PublishAsync(frame, CancellationToken.None);
+
+        if (_firstPublishLogged.TryAdd(channelId, true))
+        {
+            Console.WriteLine($"[SDKé™æˆç«·] é–«æ°¶äº¾{channelId}æ££æ ¨î‚¼é™æˆç«·éç‰ˆåµç”¯Ñç´é–²å›¨ç‰±éœ?{_sampleRate}Hz, chunkæ¾¶Ñƒçš¬={_chunkSize}");
+        }
+    }
+
+    private void FlushBufferedChannels()
+    {
+        foreach (var kvp in _channelBuffers)
+        {
+            int count = kvp.Value.Count;
+            if (count <= 0)
+            {
+                continue;
+            }
+
+            var remaining = new float[count];
+            int actualCount = 0;
+            while (actualCount < remaining.Length && kvp.Value.TryDequeue(out var sample))
+            {
+                remaining[actualCount++] = sample;
+            }
+
+            if (actualCount <= 0)
+            {
+                continue;
+            }
+
+            if (actualCount != remaining.Length)
+            {
+                Array.Resize(ref remaining, actualCount);
+            }
+
+            PublishChunk(kvp.Key, remaining);
+        }
+    }
+
+    private void UpdateObservedDeviceMapping(int machineId, int channelDeviceId)
+    {
+        if (channelDeviceId <= 0)
+        {
+            return;
+        }
+
+        lock (_deviceInfoList)
+        {
+            var device = _deviceInfoList.Find(d => d.MachineId == machineId);
+            if (device != null)
+            {
+                device.ChannelDeviceId = channelDeviceId;
+                return;
+            }
+
+            if (channelDeviceId > 0)
+            {
+                int index = channelDeviceId - 1;
+                if (index >= 0 && index < _deviceInfoList.Count)
+                {
+                    _deviceInfoList[index].ChannelDeviceId = channelDeviceId;
+                }
+            }
+        }
+    }
+
+    private void RefreshIngestBatchSettings()
+    {
+        int channelCount = Math.Max(1, _totalChannelCount);
+        int samplesByBytes = Math.Max(MinChunkSize, TargetCallbackBytes / Math.Max(1, channelCount * sizeof(float)));
+        int normalized = NormalizePowerOfTwo(samplesByBytes);
+        _sdkCallbackDataCount = Math.Clamp(normalized, MinChunkSize, MaxChunkSize);
+        _chunkSize = _sdkCallbackDataCount;
+    }
+
+    private static int NormalizePowerOfTwo(int value)
+    {
+        int result = 1;
+        while (result < value && result < MaxChunkSize)
+        {
+            result <<= 1;
+        }
+
+        return result;
+    }
+
     private void CheckActivity(object? state)
     {
         if (_isActive && (DateTime.UtcNow - _lastDataTime).TotalMilliseconds > 500)

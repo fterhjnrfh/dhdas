@@ -67,6 +67,8 @@ namespace DH.Client.App.Views
             {
                 HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Stretch,
                 VerticalAlignment = Avalonia.Layout.VerticalAlignment.Stretch,
+                UseExtremaAggregation = false,
+                SamplingDensityFactor = 2.0,
                 // 时间轴滚动模式
                 UseTimeAxis = false,
                 UseDataXValues = true,

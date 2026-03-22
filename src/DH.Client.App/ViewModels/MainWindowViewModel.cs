@@ -29,16 +29,23 @@ public sealed class TdmsFileItem
 {
     public string FullPath { get; }
     public string DisplayText { get; }
+    public string FileName { get; }
+    public string SizeText { get; }
+    public string FolderText { get; }
+    public string DetailText { get; }
 
     public TdmsFileItem(FileInfo fi)
     {
         FullPath = fi.FullName;
         // 显示所在文件夹名（时间命名子文件夹）+ 文件名 + 大小
         var folderName = fi.Directory?.Name ?? "";
-        var folderPrefix = !string.IsNullOrEmpty(folderName) && folderName != "data"
-            ? $"[{folderName}] "
-            : "";
-        DisplayText = $"{folderPrefix}{fi.Name}  ({FormatSize(fi.Length)})";
+        FolderText = !string.IsNullOrEmpty(folderName) && folderName != "data"
+            ? $"[{folderName}]"
+            : "[data]";
+        FileName = fi.Name;
+        SizeText = FormatSize(fi.Length);
+        DetailText = $"{FolderText}  {fi.LastWriteTime:yyyy-MM-dd HH:mm:ss}";
+        DisplayText = $"{FolderText} {FileName}  ({SizeText})";
     }
 
     private static string FormatSize(long bytes) => bytes switch
@@ -50,6 +57,39 @@ public sealed class TdmsFileItem
     };
 
     public override string ToString() => DisplayText;
+}
+
+public partial class RawTdmsExportDeviceOption : ObservableObject
+{
+    public int DeviceId { get; }
+
+    public int ChannelCount { get; }
+
+    public string DisplayText => $"{DH.Contracts.ChannelNaming.DeviceDisplayName(DeviceId)} ({ChannelCount} 通道)";
+
+    [ObservableProperty] private bool _isSelected;
+
+    public RawTdmsExportDeviceOption(int deviceId, int channelCount)
+    {
+        DeviceId = Math.Max(0, deviceId);
+        ChannelCount = Math.Max(0, channelCount);
+    }
+}
+
+public partial class RawTdmsExportChannelOption : ObservableObject
+{
+    public int ChannelId { get; }
+
+    public int DeviceId => DH.Contracts.ChannelNaming.GetDeviceId(ChannelId);
+
+    public string DisplayText => DH.Contracts.ChannelNaming.ChannelName(ChannelId);
+
+    [ObservableProperty] private bool _isSelected;
+
+    public RawTdmsExportChannelOption(int channelId)
+    {
+        ChannelId = Math.Max(0, channelId);
+    }
 }
 
 public partial class MainWindowViewModel : ObservableObject
@@ -67,6 +107,7 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty] private string _storagePath = "./data";
     // 新增：存储控制与模式
     public enum StorageModeOption { SingleFile, PerChannel }
+    private enum StorageRuntimeKind { Tdms, SdkRawCapture }
     [ObservableProperty] private StorageModeOption _storageMode = StorageModeOption.SingleFile;
     [ObservableProperty] private bool _storageEnabled;
     [ObservableProperty] private string _storageSessionName = "session";
@@ -96,6 +137,7 @@ public partial class MainWindowViewModel : ObservableObject
     private readonly Dictionary<string, IReadOnlyDictionary<string, string>> _writeHashesByFile = new();
     private readonly Dictionary<string, IReadOnlyDictionary<string, long>> _writeSampleCountsByFile = new();
     private IReadOnlyList<string>? _lastWrittenFiles;
+    private StorageRuntimeKind? _activeStorageRuntime;
     // 新增：存储状态与最近文件列表
     [ObservableProperty] private string _storageStatusMessage = "未开始写入";
     // 写入计时器
@@ -104,6 +146,8 @@ public partial class MainWindowViewModel : ObservableObject
     private Avalonia.Threading.DispatcherTimer? _storageTimer;
     public ObservableCollection<TdmsFileItem> RecentTdmsFiles { get; } = new();
     [ObservableProperty] private TdmsFileItem? _selectedTdmsFile;
+    public ObservableCollection<RawTdmsExportDeviceOption> RawTdmsExportDevices { get; } = new();
+    public ObservableCollection<RawTdmsExportChannelOption> RawTdmsExportChannels { get; } = new();
     public ObservableCollection<CompressionMetricCard> CompressionSummaryCards { get; } = new();
     public ObservableCollection<CompressionBenchmarkRow> CompressionBenchmarkRows { get; } = new();
     public ObservableCollection<CompressionChannelSnapshot> CompressionChannelRows { get; } = new();
@@ -113,6 +157,7 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty] private string _compressionReportStatusMessage = "尚未生成压缩性能报告";
     private CompressionSessionSnapshot? _lastCompressionSessionSnapshot;
     private CancellationTokenSource? _compressionReportCts;
+    private List<int> _rawTdmsAvailableChannelIds = new();
 
     // 命令：存储控制
     public IRelayCommand StartStorageCommand { get; }
@@ -122,9 +167,17 @@ public partial class MainWindowViewModel : ObservableObject
     public IRelayCommand OpenOutputFolderCommand { get; }
     public IRelayCommand TestReadSelectedFileCommand { get; }
     public IRelayCommand VerifyStoredFileCommand { get; }
+    public IRelayCommand ConvertSelectedToTdmsCommand { get; }
+    public IRelayCommand SelectAllRawTdmsDevicesCommand { get; }
+    public IRelayCommand ClearRawTdmsDevicesCommand { get; }
+    public IRelayCommand SelectAllRawTdmsChannelsCommand { get; }
+    public IRelayCommand ClearRawTdmsChannelsCommand { get; }
     public IRelayCommand ViewCompressionReportCommand { get; }
     public IRelayCommand BackToStorageConfigCommand { get; }
     private ITdmsStorage? _storage;
+    private SdkRawCaptureWriter? _sdkRawCaptureWriter;
+    private Action<SdkRawBlock>? _sdkRawBlockHandler;
+    private bool _sdkRawCaptureProtectionStopPending;
     private CancellationTokenSource? _storagePumpCts;
     private List<Task>? _storagePumpTasks;
     [ObservableProperty] private int _maWindow = 16;
@@ -248,6 +301,32 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty] private int _selectedDeviceId = 0;
     public DeviceInfo? SelectedDevice => Devices.FirstOrDefault(d => d.DeviceId == SelectedDeviceId);
     public string SelectedDeviceTitle => $"通道在线状态 - AI{SelectedDeviceId}";
+    public bool HasRawTdmsExportOptions => RawTdmsExportDevices.Count > 0;
+    public string RawTdmsExportSelectionSummary
+    {
+        get
+        {
+            if (!HasRawTdmsExportOptions)
+            {
+                return "选中 .sdkraw.bin 后可按设备和通道多选转换。";
+            }
+
+            int selectedDeviceCount = RawTdmsExportDevices.Count(option => option.IsSelected);
+            int selectedChannelCount = RawTdmsExportChannels.Count(option => option.IsSelected);
+
+            if (selectedChannelCount > 0)
+            {
+                return $"已选 {selectedDeviceCount} 台设备，{selectedChannelCount} 个通道将参与转换。";
+            }
+
+            if (selectedDeviceCount > 0)
+            {
+                return $"已选 {selectedDeviceCount} 台设备，将转换这些设备下的全部通道。";
+            }
+
+            return $"当前未勾选设备或通道，将默认转换全部 {_rawTdmsAvailableChannelIds.Count} 个通道。";
+        }
+    }
 
     public bool CanViewCompressionReport => HasCompressionReport || IsCompressionReportGenerating;
     public bool ShowCompressionReportPlaceholder => !HasCompressionReport && !IsCompressionReportGenerating;
@@ -411,8 +490,25 @@ public partial class MainWindowViewModel : ObservableObject
         OpenOutputFolderCommand = new RelayCommand(OpenOutputFolder);
         TestReadSelectedFileCommand = new RelayCommand(TestReadSelectedFile, () => !string.IsNullOrEmpty(SelectedTdmsFile?.FullPath));
         VerifyStoredFileCommand = new AsyncRelayCommand(VerifyStoredFileAsync, () => !string.IsNullOrEmpty(SelectedTdmsFile?.FullPath));
+        ConvertSelectedToTdmsCommand = new AsyncRelayCommand(ConvertSelectedRawCaptureToTdmsAsync, CanConvertSelectedRawCapture);
+        SelectAllRawTdmsDevicesCommand = new RelayCommand(SelectAllRawTdmsDevices, () => RawTdmsExportDevices.Count > 0);
+        ClearRawTdmsDevicesCommand = new RelayCommand(ClearRawTdmsDevices, () => RawTdmsExportDevices.Any(option => option.IsSelected));
+        SelectAllRawTdmsChannelsCommand = new RelayCommand(SelectAllRawTdmsChannels, () => RawTdmsExportChannels.Count > 0);
+        ClearRawTdmsChannelsCommand = new RelayCommand(ClearRawTdmsChannels, () => RawTdmsExportChannels.Any(option => option.IsSelected));
         ViewCompressionReportCommand = new RelayCommand(ViewCompressionReport, () => CanViewCompressionReport);
         BackToStorageConfigCommand = new RelayCommand(() => SelectedTab = StorageConfigTabIndex);
+
+        RawTdmsExportDevices.CollectionChanged += (_, _) =>
+        {
+            OnPropertyChanged(nameof(HasRawTdmsExportOptions));
+            OnPropertyChanged(nameof(RawTdmsExportSelectionSummary));
+            NotifyRawTdmsSelectionCommandStates();
+        };
+        RawTdmsExportChannels.CollectionChanged += (_, _) =>
+        {
+            OnPropertyChanged(nameof(RawTdmsExportSelectionSummary));
+            NotifyRawTdmsSelectionCommandStates();
+        };
 
         // 运行时诊断：输出 TDMS 原生库可用性
         try
@@ -425,7 +521,7 @@ public partial class MainWindowViewModel : ObservableObject
             }
             else
             {
-                StorageStatusMessage = "TDMS库已检测到（写入将生成 .tdms）";
+                StorageStatusMessage = "TDMS库已检测到（SDK实时写入将保存为 .sdkraw.bin，可离线转换为 .tdms）";
             }
         }
         catch { /* ignore */ }
@@ -626,12 +722,7 @@ public partial class MainWindowViewModel : ObservableObject
 
     private static int ResolveSdkChannelDeviceId(SdkDeviceInfo sdkDevice)
     {
-        if (sdkDevice.ChannelDeviceId > 0)
-        {
-            return sdkDevice.ChannelDeviceId;
-        }
-
-        return Math.Max(0, sdkDevice.DeviceIndex + 1);
+        return SdkDeviceIdResolver.ResolveDeviceId(sdkDevice);
     }
 
     private void EnsureSdkChannelRegistration(int channelId)
@@ -1317,14 +1408,41 @@ public partial class MainWindowViewModel : ObservableObject
         ResetCompressionReportState("本次会话停止后将生成压缩性能报告");
         var basePath = ResolveStoragePath(StoragePath);
         Directory.CreateDirectory(basePath);
-        _storage = StorageMode == StorageModeOption.SingleFile
-            ? new TdmsSingleFileStorage() as ITdmsStorage
-            : new TdmsPerChannelStorage() as ITdmsStorage;
         var channelIds = ResolveStorageChannelIds();
+        bool useSdkRawCapture = ShouldUseSdkRawCapture();
         await Task.Run(() =>
         {
             try
             {
+                if (useSdkRawCapture)
+                {
+                    StartSdkRawCaptureSession(basePath, channelIds);
+
+                    Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                    {
+                        StorageEnabled = true;
+                        _storageStartTime = DateTime.Now;
+                        StorageElapsed = "00:00:00";
+                        _storageTimer = new Avalonia.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+                        _storageTimer.Tick += (_, _) =>
+                        {
+                            var elapsed = DateTime.Now - _storageStartTime;
+                            StorageElapsed = elapsed.ToString(@"hh\:mm\:ss");
+                            UpdateSdkRawCaptureStatusMessage();
+                        };
+                        _storageTimer.Start();
+                        UpdateSdkRawCaptureStatusMessage();
+                        (StartStorageCommand as AsyncRelayCommand)?.NotifyCanExecuteChanged();
+                        (StopStorageCommand as RelayCommand)?.NotifyCanExecuteChanged();
+                    });
+
+                    return;
+                }
+
+                _storage = StorageMode == StorageModeOption.SingleFile
+                    ? new TdmsSingleFileStorage() as ITdmsStorage
+                    : new TdmsPerChannelStorage() as ITdmsStorage;
+
                 // 启动前检查上次是否异常退出
                 var recovery = StorageGuard.CheckRecovery(basePath);
                 if (recovery != null)
@@ -1334,6 +1452,7 @@ public partial class MainWindowViewModel : ObservableObject
                 }
 
                 _storage!.Start(basePath, channelIds, StorageSessionName, SampleRate, SelectedCompressionType, SelectedPreprocessType, _compressionOptions.Clone());
+                _activeStorageRuntime = StorageRuntimeKind.Tdms;
                 
                 // 激活断电保护：周期性刷盘 + 进程退出钩子
                 StorageGuard.Activate(_storage, basePath, StorageSessionName);
@@ -1372,6 +1491,12 @@ public partial class MainWindowViewModel : ObservableObject
                 Console.WriteLine($"[Storage] Start failed: {ex.Message}");
                 Avalonia.Threading.Dispatcher.UIThread.Post(() =>
                 {
+                    CleanupSdkRawCaptureSubscription();
+                    SetSdkRealtimePublishEnabled(true);
+                    _sdkRawCaptureWriter?.Dispose();
+                    _sdkRawCaptureWriter = null;
+                    _sdkRawCaptureProtectionStopPending = false;
+                    _activeStorageRuntime = null;
                     _storage = null;
                     StorageEnabled = false;
                     StorageStatusMessage = $"写入启动失败: {ex.Message}";
@@ -1380,6 +1505,231 @@ public partial class MainWindowViewModel : ObservableObject
                 });
             }
         });
+    }
+
+    private bool ShouldUseSdkRawCapture() => DataSourceMode == 1;
+
+    private void SetSdkRealtimePublishEnabled(bool enabled)
+    {
+        try
+        {
+            _sdkDriverManager?.SetRealtimePublishEnabled(enabled);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[SdkRawCapture] 切换实时预览失败: {ex.Message}");
+        }
+    }
+
+    private void UpdateSdkRawCaptureStatusMessage()
+    {
+        if (_activeStorageRuntime != StorageRuntimeKind.SdkRawCapture || _sdkRawCaptureWriter == null)
+        {
+            return;
+        }
+
+        var stats = _sdkRawCaptureWriter.GetStatistics();
+        string queueBytes = FormatStorageSize(stats.PendingPayloadBytes);
+        string peakBytes = FormatStorageSize(stats.PeakPendingPayloadBytes);
+        string limitBytes = FormatStorageSize(stats.PendingPayloadByteLimit);
+        string modeSummary = $"SDK原始采集中，已写 {stats.WrittenBlockCount:N0} 块，待写 {stats.PendingBlockCount:N0}/{stats.PendingBlockLimit:N0} 块，队列 {queueBytes}/{limitBytes}，峰值 {stats.PeakPendingBlockCount:N0} 块/{peakBytes}";
+        if (stats.HasTimingAnalysis && stats.ConfiguredSampleRateHz > 0d)
+        {
+            string effectiveRateText = FormatTimingRange(stats.MinEffectiveSampleRateHz, stats.MaxEffectiveSampleRateHz, "N0");
+            double minRatioPercent = (stats.MinEffectiveSampleRateHz / stats.ConfiguredSampleRateHz) * 100d;
+            double maxRatioPercent = (stats.MaxEffectiveSampleRateHz / stats.ConfiguredSampleRateHz) * 100d;
+            string ratioText = FormatTimingRange(minRatioPercent, maxRatioPercent, "N1");
+            modeSummary += $"，反推采样率 {effectiveRateText} Hz（{ratioText}%）";
+        }
+
+        if (stats.ProtectionTriggered || stats.WriteFaultCount > 0)
+        {
+            string reason = !string.IsNullOrWhiteSpace(stats.ProtectionReason) ? stats.ProtectionReason : stats.LastError;
+            StorageStatusMessage = $"{modeSummary}，已触发保护停止：{reason}";
+            RequestSdkRawCaptureProtectionStop(stats);
+            return;
+        }
+
+        if (stats.HasTimingAnalysis && !stats.TimingConsistent)
+        {
+            StorageStatusMessage = $"{modeSummary}，采样率疑似异常";
+            return;
+        }
+
+        if (stats.PendingBlockCount * 2 >= stats.PendingBlockLimit
+            || stats.PendingPayloadBytes * 2 >= stats.PendingPayloadByteLimit)
+        {
+            StorageStatusMessage = $"{modeSummary}，已接近保护阈值";
+            return;
+        }
+
+        StorageStatusMessage = modeSummary;
+    }
+
+    private void RequestSdkRawCaptureProtectionStop(SdkRawCaptureWriterStatistics stats)
+    {
+        if (_sdkRawCaptureProtectionStopPending || _activeStorageRuntime != StorageRuntimeKind.SdkRawCapture)
+        {
+            return;
+        }
+
+        _sdkRawCaptureProtectionStopPending = true;
+        string reason = !string.IsNullOrWhiteSpace(stats.ProtectionReason) ? stats.ProtectionReason : stats.LastError;
+
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            if (_activeStorageRuntime != StorageRuntimeKind.SdkRawCapture)
+            {
+                _sdkRawCaptureProtectionStopPending = false;
+                return;
+            }
+
+            StorageStatusMessage = $"原始采集已触发保护停止：{reason}";
+            FileVerifyPassed = false;
+            FileVerifyResult = StorageStatusMessage;
+
+            if (IsSdkSampling)
+            {
+                StopSdkSampling();
+            }
+
+            if (StorageEnabled)
+            {
+                StopStorage();
+            }
+            else
+            {
+                _sdkRawCaptureProtectionStopPending = false;
+            }
+        });
+    }
+
+    private void StartSdkRawCaptureSession(string basePath, IReadOnlyCollection<int> channelIds)
+    {
+        if (_sdkDriverManager == null)
+        {
+            throw new InvalidOperationException("SDK driver is not initialized.");
+        }
+
+        CleanupSdkRawCaptureSubscription();
+        _sdkRawCaptureWriter?.Dispose();
+        _sdkRawCaptureWriter = new SdkRawCaptureWriter();
+        _sdkRawCaptureWriter.Start(basePath, StorageSessionName, SampleRate, channelIds);
+        _sdkRawCaptureProtectionStopPending = false;
+        SetSdkRealtimePublishEnabled(false);
+
+        _sdkRawBlockHandler = rawBlock =>
+        {
+            try
+            {
+                if (!(_sdkRawCaptureWriter?.TryEnqueue(rawBlock) ?? false) && _sdkRawCaptureWriter != null)
+                {
+                    var stats = _sdkRawCaptureWriter.GetStatistics();
+                    if (stats.ProtectionTriggered || stats.WriteFaultCount > 0)
+                    {
+                        RequestSdkRawCaptureProtectionStop(stats);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[SdkRawCapture] 入队失败: {ex.Message}");
+            }
+        };
+
+        _sdkDriverManager.RawBlockReceived += _sdkRawBlockHandler;
+        _activeStorageRuntime = StorageRuntimeKind.SdkRawCapture;
+        _storage = null;
+        _storagePumpCts = null;
+        _storagePumpTasks = null;
+    }
+
+    private void CleanupSdkRawCaptureSubscription()
+    {
+        if (_sdkDriverManager != null && _sdkRawBlockHandler != null)
+        {
+            _sdkDriverManager.RawBlockReceived -= _sdkRawBlockHandler;
+        }
+
+        _sdkRawBlockHandler = null;
+    }
+
+    private void StopSdkRawCaptureStorage(TimeSpan finalElapsed)
+    {
+        CompressionSessionSnapshot? compressionSnapshot = null;
+
+        StorageEnabled = false;
+        CleanupSdkRawCaptureSubscription();
+
+        try
+        {
+            var result = _sdkRawCaptureWriter?.Complete();
+            _lastWrittenFiles = result?.WrittenFiles;
+
+            if (_lastWrittenFiles != null && result?.SampleCounts != null)
+            {
+                foreach (var fp in _lastWrittenFiles)
+                {
+                    _writeSampleCountsByFile[fp] = result.SampleCounts;
+                }
+            }
+
+            _sdkRawCaptureWriter?.Dispose();
+            _sdkRawCaptureWriter = null;
+            _activeStorageRuntime = null;
+
+            compressionSnapshot = result?.Snapshot;
+            if (compressionSnapshot != null)
+            {
+                compressionSnapshot.StartedAt = _storageStartTime;
+                compressionSnapshot.StoppedAt = DateTime.Now;
+                compressionSnapshot.Elapsed = finalElapsed;
+                compressionSnapshot.WrittenFiles = (_lastWrittenFiles ?? Array.Empty<string>()).ToArray();
+                compressionSnapshot.StoredBytes = CalculateStoredBytes(compressionSnapshot.WrittenFiles);
+            }
+
+            bool captureHealthy = result?.Manifest is { } manifest && IsRawCaptureHealthy(manifest);
+
+            StorageStatusMessage = captureHealthy
+                ? "写入已停止，SDK原始采集文件已封存"
+                : $"写入已停止，但检测到积压/写入异常：保护 {result?.Manifest.ProtectionTriggered ?? false}，拒绝 {result?.Manifest.RejectedBlockCount ?? 0:N0}，故障 {result?.Manifest.WriteFaultCount ?? 0:N0}";
+
+            if (_lastWrittenFiles != null && _lastWrittenFiles.Count > 0 && result?.Manifest != null)
+            {
+                FileVerifyPassed = captureHealthy;
+                FileVerifyResult = BuildRawCaptureSummary(_lastWrittenFiles[0], result.Manifest);
+            }
+            else
+            {
+                FileVerifyPassed = captureHealthy;
+                FileVerifyResult = captureHealthy
+                    ? "原始采集已完成，可使用“验证”按钮检查清单和文件大小。"
+                    : "原始采集已结束，但存在异常，请使用“验证”按钮检查清单。";
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[SdkRawCapture] 停止写入时出错: {ex.Message}");
+            StorageStatusMessage = $"停止写入时出错: {ex.Message}";
+        }
+        finally
+        {
+            SetSdkRealtimePublishEnabled(true);
+            _sdkRawCaptureProtectionStopPending = false;
+            _sdkRawCaptureWriter = null;
+            _activeStorageRuntime = null;
+        }
+
+        RefreshRecentFiles();
+        (StartStorageCommand as AsyncRelayCommand)?.NotifyCanExecuteChanged();
+        (StopStorageCommand as RelayCommand)?.NotifyCanExecuteChanged();
+
+        if (compressionSnapshot != null)
+        {
+            BeginCompressionReportGeneration(compressionSnapshot);
+        }
+
+        _ = AutoVerifyAfterStopAsync();
     }
 
     private void StopStorage()
@@ -1392,6 +1742,12 @@ public partial class MainWindowViewModel : ObservableObject
         var finalElapsed = DateTime.Now - _storageStartTime;
         StorageElapsed = finalElapsed.ToString(@"hh\:mm\:ss");
         CompressionSessionSnapshot? compressionSnapshot = null;
+
+        if (_activeStorageRuntime == StorageRuntimeKind.SdkRawCapture)
+        {
+            StopSdkRawCaptureStorage(finalElapsed);
+            return;
+        }
 
         // 先标记为未启用，防止新的写入
         StorageEnabled = false;
@@ -1523,6 +1879,15 @@ public partial class MainWindowViewModel : ObservableObject
             foreach (var file in _lastWrittenFiles)
             {
                 if (!File.Exists(file)) continue;
+
+                if (SdkRawCaptureFormat.IsRawCaptureFile(file))
+                {
+                    var (passed, summary) = VerifyRawCaptureFile(file);
+                    allResults.Add(summary);
+                    if (!passed) allPassed = false;
+                    continue;
+                }
+
                 _writeHashesByFile.TryGetValue(file, out var hashes);
                 _writeSampleCountsByFile.TryGetValue(file, out var counts);
 
@@ -1550,6 +1915,506 @@ public partial class MainWindowViewModel : ObservableObject
             FileVerifyPassed = false;
             FileVerifyResult = $"自动验证异常: {ex.Message}";
         }
+    }
+
+    private static bool IsTdmsLikeFile(string filePath)
+    {
+        string ext = Path.GetExtension(filePath);
+        return string.Equals(ext, ".tdms", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(ext, ".tdm", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string FormatStorageSize(long bytes) => bytes switch
+    {
+        < 1024 => $"{bytes} B",
+        < 1024 * 1024 => $"{bytes / 1024.0:F1} KB",
+        < 1024 * 1024 * 1024 => $"{bytes / (1024.0 * 1024):F2} MB",
+        _ => $"{bytes / (1024.0 * 1024 * 1024):F2} GB"
+    };
+
+    private static bool IsRawCaptureRuntimeHealthy(SdkRawCaptureManifest manifest)
+        => !manifest.ProtectionTriggered
+            && manifest.RejectedBlockCount == 0
+            && manifest.WriteFaultCount == 0
+            && string.IsNullOrWhiteSpace(manifest.LastError);
+
+    private static bool IsConstantBlockIndexArtifact(SdkRawCaptureDeviceIntegrity device)
+        => !device.BlockIndexContinuityEnabled
+            || (device.BlockCount > 1
+                && device.FirstBlockIndex == device.LastBlockIndex
+                && device.NonMonotonicBlockCount >= device.BlockCount - 1
+                && device.MissingBlockCount == 0
+                && device.TotalDataGapSampleCount == 0
+                && device.TotalDataRegressionCount == 0);
+
+    private static bool HasMeaningfulDeviceIntegrityIssue(SdkRawCaptureDeviceIntegrity device)
+    {
+        bool hasBlockIndexIssue = !IsConstantBlockIndexArtifact(device)
+            && (device.MissingBlockCount > 0 || device.NonMonotonicBlockCount > 0);
+
+        return hasBlockIndexIssue
+            || device.TotalDataGapSampleCount > 0
+            || device.TotalDataRegressionCount > 0
+            || device.ChannelLayoutChanged
+            || device.BlockSizeChanged;
+    }
+
+    private static IEnumerable<SdkRawCaptureDeviceIntegrity> GetMeaningfulDeviceIntegrityIssues(SdkRawCaptureManifest manifest)
+        => manifest.DeviceIntegrity.Where(HasMeaningfulDeviceIntegrityIssue);
+
+    private static bool TryGetBoundaryTailSkewInfo(
+        SdkRawCaptureManifest manifest,
+        out long minSamplesPerChannel,
+        out long maxSamplesPerChannel,
+        out int commonSamplesPerBlockPerChannel,
+        out int affectedDeviceCount)
+    {
+        minSamplesPerChannel = 0;
+        maxSamplesPerChannel = 0;
+        commonSamplesPerBlockPerChannel = 0;
+        affectedDeviceCount = 0;
+
+        if (manifest.DeviceIntegrity.Count <= 1
+            || manifest.DeviceSampleCountsBalanced
+            || GetMeaningfulDeviceIntegrityIssues(manifest).Any())
+        {
+            return false;
+        }
+
+        var devices = manifest.DeviceIntegrity
+            .Where(d => d.SamplesPerChannel > 0 && d.SamplesPerBlockPerChannel > 0)
+            .ToList();
+        if (devices.Count != manifest.DeviceIntegrity.Count)
+        {
+            return false;
+        }
+
+        long localMinSamplesPerChannel = devices.Min(d => d.SamplesPerChannel);
+        long localMaxSamplesPerChannel = devices.Max(d => d.SamplesPerChannel);
+        long spread = localMaxSamplesPerChannel - localMinSamplesPerChannel;
+        if (spread <= 0)
+        {
+            return false;
+        }
+
+        var blockSizes = devices
+            .Select(d => d.SamplesPerBlockPerChannel)
+            .Distinct()
+            .ToList();
+        if (blockSizes.Count != 1)
+        {
+            return false;
+        }
+
+        int localCommonSamplesPerBlockPerChannel = blockSizes[0];
+        if (localCommonSamplesPerBlockPerChannel <= 0
+            || spread > localCommonSamplesPerBlockPerChannel
+            || (spread % localCommonSamplesPerBlockPerChannel) != 0)
+        {
+            return false;
+        }
+
+        if (devices.Any(device =>
+            {
+                long tailSpread = device.SamplesPerChannel - localMinSamplesPerChannel;
+                return tailSpread < 0
+                    || tailSpread > localCommonSamplesPerBlockPerChannel
+                    || (tailSpread % localCommonSamplesPerBlockPerChannel) != 0;
+            }))
+        {
+            return false;
+        }
+
+        int localAffectedDeviceCount = devices.Count(d => d.SamplesPerChannel != localMinSamplesPerChannel);
+        minSamplesPerChannel = localMinSamplesPerChannel;
+        maxSamplesPerChannel = localMaxSamplesPerChannel;
+        commonSamplesPerBlockPerChannel = localCommonSamplesPerBlockPerChannel;
+        affectedDeviceCount = localAffectedDeviceCount;
+        return affectedDeviceCount > 0;
+    }
+
+    private static bool HasBoundaryTailSkewOnly(SdkRawCaptureManifest manifest)
+        => TryGetBoundaryTailSkewInfo(
+            manifest,
+            out _,
+            out _,
+            out _,
+            out _);
+
+    private static string GetDeviceSampleConsistencyText(SdkRawCaptureManifest manifest)
+    {
+        if (manifest.DeviceSampleCountsBalanced)
+        {
+            return "鏄?";
+        }
+
+        return TryGetBoundaryTailSkewInfo(
+            manifest,
+            out _,
+            out _,
+            out _,
+            out int affectedDeviceCount)
+            ? $"杈圭晫灏惧樊锛?{affectedDeviceCount} 鍙拌澶囧 1 涓熬鍧楋紝鍙鍑哄榻愶級"
+            : "鍚?";
+    }
+
+    private static string BuildEffectiveIntegritySummary(SdkRawCaptureManifest manifest)
+    {
+        var issues = new List<string>();
+        var meaningfulDevices = GetMeaningfulDeviceIntegrityIssues(manifest).ToList();
+        long missingBlocks = meaningfulDevices.Sum(d => d.MissingBlockCount);
+        long nonMonotonicBlocks = meaningfulDevices.Sum(d => d.NonMonotonicBlockCount);
+        long totalDataGaps = meaningfulDevices.Sum(d => d.TotalDataGapSampleCount);
+        long totalDataRegressions = meaningfulDevices.Sum(d => d.TotalDataRegressionCount);
+
+        if (missingBlocks > 0)
+        {
+            issues.Add($"block index 缺块 {missingBlocks:N0}");
+        }
+
+        if (nonMonotonicBlocks > 0)
+        {
+            issues.Add($"block index 乱序 {nonMonotonicBlocks:N0}");
+        }
+
+        if (totalDataGaps > 0)
+        {
+            issues.Add($"TotalData 缺口 {totalDataGaps:N0}");
+        }
+
+        if (totalDataRegressions > 0)
+        {
+            issues.Add($"TotalData 回退 {totalDataRegressions:N0}");
+        }
+
+        if (!manifest.DeviceSampleCountsBalanced)
+        {
+            var minDevice = manifest.DeviceIntegrity
+                .OrderBy(d => d.SamplesPerChannel)
+                .ThenBy(d => d.DeviceId)
+                .FirstOrDefault();
+            var maxDevice = manifest.DeviceIntegrity
+                .OrderByDescending(d => d.SamplesPerChannel)
+                .ThenBy(d => d.DeviceId)
+                .FirstOrDefault();
+
+            if (minDevice != null && maxDevice != null)
+            {
+                if (TryGetBoundaryTailSkewInfo(
+                    manifest,
+                    out long minSamplesPerChannel,
+                    out long maxSamplesPerChannel,
+                    out int samplesPerBlockPerChannel,
+                    out int affectedDeviceCount))
+                {
+                    issues.Add($"鍋滃綍杈圭晫灏惧潡宸紓 AI{minDevice.DeviceId:00}={minSamplesPerChannel:N0} 鍒?AI{maxDevice.DeviceId:00}={maxSamplesPerChannel:N0}锛?{affectedDeviceCount} 鍙拌澶囧 1 涓?{samplesPerBlockPerChannel:N0} 鐐瑰熬鍧楋紝TDMS 瀵煎嚭浼氭寜鏈€鐭澶囧榻愶級");
+                }
+                else
+                {
+                    issues.Add($"device samples/channel range AI{minDevice.DeviceId:00}={minDevice.SamplesPerChannel:N0} to AI{maxDevice.DeviceId:00}={maxDevice.SamplesPerChannel:N0}");
+                }
+            }
+        }
+
+        return issues.Count == 0
+            ? "未发现有效的设备连续性异常"
+            : string.Join("; ", issues);
+    }
+
+    private static (bool HasAnalysis, bool IsConsistent, double WallClockDurationSeconds, double MinSampleDerivedDurationSeconds, double MaxSampleDerivedDurationSeconds, double MinEffectiveSampleRateHz, double MaxEffectiveSampleRateHz, string Summary) GetRawCaptureTimingAnalysis(SdkRawCaptureManifest manifest)
+    {
+        if (manifest.MaxSampleDerivedDurationSeconds > 0d && manifest.MaxEffectiveSampleRateHz > 0d)
+        {
+            double wallClockDurationSeconds = manifest.WallClockDurationSeconds > 0d
+                ? manifest.WallClockDurationSeconds
+                : Math.Max(0d, (manifest.StoppedAtUtc - manifest.StartedAtUtc).TotalSeconds);
+            string summary = !string.IsNullOrWhiteSpace(manifest.SampleRateConsistencySummary)
+                ? manifest.SampleRateConsistencySummary
+                : BuildRawCaptureTimingSummaryText(
+                    manifest.SampleRateHz,
+                    wallClockDurationSeconds,
+                    manifest.MinSampleDerivedDurationSeconds,
+                    manifest.MaxSampleDerivedDurationSeconds,
+                    manifest.MinEffectiveSampleRateHz,
+                    manifest.MaxEffectiveSampleRateHz);
+            return (
+                true,
+                manifest.SampleRateConsistencyPassed,
+                wallClockDurationSeconds,
+                manifest.MinSampleDerivedDurationSeconds,
+                manifest.MaxSampleDerivedDurationSeconds,
+                manifest.MinEffectiveSampleRateHz,
+                manifest.MaxEffectiveSampleRateHz,
+                summary);
+        }
+
+        double derivedWallClockDurationSeconds = Math.Max(0d, (manifest.StoppedAtUtc - manifest.StartedAtUtc).TotalSeconds);
+        long minSamplesPerChannel = 0;
+        long maxSamplesPerChannel = 0;
+
+        var deviceSamples = manifest.DeviceIntegrity
+            .Select(device => device.SamplesPerChannel)
+            .Where(value => value > 0)
+            .ToList();
+        if (deviceSamples.Count > 0)
+        {
+            minSamplesPerChannel = deviceSamples.Min();
+            maxSamplesPerChannel = deviceSamples.Max();
+        }
+        else
+        {
+            var channelSamples = manifest.ChannelSampleCounts.Values
+                .Where(value => value > 0)
+                .ToList();
+            if (channelSamples.Count > 0)
+            {
+                minSamplesPerChannel = channelSamples.Min();
+                maxSamplesPerChannel = channelSamples.Max();
+            }
+        }
+
+        if (manifest.SampleRateHz <= 0d || derivedWallClockDurationSeconds <= 0d || maxSamplesPerChannel <= 0)
+        {
+            return (false, true, derivedWallClockDurationSeconds, 0d, 0d, 0d, 0d, "缺少足够的时基数据");
+        }
+
+        double minSampleDerivedDurationSeconds = minSamplesPerChannel / manifest.SampleRateHz;
+        double maxSampleDerivedDurationSeconds = maxSamplesPerChannel / manifest.SampleRateHz;
+        double minEffectiveSampleRateHz = minSamplesPerChannel / derivedWallClockDurationSeconds;
+        double maxEffectiveSampleRateHz = maxSamplesPerChannel / derivedWallClockDurationSeconds;
+        double minRateRatio = minEffectiveSampleRateHz / manifest.SampleRateHz;
+        double maxRateRatio = maxEffectiveSampleRateHz / manifest.SampleRateHz;
+
+        const double toleranceRatio = 0.15d;
+        bool isConsistent =
+            derivedWallClockDurationSeconds < 1.0d
+            || (minRateRatio >= 1.0d - toleranceRatio && maxRateRatio <= 1.0d + toleranceRatio);
+
+        return (
+            true,
+            isConsistent,
+            derivedWallClockDurationSeconds,
+            minSampleDerivedDurationSeconds,
+            maxSampleDerivedDurationSeconds,
+            minEffectiveSampleRateHz,
+            maxEffectiveSampleRateHz,
+            BuildRawCaptureTimingSummaryText(
+                manifest.SampleRateHz,
+                derivedWallClockDurationSeconds,
+                minSampleDerivedDurationSeconds,
+                maxSampleDerivedDurationSeconds,
+                minEffectiveSampleRateHz,
+                maxEffectiveSampleRateHz));
+    }
+
+    private static bool HasRawCaptureTimingAnalysis(SdkRawCaptureManifest manifest)
+        => GetRawCaptureTimingAnalysis(manifest).HasAnalysis;
+
+    private static bool IsRawCaptureTimingHealthy(SdkRawCaptureManifest manifest)
+    {
+        var analysis = GetRawCaptureTimingAnalysis(manifest);
+        return !analysis.HasAnalysis || analysis.IsConsistent;
+    }
+
+    private static void AppendRawCaptureTimingSummary(StringBuilder sb, SdkRawCaptureManifest manifest)
+    {
+        var analysis = GetRawCaptureTimingAnalysis(manifest);
+        if (!analysis.HasAnalysis)
+        {
+            return;
+        }
+
+        sb.AppendLine($"墙钟时长: {analysis.WallClockDurationSeconds:N2} s");
+        sb.AppendLine($"样本换算时长: {FormatTimingRange(analysis.MinSampleDerivedDurationSeconds, analysis.MaxSampleDerivedDurationSeconds, "N2")} s");
+        sb.AppendLine($"反推有效采样率: {FormatTimingRange(analysis.MinEffectiveSampleRateHz, analysis.MaxEffectiveSampleRateHz, "N0")} Hz");
+        sb.AppendLine($"采样率校验: {(analysis.IsConsistent ? "正常" : "异常")}");
+        if (!string.IsNullOrWhiteSpace(analysis.Summary))
+        {
+            sb.AppendLine($"采样率摘要: {analysis.Summary}");
+        }
+    }
+
+    private static string BuildRawCaptureTimingSummaryText(
+        double sampleRateHz,
+        double wallClockDurationSeconds,
+        double minSampleDerivedDurationSeconds,
+        double maxSampleDerivedDurationSeconds,
+        double minEffectiveSampleRateHz,
+        double maxEffectiveSampleRateHz)
+    {
+        string effectiveRateText = FormatTimingRange(minEffectiveSampleRateHz, maxEffectiveSampleRateHz, "N0");
+        string durationText = FormatTimingRange(minSampleDerivedDurationSeconds, maxSampleDerivedDurationSeconds, "N2");
+        double minRatioPercent = sampleRateHz > 0d ? (minEffectiveSampleRateHz / sampleRateHz) * 100d : 0d;
+        double maxRatioPercent = sampleRateHz > 0d ? (maxEffectiveSampleRateHz / sampleRateHz) * 100d : 0d;
+        string ratioText = FormatTimingRange(minRatioPercent, maxRatioPercent, "N1");
+        return $"文件头采样率={sampleRateHz:N0} Hz，反推采样率={effectiveRateText} Hz，墙钟时长={wallClockDurationSeconds:N2}s，样本换算时长={durationText}s，比例={ratioText}%";
+    }
+
+    private static string FormatTimingRange(double minValue, double maxValue, string format)
+        => Math.Abs(minValue - maxValue) < 0.000001d
+            ? minValue.ToString(format)
+            : $"{minValue.ToString(format)} ~ {maxValue.ToString(format)}";
+
+    private static bool IsRawCaptureIntegrityHealthy(SdkRawCaptureManifest manifest)
+        => !GetMeaningfulDeviceIntegrityIssues(manifest).Any()
+            && (manifest.DeviceSampleCountsBalanced || HasBoundaryTailSkewOnly(manifest));
+
+    private static bool IsRawCaptureHealthy(SdkRawCaptureManifest manifest)
+        => IsRawCaptureRuntimeHealthy(manifest)
+            && IsRawCaptureIntegrityHealthy(manifest)
+            && IsRawCaptureTimingHealthy(manifest);
+
+    private static string BuildRawCaptureSummary(string filePath, SdkRawCaptureManifest manifest)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine($"文件: {Path.GetFileName(filePath)}");
+        sb.AppendLine($"会话: {manifest.SessionName}");
+        sb.AppendLine($"采样率: {manifest.SampleRateHz:N0} Hz");
+        sb.AppendLine($"块数: {manifest.BlockCount:N0}");
+        sb.AppendLine($"总样本: {manifest.TotalSamples:N0}");
+        sb.AppendLine($"原始载荷: {FormatStorageSize(manifest.RawPayloadBytes)}");
+        sb.AppendLine($"捕获文件大小: {FormatStorageSize(manifest.CaptureFileBytes)}");
+        sb.AppendLine($"通道数: 期望 {manifest.ExpectedChannelCount} / 实际 {manifest.ObservedChannelCount}");
+        sb.AppendLine($"入队块/写入块: {manifest.EnqueuedBlockCount:N0} / {manifest.WrittenBlockCount:N0}");
+        sb.AppendLine($"保护阈值: {manifest.PendingBlockLimit:N0} blocks / {FormatStorageSize(manifest.PendingPayloadByteLimit)}");
+        sb.AppendLine($"峰值积压: {manifest.PeakPendingBlockCount:N0} blocks / {FormatStorageSize(manifest.PeakPendingPayloadBytes)}");
+        sb.AppendLine($"拒绝块/写入故障: {manifest.RejectedBlockCount:N0} / {manifest.WriteFaultCount:N0}");
+        sb.AppendLine($"保护触发: {(manifest.ProtectionTriggered ? "是" : "否")}");
+        sb.AppendLine($"开始: {manifest.StartedAtUtc.ToLocalTime():yyyy-MM-dd HH:mm:ss}");
+        sb.AppendLine($"结束: {manifest.StoppedAtUtc.ToLocalTime():yyyy-MM-dd HH:mm:ss}");
+
+        AppendRawCaptureTimingSummary(sb, manifest);
+
+        if (!string.IsNullOrWhiteSpace(manifest.ProtectionReason))
+        {
+            sb.AppendLine($"保护原因: {manifest.ProtectionReason}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(manifest.LastError))
+        {
+            sb.AppendLine($"最后错误: {manifest.LastError}");
+        }
+
+        bool integrityHealthy = IsRawCaptureIntegrityHealthy(manifest);
+        var timingAnalysis = GetRawCaptureTimingAnalysis(manifest);
+        sb.AppendLine($"完整性检查: {(integrityHealthy ? "通过" : "异常")}");
+        sb.AppendLine(timingAnalysis.HasAnalysis
+            ? (timingAnalysis.IsConsistent
+                ? $"采样率校验通过: {timingAnalysis.Summary}"
+                : $"采样率校验异常: {timingAnalysis.Summary}")
+            : "采样率校验: 缺少足够的时基数据");
+
+        string effectiveIntegritySummary = BuildEffectiveIntegritySummary(manifest);
+        if (!string.IsNullOrWhiteSpace(effectiveIntegritySummary))
+        {
+            sb.AppendLine($"完整性摘要: {effectiveIntegritySummary}");
+        }
+
+        if (manifest.ObservedDeviceCount > 0)
+        {
+            sb.AppendLine($"设备数: {manifest.ObservedDeviceCount}");
+            sb.AppendLine($"设备样本量一致: {GetDeviceSampleConsistencyText(manifest)} ({manifest.MinDeviceSamplesPerChannel:N0} ~ {manifest.MaxDeviceSamplesPerChannel:N0} samples/channel)");
+        }
+
+        int blockIndexIgnoredDeviceCount = manifest.DeviceIntegrity.Count(IsConstantBlockIndexArtifact);
+        if (blockIndexIgnoredDeviceCount > 0)
+        {
+            sb.AppendLine($"BlockIndex 连续性检查: 已忽略 {blockIndexIgnoredDeviceCount} 台设备（字段未递增）");
+        }
+
+        foreach (var device in GetMeaningfulDeviceIntegrityIssues(manifest)
+            .OrderByDescending(d => d.MissingBlockCount)
+            .ThenByDescending(d => d.TotalDataGapSampleCount)
+            .ThenBy(d => d.DeviceId)
+            .Take(6))
+        {
+            sb.AppendLine($"AI{device.DeviceId:00}: blocks={device.BlockCount:N0}, samples/ch={device.SamplesPerChannel:N0}, 缺块={device.MissingBlockCount:N0}, 乱序={device.NonMonotonicBlockCount:N0}, TotalData缺口={device.TotalDataGapSampleCount:N0}");
+            if (device.IssueExamples.Count > 0)
+            {
+                sb.AppendLine($"  {device.IssueExamples[0]}");
+            }
+        }
+
+        foreach (var kv in manifest.ChannelSampleCounts
+            .OrderBy(kvp => kvp.Key, StringComparer.OrdinalIgnoreCase)
+            .Take(8))
+        {
+            sb.AppendLine($"{kv.Key}: {kv.Value:N0} samples");
+        }
+
+        if (manifest.ChannelSampleCounts.Count > 8)
+        {
+            sb.AppendLine($"... 其余 {manifest.ChannelSampleCounts.Count - 8} 个通道已省略");
+        }
+
+        return sb.ToString();
+    }
+
+    private static (bool passed, string summary) VerifyRawCaptureFile(string filePath)
+    {
+        if (!File.Exists(filePath))
+        {
+            return (false, $"原始采集文件不存在: {filePath}");
+        }
+
+        if (!SdkRawCaptureFormat.TryLoadManifest(filePath, out var manifest) || manifest == null)
+        {
+            return (false, $"原始采集清单不存在或无法读取: {SdkRawCaptureFormat.GetManifestPath(filePath)}");
+        }
+
+        long fileSize = new FileInfo(filePath).Length;
+        bool sizeMatches = fileSize == manifest.CaptureFileBytes;
+        bool hasData = manifest.BlockCount > 0 && manifest.TotalSamples > 0;
+        bool runtimeHealthy = IsRawCaptureRuntimeHealthy(manifest);
+        bool integrityHealthy = IsRawCaptureIntegrityHealthy(manifest);
+        var timingAnalysis = GetRawCaptureTimingAnalysis(manifest);
+        bool timingHealthy = !timingAnalysis.HasAnalysis || timingAnalysis.IsConsistent;
+        bool passed = sizeMatches && hasData && runtimeHealthy && integrityHealthy && timingHealthy;
+
+        var summary = new StringBuilder();
+        summary.AppendLine($"原始采集校验: {Path.GetFileName(filePath)}");
+        summary.AppendLine(sizeMatches
+            ? $"文件大小匹配清单: {FormatStorageSize(fileSize)}"
+            : $"文件大小与清单不一致: 当前 {FormatStorageSize(fileSize)} / 清单 {FormatStorageSize(manifest.CaptureFileBytes)}");
+        summary.AppendLine(hasData
+            ? $"块数/样本数有效: {manifest.BlockCount:N0} blocks, {manifest.TotalSamples:N0} samples"
+            : "块数或样本数无效");
+        summary.AppendLine(runtimeHealthy
+            ? $"运行期无拒绝/写入故障: 峰值积压 {manifest.PeakPendingBlockCount:N0} blocks / {FormatStorageSize(manifest.PeakPendingPayloadBytes)}"
+            : $"存在运行期异常: 保护 {manifest.ProtectionTriggered}, 拒绝 {manifest.RejectedBlockCount:N0}, 故障 {manifest.WriteFaultCount:N0}, 原因 {manifest.ProtectionReason}, 最后错误 {manifest.LastError}");
+
+        string effectiveIntegritySummary = BuildEffectiveIntegritySummary(manifest);
+        summary.AppendLine(integrityHealthy
+            ? $"完整性检查通过: {effectiveIntegritySummary}"
+            : $"完整性检查异常: {effectiveIntegritySummary}");
+        if (timingAnalysis.HasAnalysis)
+        {
+            AppendRawCaptureTimingSummary(summary, manifest);
+            summary.AppendLine(timingAnalysis.IsConsistent
+                ? $"采样率校验通过: {timingAnalysis.Summary}"
+                : $"采样率校验异常: {timingAnalysis.Summary}");
+        }
+        else
+        {
+            summary.AppendLine("采样率校验: 缺少足够的时基数据");
+        }
+
+        int blockIndexIgnoredDeviceCount = manifest.DeviceIntegrity.Count(IsConstantBlockIndexArtifact);
+        if (blockIndexIgnoredDeviceCount > 0)
+        {
+            summary.AppendLine($"BlockIndex 连续性检查已忽略 {blockIndexIgnoredDeviceCount} 台设备（字段未递增）。");
+        }
+
+        foreach (var device in GetMeaningfulDeviceIntegrityIssues(manifest)
+            .OrderByDescending(d => d.MissingBlockCount)
+            .ThenByDescending(d => d.TotalDataGapSampleCount)
+            .ThenBy(d => d.DeviceId)
+            .Take(4))
+        {
+            summary.AppendLine($"AI{device.DeviceId:00}: blocks={device.BlockCount:N0}, samples/ch={device.SamplesPerChannel:N0}, 缺块={device.MissingBlockCount:N0}, 乱序={device.NonMonotonicBlockCount:N0}, TotalData缺口={device.TotalDataGapSampleCount:N0}");
+        }
+
+        return (passed, summary.ToString());
     }
 
     private bool IsRealtimePreviewActive()
@@ -1891,6 +2756,7 @@ public partial class MainWindowViewModel : ObservableObject
         // 当存储状态改变时，通知命令重新评估可用性
         (StartStorageCommand as AsyncRelayCommand)?.NotifyCanExecuteChanged();
         (StopStorageCommand as RelayCommand)?.NotifyCanExecuteChanged();
+        (ConvertSelectedToTdmsCommand as AsyncRelayCommand)?.NotifyCanExecuteChanged();
     }
 
     // 压缩参数变化处理
@@ -1939,6 +2805,21 @@ public partial class MainWindowViewModel : ObservableObject
         FileVerifyResult = "正在验证…";
         try
         {
+            if (SdkRawCaptureFormat.IsRawCaptureFile(filePath))
+            {
+                var (passed, summary) = VerifyRawCaptureFile(filePath);
+                FileVerifyPassed = passed;
+                FileVerifyResult = summary;
+                return;
+            }
+
+            if (!IsTdmsLikeFile(filePath))
+            {
+                FileVerifyPassed = false;
+                FileVerifyResult = $"暂不支持校验该文件格式: {Path.GetExtension(filePath)}";
+                return;
+            }
+
             _writeHashesByFile.TryGetValue(filePath, out var hashes);
             _writeSampleCountsByFile.TryGetValue(filePath, out var counts);
 
@@ -1966,6 +2847,177 @@ public partial class MainWindowViewModel : ObservableObject
     {
         (TestReadSelectedFileCommand as RelayCommand)?.NotifyCanExecuteChanged();
         (VerifyStoredFileCommand as AsyncRelayCommand)?.NotifyCanExecuteChanged();
+        (ConvertSelectedToTdmsCommand as AsyncRelayCommand)?.NotifyCanExecuteChanged();
+        RefreshRawTdmsExportOptions(value?.FullPath);
+    }
+
+    private void RefreshRawTdmsExportOptions(string? filePath)
+    {
+        _rawTdmsAvailableChannelIds = new List<int>();
+        RawTdmsExportDevices.Clear();
+        RawTdmsExportChannels.Clear();
+
+        if (string.IsNullOrWhiteSpace(filePath)
+            || !File.Exists(filePath)
+            || !SdkRawCaptureFormat.IsRawCaptureFile(filePath))
+        {
+            OnPropertyChanged(nameof(HasRawTdmsExportOptions));
+            OnPropertyChanged(nameof(RawTdmsExportSelectionSummary));
+            NotifyRawTdmsSelectionCommandStates();
+            return;
+        }
+
+        try
+        {
+            SdkRawCaptureFormat.TryLoadManifest(filePath, out var manifest);
+            _rawTdmsAvailableChannelIds = SdkRawCaptureConverter.ResolveChannelIds(filePath, manifest)
+                .Distinct()
+                .OrderBy(id => DH.Contracts.ChannelNaming.GetDeviceId(id))
+                .ThenBy(id => DH.Contracts.ChannelNaming.GetChannelNumber(id))
+                .ToList();
+
+            foreach (var group in _rawTdmsAvailableChannelIds
+                .GroupBy(DH.Contracts.ChannelNaming.GetDeviceId)
+                .OrderBy(group => group.Key))
+            {
+                var option = new RawTdmsExportDeviceOption(group.Key, group.Count());
+                option.PropertyChanged += OnRawTdmsExportDeviceOptionPropertyChanged;
+                RawTdmsExportDevices.Add(option);
+            }
+
+            RebuildRawTdmsExportChannels();
+        }
+        catch (Exception ex)
+        {
+            StorageStatusMessage = $"读取原始采集通道清单失败: {ex.Message}";
+        }
+
+        OnPropertyChanged(nameof(HasRawTdmsExportOptions));
+        OnPropertyChanged(nameof(RawTdmsExportSelectionSummary));
+        NotifyRawTdmsSelectionCommandStates();
+    }
+
+    private void OnRawTdmsExportDeviceOptionPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(RawTdmsExportDeviceOption.IsSelected))
+        {
+            return;
+        }
+
+        RebuildRawTdmsExportChannels();
+        OnPropertyChanged(nameof(RawTdmsExportSelectionSummary));
+        NotifyRawTdmsSelectionCommandStates();
+    }
+
+    private void OnRawTdmsExportChannelOptionPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(RawTdmsExportChannelOption.IsSelected))
+        {
+            return;
+        }
+
+        OnPropertyChanged(nameof(RawTdmsExportSelectionSummary));
+        NotifyRawTdmsSelectionCommandStates();
+    }
+
+    private void RebuildRawTdmsExportChannels()
+    {
+        var previouslySelected = RawTdmsExportChannels
+            .Where(option => option.IsSelected)
+            .Select(option => option.ChannelId)
+            .ToHashSet();
+
+        var selectedDeviceIds = RawTdmsExportDevices
+            .Where(option => option.IsSelected)
+            .Select(option => option.DeviceId)
+            .ToHashSet();
+
+        IEnumerable<int> visibleChannelIds = selectedDeviceIds.Count == 0
+            ? _rawTdmsAvailableChannelIds
+            : _rawTdmsAvailableChannelIds.Where(channelId => selectedDeviceIds.Contains(DH.Contracts.ChannelNaming.GetDeviceId(channelId)));
+
+        RawTdmsExportChannels.Clear();
+        foreach (int channelId in visibleChannelIds)
+        {
+            var option = new RawTdmsExportChannelOption(channelId)
+            {
+                IsSelected = previouslySelected.Contains(channelId)
+            };
+            option.PropertyChanged += OnRawTdmsExportChannelOptionPropertyChanged;
+            RawTdmsExportChannels.Add(option);
+        }
+
+        OnPropertyChanged(nameof(RawTdmsExportSelectionSummary));
+        NotifyRawTdmsSelectionCommandStates();
+    }
+
+    private void SelectAllRawTdmsDevices()
+    {
+        foreach (var option in RawTdmsExportDevices)
+        {
+            option.IsSelected = true;
+        }
+    }
+
+    private void ClearRawTdmsDevices()
+    {
+        foreach (var option in RawTdmsExportDevices)
+        {
+            option.IsSelected = false;
+        }
+    }
+
+    private void SelectAllRawTdmsChannels()
+    {
+        foreach (var option in RawTdmsExportChannels)
+        {
+            option.IsSelected = true;
+        }
+    }
+
+    private void ClearRawTdmsChannels()
+    {
+        foreach (var option in RawTdmsExportChannels)
+        {
+            option.IsSelected = false;
+        }
+    }
+
+    private IReadOnlyCollection<int>? ResolveSelectedRawTdmsChannelIds()
+    {
+        var selectedChannelIds = RawTdmsExportChannels
+            .Where(option => option.IsSelected)
+            .Select(option => option.ChannelId)
+            .Distinct()
+            .OrderBy(id => id)
+            .ToArray();
+        if (selectedChannelIds.Length > 0)
+        {
+            return selectedChannelIds;
+        }
+
+        var selectedDeviceIds = RawTdmsExportDevices
+            .Where(option => option.IsSelected)
+            .Select(option => option.DeviceId)
+            .ToHashSet();
+        if (selectedDeviceIds.Count == 0)
+        {
+            return null;
+        }
+
+        return _rawTdmsAvailableChannelIds
+            .Where(channelId => selectedDeviceIds.Contains(DH.Contracts.ChannelNaming.GetDeviceId(channelId)))
+            .Distinct()
+            .OrderBy(id => id)
+            .ToArray();
+    }
+
+    private void NotifyRawTdmsSelectionCommandStates()
+    {
+        (SelectAllRawTdmsDevicesCommand as RelayCommand)?.NotifyCanExecuteChanged();
+        (ClearRawTdmsDevicesCommand as RelayCommand)?.NotifyCanExecuteChanged();
+        (SelectAllRawTdmsChannelsCommand as RelayCommand)?.NotifyCanExecuteChanged();
+        (ClearRawTdmsChannelsCommand as RelayCommand)?.NotifyCanExecuteChanged();
     }
 
     private void RefreshRecentFiles()
@@ -1980,7 +3032,7 @@ public partial class MainWindowViewModel : ObservableObject
                 .Where(f => !f.EndsWith("_index", StringComparison.OrdinalIgnoreCase));
             var tdmFiles = Directory.EnumerateFiles(path, "*.tdm", SearchOption.AllDirectories)
                 .Where(f => !f.EndsWith("_index", StringComparison.OrdinalIgnoreCase));
-            var binFiles = Directory.EnumerateFiles(path, "*.bin", SearchOption.AllDirectories);
+            var rawCaptureFiles = Directory.EnumerateFiles(path, $"*{SdkRawCaptureFormat.FileSuffix}", SearchOption.AllDirectories);
             // 也收集公共文档下的 TDMS/TDM（ASCII 路径回退时产生）
             var altBase = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonDocuments), "DH", "TDMS");
             var altTdmsFiles = Directory.Exists(altBase)
@@ -1991,7 +3043,7 @@ public partial class MainWindowViewModel : ObservableObject
                 ? Directory.EnumerateFiles(altBase, "*.tdm", SearchOption.AllDirectories)
                     .Where(f => !f.EndsWith("_index", StringComparison.OrdinalIgnoreCase))
                 : Array.Empty<string>();
-            var files = tdmsFiles.Concat(tdmFiles).Concat(binFiles).Concat(altTdmsFiles).Concat(altTdmFiles)
+            var files = tdmsFiles.Concat(tdmFiles).Concat(rawCaptureFiles).Concat(altTdmsFiles).Concat(altTdmFiles)
                 .Select(fp => new FileInfo(fp))
                 .Where(fi => fi.Exists)
                 .OrderByDescending(fi => fi.LastWriteTimeUtc)
@@ -2030,12 +3082,104 @@ public partial class MainWindowViewModel : ObservableObject
         }
     }
 
+    private bool CanConvertSelectedRawCapture()
+    {
+        return !StorageEnabled
+            && SdkRawCaptureFormat.IsRawCaptureFile(SelectedTdmsFile?.FullPath ?? string.Empty);
+    }
+
+    private async Task ConvertSelectedRawCaptureToTdmsAsync()
+    {
+        var capturePath = SelectedTdmsFile?.FullPath;
+        if (string.IsNullOrWhiteSpace(capturePath) || !SdkRawCaptureFormat.IsRawCaptureFile(capturePath))
+        {
+            return;
+        }
+
+        bool perChannel = StorageMode == StorageModeOption.PerChannel;
+        string modeText = perChannel ? "每通道 TDMS" : "单文件 TDMS";
+        var selectedChannelIds = ResolveSelectedRawTdmsChannelIds();
+        int selectedChannelCount = selectedChannelIds?.Count ?? 0;
+        string selectionText = selectedChannelCount > 0
+            ? $"{selectedChannelCount} 个通道"
+            : "全部通道";
+
+        FileVerifyPassed = false;
+        FileVerifyResult = $"正在将 {Path.GetFileName(capturePath)} 转换为 {modeText}（{selectionText}）…";
+        StorageStatusMessage = $"正在将 {Path.GetFileName(capturePath)} 转换为 {modeText}（{selectionText}）…";
+
+        IProgress<SdkRawCaptureConversionProgress> progress = new Progress<SdkRawCaptureConversionProgress>(p =>
+        {
+            string totalText = p.TotalBlocks > 0 ? $"/{p.TotalBlocks:N0}" : "";
+            StorageStatusMessage = $"正在转换原始采集 -> TDMS: {p.BlocksProcessed:N0}{totalText} blocks, {p.SamplesProcessed:N0} samples";
+        });
+
+        try
+        {
+            var converter = new SdkRawCaptureConverter();
+            var options = _compressionOptions.Clone();
+            var result = await Task.Run(() => converter.Convert(
+                capturePath,
+                perChannel,
+                SelectedCompressionType,
+                SelectedPreprocessType,
+                options,
+                selectedChannelIds,
+                progress.Report));
+
+            if (result.WrittenFiles.Count == 0)
+            {
+                throw new InvalidOperationException("转换未生成任何 TDMS 文件。");
+            }
+
+            _lastWrittenFiles = result.WrittenFiles;
+            foreach (var fp in result.WrittenFiles)
+            {
+                _writeHashesByFile[fp] = result.Hashes;
+                _writeSampleCountsByFile[fp] = result.SampleCounts;
+            }
+
+            StorageStatusMessage = result.Summary;
+            FileVerifyPassed = true;
+            FileVerifyResult = result.Summary;
+            RefreshRecentFiles();
+
+            if (result.Snapshot != null)
+            {
+                BeginCompressionReportGeneration(result.Snapshot);
+            }
+        }
+        catch (Exception ex)
+        {
+            StorageStatusMessage = $"转换失败: {ex.Message}";
+            FileVerifyPassed = false;
+            FileVerifyResult = StorageStatusMessage;
+        }
+    }
+
     private void TestReadSelectedFile()
     {
         var fp = SelectedTdmsFile?.FullPath;
         if (string.IsNullOrEmpty(fp)) return;
         try
         {
+            if (SdkRawCaptureFormat.IsRawCaptureFile(fp))
+            {
+                if (!SdkRawCaptureFormat.TryLoadManifest(fp, out var manifest) || manifest == null)
+                {
+                    throw new InvalidOperationException($"找不到原始采集清单: {SdkRawCaptureFormat.GetManifestPath(fp)}");
+                }
+
+                FileVerifyResult = BuildRawCaptureSummary(fp, manifest);
+                FileVerifyPassed = true;
+                return;
+            }
+
+            if (!IsTdmsLikeFile(fp))
+            {
+                throw new InvalidOperationException($"暂不支持读取该文件格式: {Path.GetExtension(fp)}");
+            }
+
             var map = TdmsReaderUtil.ListGroupsAndChannels(fp);
             var sb = new System.Text.StringBuilder();
             sb.AppendLine($"文件: {Path.GetFileName(fp)}");
@@ -2169,6 +3313,12 @@ public partial class MainWindowViewModel : ObservableObject
     // 清理资源（当窗口关闭时调用）
     public void Cleanup()
     {
+        CleanupSdkRawCaptureSubscription();
+        SetSdkRealtimePublishEnabled(true);
+        _sdkRawCaptureWriter?.Dispose();
+        _sdkRawCaptureWriter = null;
+        _sdkRawCaptureProtectionStopPending = false;
+        _activeStorageRuntime = null;
         _storagePumpCts?.Cancel();
         _storagePumpCts = null;
         _storagePumpTasks = null;

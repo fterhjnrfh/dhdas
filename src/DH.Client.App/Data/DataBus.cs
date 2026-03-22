@@ -20,6 +20,7 @@ namespace DH.Client.App.Data
         private const int TargetPreviewPointsPerSecond = 600;
         private readonly int _bufferSize;
         private long _previewOriginTicks;
+        private readonly ConcurrentDictionary<int, long> _channelPreviewSampleCounts = new();
 
         public event EventHandler<int> ChannelAdded;
         public event EventHandler<int> ChannelRemoved;
@@ -142,26 +143,37 @@ namespace DH.Client.App.Data
             var points = new CurvePoint[pointCount];
 
             double timeInterval = 1.0 / sampleRate;
-            long originTicks = Interlocked.Read(ref _previewOriginTicks);
-            if (originTicks == 0)
-            {
-                long candidate = frame.Timestamp.Ticks;
-                long original = Interlocked.CompareExchange(ref _previewOriginTicks, candidate, 0);
-                originTicks = original == 0 ? candidate : original;
-            }
-
-            double startTime = (frame.Timestamp.Ticks - originTicks) / (double)TimeSpan.TicksPerSecond;
-            double sampleIndexStep = pointCount > 1
-                ? (samples.Length - 1) / (double)(pointCount - 1)
-                : 0;
-
+            long newTotalSampleCount = _channelPreviewSampleCounts.AddOrUpdate(
+                frame.ChannelId,
+                samples.Length,
+                (_, existing) => existing + samples.Length);
+            long frameStartSampleIndex = Math.Max(0, newTotalSampleCount - samples.Length);
+            double startTime = frameStartSampleIndex * timeInterval;
             for (int i = 0; i < pointCount; i++)
             {
-                int sampleIndex = pointCount == samples.Length
+                int bucketStart = pointCount == samples.Length
                     ? i
-                    : Math.Min(samples.Length - 1, (int)Math.Round(i * sampleIndexStep));
-                double sampleTime = startTime + (sampleIndex * timeInterval);
-                points[i] = new CurvePoint(sampleTime, samples.Span[sampleIndex]);
+                    : (int)Math.Floor(i * samples.Length / (double)pointCount);
+                int bucketEnd = pointCount == samples.Length
+                    ? i
+                    : (int)Math.Floor((i + 1) * samples.Length / (double)pointCount) - 1;
+
+                bucketStart = Math.Clamp(bucketStart, 0, samples.Length - 1);
+                bucketEnd = Math.Clamp(bucketEnd, bucketStart, samples.Length - 1);
+
+                double sum = 0.0;
+                int sampleCount = bucketEnd - bucketStart + 1;
+                for (int sampleIndex = bucketStart; sampleIndex <= bucketEnd; sampleIndex++)
+                {
+                    sum += samples.Span[sampleIndex];
+                }
+
+                int centerSampleIndex = bucketStart + ((bucketEnd - bucketStart) / 2);
+                double sampleTime = startTime + (centerSampleIndex * timeInterval);
+                double sampleValue = sampleCount > 0
+                    ? sum / sampleCount
+                    : samples.Span[centerSampleIndex];
+                points[i] = new CurvePoint(sampleTime, sampleValue);
             }
 
             return points;
@@ -212,6 +224,7 @@ namespace DH.Client.App.Data
         public void ResetPreviewTimeline(bool clearBuffers = true)
         {
             Interlocked.Exchange(ref _previewOriginTicks, 0);
+            _channelPreviewSampleCounts.Clear();
 
             if (!clearBuffers)
             {

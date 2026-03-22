@@ -756,6 +756,52 @@ namespace DH.Client.App.Controls
                 if (pxCount <= 0) continue;
                 int lastIdx = Math.Min(start + actualCount - 1, dataEndIdx - 1);
 
+                bool drawDirectPolyline = ShouldDrawDirectPolyline(ordered.Count, actualCount, usableWidth);
+                if (drawDirectPolyline)
+                {
+                    using var directPen = new SKPaint { Color = ToSkColor(useColor), StrokeWidth = 2.2f, IsAntialias = true };
+                    int visibleStartIdx = Math.Clamp(start, 0, dataEndIdx - 1);
+                    int visibleEndIdx = Math.Clamp(actualEndIdx - 1, visibleStartIdx, dataEndIdx - 1);
+                    float prevX = ProjectPointX(
+                        data,
+                        visibleStartIdx,
+                        start,
+                        count,
+                        leftPad,
+                        usableWidth,
+                        useTimeBasedX,
+                        sampleRateForX,
+                        useCurveX,
+                        xValueMin,
+                        xValueSpan,
+                        dataEndIdx);
+                    float prevY = centerY - (float)data[visibleStartIdx].Y * scaleY;
+
+                    for (int pointIndex = visibleStartIdx + 1; pointIndex <= visibleEndIdx; pointIndex++)
+                    {
+                        float x = ProjectPointX(
+                            data,
+                            pointIndex,
+                            start,
+                            count,
+                            leftPad,
+                            usableWidth,
+                            useTimeBasedX,
+                            sampleRateForX,
+                            useCurveX,
+                            xValueMin,
+                            xValueSpan,
+                            dataEndIdx);
+                        float y = centerY - (float)data[pointIndex].Y * scaleY;
+                        dstBg.DrawLine(prevX, prevY, x, y, directPen);
+                        prevX = x;
+                        prevY = y;
+                    }
+
+                    _lastCommittedIdx[channelId] = visibleEndIdx;
+                    continue;
+                }
+
                 int tailSamples = Math.Max(2, (int)Math.Round(DynamicTailSeconds * SampleRateHz));
                 int commitStart;
                 int commitEnd;
@@ -786,7 +832,7 @@ namespace DH.Client.App.Controls
                 {
                     int binsBg = Math.Max(2, (int)Math.Round(pxCount * SamplingDensityFactor));
                     var binBg = BinRanges(commitStart, commitEnd, binsBg);
-                    using var penBg = new SKPaint { Color = ToSkColor(useColor), StrokeWidth = 2.5f, IsAntialias = false };
+                    using var penBg = new SKPaint { Color = ToSkColor(useColor), StrokeWidth = 2.5f, IsAntialias = true };
                     if (UseExtremaAggregation)
                     {
                         using var extBg = new SKPaint { Color = ToSkColor(useColor), StrokeWidth = 2.0f, IsAntialias = false };
@@ -818,41 +864,27 @@ namespace DH.Client.App.Controls
                             dstBg.DrawLine(x, y0, x, y1, extBg);
                         }
                     }
-                    double[] rep = new double[binBg.Count]; for (int i = 0; i < binBg.Count; i++) rep[i] = data[binBg[i].Item2].Y;
-                    float prevX, prevY;
-                    if (useTimeBasedX)
-                    {
-                        double sampleTime = binBg[0].Item2 / sampleRateForX;
-                        prevX = leftPad + (float)((sampleTime - _timeWindowStartSeconds) / TimeWindowSeconds * usableWidth);
-                    }
-                    else if (useCurveX)
-                    {
-                        double xValue = data[Math.Min(binBg[0].Item2, dataEndIdx - 1)].X;
-                        prevX = leftPad + (float)((xValue - xValueMin) / xValueSpan * usableWidth);
-                    }
-                    else
-                    {
-                        prevX = leftPad + (float)((double)(binBg[0].Item2 - start) / Math.Max(1, count - 1) * usableWidth);
-                    }
-                    prevY = centerY - (float)rep[0] * scaleY;
+                    BuildBinRepresentativePoints(
+                        data,
+                        binBg,
+                        start,
+                        count,
+                        leftPad,
+                        usableWidth,
+                        useTimeBasedX,
+                        sampleRateForX,
+                        useCurveX,
+                        xValueMin,
+                        xValueSpan,
+                        dataEndIdx,
+                        out var repBgX,
+                        out var repBgY);
+                    float prevX = repBgX[0];
+                    float prevY = centerY - (float)repBgY[0] * scaleY;
                     for (int i = 1; i < binBg.Count; i++)
                     {
-                        float x;
-                        if (useTimeBasedX)
-                        {
-                            double sampleTime = binBg[i].Item2 / sampleRateForX;
-                            x = leftPad + (float)((sampleTime - _timeWindowStartSeconds) / TimeWindowSeconds * usableWidth);
-                        }
-                        else if (useCurveX)
-                        {
-                            double xValue = data[Math.Min(binBg[i].Item2, dataEndIdx - 1)].X;
-                            x = leftPad + (float)((xValue - xValueMin) / xValueSpan * usableWidth);
-                        }
-                        else
-                        {
-                            x = leftPad + (float)((double)(binBg[i].Item2 - start) / Math.Max(1, count - 1) * usableWidth);
-                        }
-                        float y = centerY - (float)rep[i] * scaleY;
+                        float x = repBgX[i];
+                        float y = centerY - (float)repBgY[i] * scaleY;
                         dstBg.DrawLine(prevX, prevY, x, y, penBg);
                         prevX = x; prevY = y;
                     }
@@ -895,41 +927,27 @@ namespace DH.Client.App.Controls
                             dstFg.DrawLine(x, y0, x, y1, extFg);
                         }
                     }
-                    double[] repF = new double[binFg.Count]; for (int i = 0; i < binFg.Count; i++) repF[i] = data[binFg[i].Item2].Y;
-                    float prevXF, prevYF;
-                    if (useTimeBasedX)
-                    {
-                        double sampleTime = binFg[0].Item2 / sampleRateForX;
-                        prevXF = leftPad + (float)((sampleTime - _timeWindowStartSeconds) / TimeWindowSeconds * usableWidth);
-                    }
-                    else if (useCurveX)
-                    {
-                        double xValue = data[Math.Min(binFg[0].Item2, dataEndIdx - 1)].X;
-                        prevXF = leftPad + (float)((xValue - xValueMin) / xValueSpan * usableWidth);
-                    }
-                    else
-                    {
-                        prevXF = leftPad + (float)((double)(binFg[0].Item2 - start) / Math.Max(1, count - 1) * usableWidth);
-                    }
-                    prevYF = centerY - (float)repF[0] * scaleY;
+                    BuildBinRepresentativePoints(
+                        data,
+                        binFg,
+                        start,
+                        count,
+                        leftPad,
+                        usableWidth,
+                        useTimeBasedX,
+                        sampleRateForX,
+                        useCurveX,
+                        xValueMin,
+                        xValueSpan,
+                        dataEndIdx,
+                        out var repFgX,
+                        out var repFgY);
+                    float prevXF = repFgX[0];
+                    float prevYF = centerY - (float)repFgY[0] * scaleY;
                     for (int i = 1; i < binFg.Count; i++)
                     {
-                        float x;
-                        if (useTimeBasedX)
-                        {
-                            double sampleTime = binFg[i].Item2 / sampleRateForX;
-                            x = leftPad + (float)((sampleTime - _timeWindowStartSeconds) / TimeWindowSeconds * usableWidth);
-                        }
-                        else if (useCurveX)
-                        {
-                            double xValue = data[Math.Min(binFg[i].Item2, dataEndIdx - 1)].X;
-                            x = leftPad + (float)((xValue - xValueMin) / xValueSpan * usableWidth);
-                        }
-                        else
-                        {
-                            x = leftPad + (float)((double)(binFg[i].Item2 - start) / Math.Max(1, count - 1) * usableWidth);
-                        }
-                        float y = centerY - (float)repF[i] * scaleY;
+                        float x = repFgX[i];
+                        float y = centerY - (float)repFgY[i] * scaleY;
                         dstFg.DrawLine(prevXF, prevYF, x, y, penFg);
                         prevXF = x; prevYF = y;
                     }
@@ -970,6 +988,104 @@ namespace DH.Client.App.Controls
             }
         }
 
+        private bool ShouldDrawDirectPolyline(int channelCount, int visiblePointCount, float usableWidth)
+        {
+            if (UseExtremaAggregation)
+            {
+                return false;
+            }
+
+            if (channelCount > 4)
+            {
+                return false;
+            }
+
+            int directPointLimit = Math.Max(512, (int)Math.Round(usableWidth * 2.0));
+            return visiblePointCount <= directPointLimit;
+        }
+
+        private void BuildBinRepresentativePoints(
+            IReadOnlyList<CurvePoint> data,
+            IReadOnlyList<(int Start, int End)> binRanges,
+            int start,
+            int count,
+            float leftPad,
+            float usableWidth,
+            bool useTimeBasedX,
+            double sampleRateForX,
+            bool useCurveX,
+            double xValueMin,
+            double xValueSpan,
+            int dataEndIdx,
+            out float[] xs,
+            out double[] ys)
+        {
+            xs = new float[binRanges.Count];
+            ys = new double[binRanges.Count];
+
+            for (int i = 0; i < binRanges.Count; i++)
+            {
+                var (binStart, binEnd) = binRanges[i];
+                int clampedStart = Math.Clamp(binStart, 0, dataEndIdx - 1);
+                int clampedEnd = Math.Clamp(binEnd, clampedStart, dataEndIdx - 1);
+                int sampleCount = clampedEnd - clampedStart + 1;
+
+                double sumY = 0.0;
+                for (int pointIndex = clampedStart; pointIndex <= clampedEnd; pointIndex++)
+                {
+                    sumY += data[pointIndex].Y;
+                }
+
+                ys[i] = sampleCount > 0
+                    ? sumY / sampleCount
+                    : data[clampedEnd].Y;
+
+                int centerIndex = clampedStart + ((clampedEnd - clampedStart) / 2);
+                xs[i] = ProjectPointX(
+                    data,
+                    centerIndex,
+                    start,
+                    count,
+                    leftPad,
+                    usableWidth,
+                    useTimeBasedX,
+                    sampleRateForX,
+                    useCurveX,
+                    xValueMin,
+                    xValueSpan,
+                    dataEndIdx);
+            }
+        }
+
+        private float ProjectPointX(
+            IReadOnlyList<CurvePoint> data,
+            int pointIndex,
+            int start,
+            int count,
+            float leftPad,
+            float usableWidth,
+            bool useTimeBasedX,
+            double sampleRateForX,
+            bool useCurveX,
+            double xValueMin,
+            double xValueSpan,
+            int dataEndIdx)
+        {
+            if (useTimeBasedX)
+            {
+                double sampleTime = pointIndex / sampleRateForX;
+                return leftPad + (float)((sampleTime - _timeWindowStartSeconds) / TimeWindowSeconds * usableWidth);
+            }
+
+            if (useCurveX)
+            {
+                double xValue = data[Math.Min(pointIndex, dataEndIdx - 1)].X;
+                return leftPad + (float)((xValue - xValueMin) / xValueSpan * usableWidth);
+            }
+
+            return leftPad + (float)((double)(pointIndex - start) / Math.Max(1, count - 1) * usableWidth);
+        }
+
 
         private void RenderSingle(SKCanvas canvas, IReadOnlyList<CurvePoint> data, float width, float height, Color color)
         {
@@ -995,7 +1111,7 @@ namespace DH.Client.App.Controls
             float baseScaleY = (float)((centerY * marginRatio) / windowMaxAbsY);
             float scaleY = autoFitY ? baseScaleY : baseScaleY * GetEffectiveZoomY();
 
-            using var pen = new SKPaint { Color = ToSkColor(color), StrokeWidth = 2.5f, IsAntialias = false };
+            using var pen = new SKPaint { Color = ToSkColor(color), StrokeWidth = 2.5f, IsAntialias = true };
             // 像素级抽样
             int pxCount = (int)Math.Floor(usableWidth);
             if (pxCount <= 0) return;
@@ -1022,18 +1138,31 @@ namespace DH.Client.App.Controls
                     canvas.DrawLine(x, y0, x, y1, extPen);
                 }
             }
-            var repYs = new double[binRanges.Count];
-            for (int i = 0; i < binRanges.Count; i++) repYs[i] = data[binRanges[i].Item2].Y;
+            BuildBinRepresentativePoints(
+                data,
+                binRanges,
+                start,
+                count,
+                leftPad,
+                usableWidth,
+                false,
+                1.0,
+                false,
+                0.0,
+                1.0,
+                data.Count,
+                out var repXs,
+                out var repYs);
             
             // 支持X轴反转：实现从左往右的扫描效果
             if (ReverseXRendering && ScrollMode)
             {
                 // 反转绘制：最新数据（索引最大）在最左边
-                float prevX = leftPad + (binRanges.Count - 1) * (usableWidth / (binRanges.Count - 1));
+                float prevX = repXs[binRanges.Count - 1];
                 float prevY = centerY - (float)repYs[binRanges.Count - 1] * scaleY;
                 for (int ix = binRanges.Count - 2; ix >= 0; ix--)
                 {
-                    float x = leftPad + ix * (usableWidth / (binRanges.Count - 1));
+                    float x = repXs[ix];
                     float y = centerY - (float)repYs[ix] * scaleY;
                     canvas.DrawLine(prevX, prevY, x, y, pen);
                     prevX = x; prevY = y;
@@ -1042,11 +1171,11 @@ namespace DH.Client.App.Controls
             else
             {
                 // 正常绘制：最旧数据在最左边
-                float prevX = leftPad;
+                float prevX = repXs[0];
                 float prevY = centerY - (float)repYs[0] * scaleY;
                 for (int ix = 1; ix < binRanges.Count; ix++)
                 {
-                    float x = leftPad + ix * (usableWidth / (binRanges.Count - 1));
+                    float x = repXs[ix];
                     float y = centerY - (float)repYs[ix] * scaleY;
                     canvas.DrawLine(prevX, prevY, x, y, pen);
                     prevX = x; prevY = y;

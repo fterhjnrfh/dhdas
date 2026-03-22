@@ -172,13 +172,13 @@
 
 						<!-- 模式与会话名 -->
 						<Grid ColumnDefinitions="Auto, *, 20, Auto, *" VerticalAlignment="Center">
-							<TextBlock Text="存储模式" Grid.Column="0" VerticalAlignment="Center" Width="70" Foreground="#444444"/>
+							<TextBlock Text="TDMS导出" Grid.Column="0" VerticalAlignment="Center" Width="70" Foreground="#444444"/>
 							<ComboBox Grid.Column="1" SelectedIndex="{Binding StorageModeIndex}" HorizontalAlignment="Stretch">
 								<ComboBoxItem Content="单文件（会话单 .tdms）"/>
 								<ComboBoxItem Content="多文件（每通道一 .tdms）"/>
 							</ComboBox>
 							
-							<TextBlock Text="会话名称" Grid.Column="3" VerticalAlignment="Center" Width="70" Foreground="#444444"/>
+							<TextBlock Text="导出名称" Grid.Column="3" VerticalAlignment="Center" Width="70" Foreground="#444444"/>
 							<TextBox Grid.Column="4" Text="{Binding StorageSessionName}"/>
 						</Grid>
 
@@ -312,36 +312,115 @@
 
 				<!-- 3. 文件管理区域 -->
 				<Border Grid.Row="2" Background="#f5f6f8" CornerRadius="6" Padding="15" BorderBrush="#e0e0e0" BorderThickness="1">
-					<Grid RowDefinitions="Auto, *, 150">
-						<Grid Grid.Row="0" ColumnDefinitions="Auto, *, Auto" Margin="0,0,0,10">
+					<Grid RowDefinitions="Auto, Auto, *, Auto">
+						<Grid Grid.Row="0" RowDefinitions="Auto,Auto" Margin="0,0,0,10">
 							<TextBlock Text="📂 最近文件与验证" FontWeight="Bold" FontSize="14" VerticalAlignment="Center" Foreground="#333333"/>
 							
-							<StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
+							<WrapPanel Grid.Row="1" Margin="0,10,0,0" HorizontalAlignment="Stretch" Orientation="Horizontal">
 								<Button Content="📂 打开目录" Command="{Binding OpenOutputFolderCommand}"/>
 								<Button Content="🔄 刷新列表" Command="{Binding RefreshRecentFilesCommand}"/>
 								<Button Content="🔎 测试读取" Command="{Binding TestReadSelectedFileCommand}"/>
+								<Button Content="🧪 转TDMS" Command="{Binding ConvertSelectedToTdmsCommand}"/>
 								<Button Content="🛡️ 验证无损" Command="{Binding VerifyStoredFileCommand}" Background="#0d6efd" Foreground="White"/>
-							</StackPanel>
+							</WrapPanel>
 						</Grid>
 
-						<!-- 最近文件列表 (Row 1, takes remaining space) -->
-						<ListBox Grid.Row="1" ItemsSource="{Binding RecentTdmsFiles}" SelectedItem="{Binding SelectedTdmsFile}" 
-								 Background="#ffffff" BorderBrush="#d0d0d0" BorderThickness="1" CornerRadius="4" Margin="0,0,0,10">
+						<Border Grid.Row="1" IsVisible="{Binding HasRawTdmsExportOptions}" Background="#ffffff" BorderBrush="#d9d9d9" BorderThickness="1" CornerRadius="4" Padding="12" Margin="0,0,0,10">
+							<StackPanel Spacing="10">
+								<TextBlock Text="TDMS 转换范围：设备和通道都支持多选；如果不勾选，则默认转换全部通道。" TextWrapping="Wrap" Foreground="#555555"/>
+								<TextBlock Text="{Binding RawTdmsExportSelectionSummary}" Foreground="#1f4f82" FontWeight="SemiBold"/>
+
+								<Grid ColumnDefinitions="1.1*,1.9*">
+									<Border Grid.Column="0" Margin="0,0,12,0" Background="#f8fafc" BorderBrush="#e5e7eb" BorderThickness="1" CornerRadius="4" Padding="10">
+										<Grid RowDefinitions="Auto,*">
+											<Grid ColumnDefinitions="*,Auto,Auto">
+												<TextBlock Text="设备多选" FontWeight="SemiBold" VerticalAlignment="Center"/>
+												<Button Grid.Column="1" Content="全选" Command="{Binding SelectAllRawTdmsDevicesCommand}" Padding="10,4" Margin="8,0,0,0"/>
+												<Button Grid.Column="2" Content="清空" Command="{Binding ClearRawTdmsDevicesCommand}" Padding="10,4" Margin="8,0,0,0"/>
+											</Grid>
+											<ScrollViewer Grid.Row="1" MaxHeight="160" Margin="0,8,0,0" VerticalScrollBarVisibility="Auto">
+												<ItemsControl ItemsSource="{Binding RawTdmsExportDevices}">
+													<ItemsControl.ItemsPanel>
+														<ItemsPanelTemplate>
+															<ap:UniformGrid Columns="2"/>
+														</ItemsPanelTemplate>
+													</ItemsControl.ItemsPanel>
+													<ItemsControl.ItemTemplate>
+														<DataTemplate x:DataType="vm:RawTdmsExportDeviceOption">
+															<CheckBox Content="{Binding DisplayText}" IsChecked="{Binding IsSelected}" Margin="0,0,8,6"/>
+														</DataTemplate>
+													</ItemsControl.ItemTemplate>
+												</ItemsControl>
+											</ScrollViewer>
+										</Grid>
+									</Border>
+
+									<Border Grid.Column="1" Margin="0" Background="#f8fafc" BorderBrush="#e5e7eb" BorderThickness="1" CornerRadius="4" Padding="10">
+										<Grid RowDefinitions="Auto,*">
+											<Grid ColumnDefinitions="*,Auto,Auto">
+												<TextBlock Text="通道多选" FontWeight="SemiBold" VerticalAlignment="Center"/>
+												<Button Grid.Column="1" Content="全选" Command="{Binding SelectAllRawTdmsChannelsCommand}" Padding="10,4" Margin="8,0,0,0"/>
+												<Button Grid.Column="2" Content="清空" Command="{Binding ClearRawTdmsChannelsCommand}" Padding="10,4" Margin="8,0,0,0"/>
+											</Grid>
+											<ScrollViewer Grid.Row="1" MaxHeight="160" Margin="0,8,0,0" VerticalScrollBarVisibility="Auto">
+												<ItemsControl ItemsSource="{Binding RawTdmsExportChannels}">
+													<ItemsControl.ItemsPanel>
+														<ItemsPanelTemplate>
+															<ap:UniformGrid Columns="4"/>
+														</ItemsPanelTemplate>
+													</ItemsControl.ItemsPanel>
+													<ItemsControl.ItemTemplate>
+														<DataTemplate x:DataType="vm:RawTdmsExportChannelOption">
+															<CheckBox Content="{Binding DisplayText}" IsChecked="{Binding IsSelected}" Margin="0,0,8,6"/>
+														</DataTemplate>
+													</ItemsControl.ItemTemplate>
+												</ItemsControl>
+											</ScrollViewer>
+										</Grid>
+									</Border>
+								</Grid>
+							</StackPanel>
+						</Border>
+
+						<!-- 最近文件列表 (Row 2, takes remaining space) -->
+						<ListBox Grid.Row="2" ItemsSource="{Binding RecentTdmsFiles}" SelectedItem="{Binding SelectedTdmsFile}" 
+								 Background="#ffffff" BorderBrush="#d0d0d0" BorderThickness="1" CornerRadius="4" Margin="0,0,0,10" MinHeight="240">
 							<ListBox.ItemTemplate>
-								<DataTemplate>
-									<TextBlock Text="{Binding DisplayText}" FontFamily="Consolas,Courier New,monospace" FontSize="12" Foreground="#333333"/>
+								<DataTemplate x:DataType="vm:TdmsFileItem">
+									<Border Margin="8,6" Padding="12,10" CornerRadius="6" Background="#f8fafc" BorderBrush="#e5e7eb" BorderThickness="1"
+											ToolTip.Tip="{Binding FullPath}">
+										<Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto">
+											<TextBlock Text="{Binding FileName}" FontSize="13" FontWeight="SemiBold" Foreground="#1f2937"
+													   TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
+											<Border Grid.Column="1" Margin="12,0,0,0" Padding="8,2" CornerRadius="10" Background="#eef2ff" VerticalAlignment="Center">
+												<TextBlock Text="{Binding SizeText}" FontSize="11" Foreground="#1d4ed8"/>
+											</Border>
+											<TextBlock Grid.Row="1" Grid.ColumnSpan="2" Margin="0,6,0,0" Text="{Binding DetailText}"
+													   FontSize="11" Foreground="#6b7280" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
+										</Grid>
+									</Border>
 								</DataTemplate>
 							</ListBox.ItemTemplate>
 						</ListBox>
 
-						<!-- 验证结果报告 (Row 2, fixed 150px with scroll) -->
-						<Border Grid.Row="2" 
+						<!-- 验证结果报告 (Row 3, fixed 150px with scroll) -->
+						<Border Grid.Row="3" 
 								BorderBrush="{Binding FileVerifyPassed, Converter={x:Static converters:BoolToVerifyColorConverter.Instance}}"
-								BorderThickness="1" CornerRadius="4" Background="#ffffff" Padding="8">
-							<ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
-								<TextBlock Text="{Binding FileVerifyResult}" TextWrapping="NoWrap" FontSize="11" FontFamily="Consolas,Courier New,monospace"
-										   Foreground="{Binding FileVerifyPassed, Converter={x:Static converters:BoolToVerifyColorConverter.Instance}}"/>
-							</ScrollViewer>
+								BorderThickness="1" CornerRadius="4" Background="#ffffff" Padding="0">
+							<Expander IsExpanded="False">
+								<Expander.Header>
+									<Grid ColumnDefinitions="Auto,*" Margin="10,8">
+										<TextBlock Text="验证详情" FontWeight="SemiBold" VerticalAlignment="Center"/>
+										<TextBlock Grid.Column="1" Margin="10,0,0,0" Text="{Binding FileVerifyResult}" MaxLines="1"
+												   TextTrimming="CharacterEllipsis" VerticalAlignment="Center"
+												   Foreground="{Binding FileVerifyPassed, Converter={x:Static converters:BoolToVerifyColorConverter.Instance}}"/>
+									</Grid>
+								</Expander.Header>
+								<ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" MaxHeight="180" Margin="8,0,8,8">
+									<TextBlock Text="{Binding FileVerifyResult}" TextWrapping="NoWrap" FontSize="11" FontFamily="Consolas,Courier New,monospace"
+											   Foreground="{Binding FileVerifyPassed, Converter={x:Static converters:BoolToVerifyColorConverter.Instance}}"/>
+								</ScrollViewer>
+							</Expander>
 						</Border>
 					</Grid>
 				</Border>

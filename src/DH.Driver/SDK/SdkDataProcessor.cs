@@ -76,6 +76,7 @@ public class SdkDataProcessor : IDisposable
     // 状态
     private bool _isInitialized;
     private bool _isSampling;
+    private volatile bool _realtimePublishEnabled = true;
     private float _sampleRate = 1000f;
     private int _onlineDeviceCount;
     private int _totalChannelCount;
@@ -88,6 +89,7 @@ public class SdkDataProcessor : IDisposable
     
     public event EventHandler<bool>? StatusChanged;
     public event EventHandler<bool>? DataActivityChanged;
+    public event Action<SdkRawBlock>? RawBlockReceived;
     
     private DateTime _lastDataTime;
     private Timer? _activityTimer;
@@ -95,6 +97,7 @@ public class SdkDataProcessor : IDisposable
 
     public bool IsInitialized => _isInitialized;
     public bool IsSampling => _isSampling;
+    public bool RealtimePublishEnabled => _realtimePublishEnabled;
     public float SampleRate => _sampleRate;
     
     /// <summary>
@@ -111,6 +114,15 @@ public class SdkDataProcessor : IDisposable
     /// 获取设备信息列表（只读）
     /// </summary>
     public IReadOnlyList<SdkDeviceInfo> DeviceInfoList => _deviceInfoList.AsReadOnly();
+
+    public void SetRealtimePublishEnabled(bool enabled)
+    {
+        _realtimePublishEnabled = enabled;
+        if (!enabled)
+        {
+            ClearBufferedChannels();
+        }
+    }
 
     public SdkDataProcessor(IDataBus dataBus, StreamTable streamTable, Action<bool, string> statusCallback)
     {
@@ -229,7 +241,11 @@ public class SdkDataProcessor : IDisposable
                         {
                             DeviceIndex = i,
                             MachineId = machineId,
-                            ChannelDeviceId = i + 1,
+                            ChannelDeviceId = SdkDeviceIdResolver.ResolveDeviceId(
+                                groupId: -1,
+                                machineId: machineId,
+                                channelDeviceId: i,
+                                deviceIndex: i),
                             MachineIp = machineIp,
                             ChannelCount = channelCount,
                             IsOnline = isOnline
@@ -382,11 +398,61 @@ public class SdkDataProcessor : IDisposable
             if (channelCount <= 0) channelCount = 1;
             
             // 解析float数据
-            float[] allData = new float[floatCount];
-            Marshal.Copy((IntPtr)varSampleData, allData, 0, floatCount);
-            
+            bool needsRawBlock = RawBlockReceived is not null;
+            bool needsRealtimePublish = _realtimePublishEnabled;
+            if (!needsRawBlock && !needsRealtimePublish)
+            {
+                return;
+            }
+
+            float[] allData = SdkRawFloatBufferPool.Rent(floatCount);
+            bool bufferOwnedByRawBlock = false;
+
+            try
+            {
+                Marshal.Copy((IntPtr)varSampleData, allData, 0, floatCount);
+
+                if (needsRawBlock)
+            {
+                var rawBlock = new SdkRawBlock
+                {
+                    SampleTime = sampleTime,
+                    MessageType = nMessageType,
+                    GroupId = nGroupID,
+                    MachineId = nMachineID,
+                    TotalDataCount = nTotalDataCount,
+                    DataCountPerChannel = nDataCountPerChannel,
+                    BufferCountBytes = nBufferCount,
+                    BlockIndex = nBlockIndex,
+                    ChannelCount = channelCount,
+                    SampleRateHz = _sampleRate,
+                    ReceivedAtUtc = DateTime.UtcNow,
+                    InterleavedSamples = allData,
+                    PayloadFloatCount = floatCount,
+                    ReturnBufferToPool = true
+                };
+
+                bufferOwnedByRawBlock = true;
+
+                try
+                {
+                    RawBlockReceived?.Invoke(rawBlock);
+                }
+                catch (Exception rawEx)
+                {
+                    Console.WriteLine($"[SdkDataProcessor] 原始块旁路异常: {rawEx.Message}");
+                }
+            }
+
+            if (!needsRealtimePublish)
+            {
+                return;
+            }
+              
             // 使用 nGroupID 作为设备标识符（与SdkRealtimeIngestor保持一致）
-            int deviceId = nGroupID;
+            int deviceId = SdkDeviceIdResolver.ResolveDeviceId(
+                groupId: nGroupID,
+                machineId: nMachineID);
             
             // 按通道分发数据 - 使用交织格式解析（与SdkRealtimeIngestor保持一致）
             // 数据格式: [Ch0_S0, Ch1_S0, Ch2_S0... Ch0_S1, Ch1_S1, Ch2_S1...]
@@ -400,7 +466,7 @@ public class SdkDataProcessor : IDisposable
                 for (int i = 0; i < nDataCountPerChannel; i++)
                 {
                     int idx = i * channelCount + ch;
-                    if (idx < allData.Length)
+                    if (idx < floatCount)
                     {
                         channelData[i] = allData[idx];
                     }
@@ -408,6 +474,14 @@ public class SdkDataProcessor : IDisposable
                 
                 // 发布到DataBus
                 PublishChannelData(channelId, channelData, nTotalDataCount);
+            }
+            }
+            finally
+            {
+                if (!bufferOwnedByRawBlock)
+                {
+                    SdkRawFloatBufferPool.Return(allData);
+                }
             }
         }
         catch (Exception ex)
@@ -544,28 +618,42 @@ public class SdkDataProcessor : IDisposable
         }
     }
 
+    private void ClearBufferedChannels()
+    {
+        foreach (var kvp in _channelBuffers)
+        {
+            while (kvp.Value.TryDequeue(out _))
+            {
+            }
+        }
+    }
+
     private void UpdateObservedDeviceMapping(int machineId, int channelDeviceId)
     {
-        if (channelDeviceId <= 0)
+        if (channelDeviceId < 0)
         {
             return;
         }
+
+        int canonicalDeviceId = SdkDeviceIdResolver.ResolveDeviceId(
+            groupId: channelDeviceId,
+            machineId: machineId);
 
         lock (_deviceInfoList)
         {
             var device = _deviceInfoList.Find(d => d.MachineId == machineId);
             if (device != null)
             {
-                device.ChannelDeviceId = channelDeviceId;
+                device.ChannelDeviceId = canonicalDeviceId;
                 return;
             }
 
-            if (channelDeviceId > 0)
+            if (canonicalDeviceId >= 0)
             {
-                int index = channelDeviceId - 1;
+                int index = canonicalDeviceId;
                 if (index >= 0 && index < _deviceInfoList.Count)
                 {
-                    _deviceInfoList[index].ChannelDeviceId = channelDeviceId;
+                    _deviceInfoList[index].ChannelDeviceId = canonicalDeviceId;
                 }
             }
         }

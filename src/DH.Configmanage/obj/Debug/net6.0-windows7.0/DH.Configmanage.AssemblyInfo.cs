@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("DH.Configmanage")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+649decaa7f3995d052d3c4c5bac8a532b8937cc5")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+2e09c07007ae8e630b766f7e14a74563d50817c0")]
 [assembly: System.Reflection.AssemblyProductAttribute("DH.Configmanage")]
 [assembly: System.Reflection.AssemblyTitleAttribute("DH.Configmanage")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

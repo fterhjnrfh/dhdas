@@ -46,6 +46,11 @@ public class SdkDriverManager : INotifyPropertyChanged, IDisposable
     /// 当前采样率
     /// </summary>
     public float SampleRate => _dataProcessor.SampleRate;
+
+    /// <summary>
+    /// 是否启用实时发布到结果显示链路
+    /// </summary>
+    public bool RealtimePublishEnabled => _dataProcessor.RealtimePublishEnabled;
     
     /// <summary>
     /// 在线设备数量
@@ -90,6 +95,15 @@ public class SdkDriverManager : INotifyPropertyChanged, IDisposable
     /// 数据活动状态变化事件
     /// </summary>
     public event Action<bool>? DataActivityChanged;
+
+    /// <summary>
+    /// SDK原始块旁路事件
+    /// </summary>
+    public event Action<SdkRawBlock>? RawBlockReceived
+    {
+        add => _dataProcessor.RawBlockReceived += value;
+        remove => _dataProcessor.RawBlockReceived -= value;
+    }
 
     #endregion
 
@@ -154,6 +168,15 @@ public class SdkDriverManager : INotifyPropertyChanged, IDisposable
         _dataProcessor.StopSampling();
         ConnectionStatus = "SDK采样已停止";
         OnPropertyChanged(nameof(IsSampling));
+    }
+
+    /// <summary>
+    /// 控制是否向实时显示链路发布拆包后的通道数据
+    /// </summary>
+    public void SetRealtimePublishEnabled(bool enabled)
+    {
+        _dataProcessor.SetRealtimePublishEnabled(enabled);
+        OnPropertyChanged(nameof(RealtimePublishEnabled));
     }
 
     /// <summary>

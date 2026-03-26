@@ -1300,6 +1300,9 @@ internal sealed class SdkRawCaptureWriter : IDisposable
             StoppedAt = manifest.StoppedAtUtc.ToLocalTime(),
             Elapsed = manifest.StoppedAtUtc - manifest.StartedAtUtc,
             Channels = channels,
+            BenchmarkSource = CompressionBenchmarkSource.RawCaptureReplay,
+            BenchmarkSourcePath = _capturePath ?? "",
+            BenchmarkBatchSize = CompressionBenchmarkDefaults.BatchSize,
             BenchmarkSamples = Array.Empty<CompressionBenchmarkSample>()
         };
     }

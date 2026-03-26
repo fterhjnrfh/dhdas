@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Threading;
 
@@ -11,6 +12,69 @@ public enum CompressionStorageMode
 {
     SingleFile,
     PerChannel,
+}
+
+public enum CompressionBenchmarkSource
+{
+    None,
+    SampledBatches,
+    RawCaptureReplay,
+}
+
+public enum CompressionBenchmarkReplayMode
+{
+    Auto,
+    Fast,
+    Full,
+}
+
+internal static class CompressionBenchmarkDefaults
+{
+    public const int BatchSize = 4096;
+    public const int FastModeMaxChannels = 32;
+    public const int FastModeMaxBatchesPerChannel = 128;
+    public const long AutoFullMaxRawBytes = 256L * 1024 * 1024;
+    public const int AutoFullMaxChannels = 64;
+    public const long AutoFullMaxSamples = 64L * 1024 * 1024;
+
+    public static readonly CompressionType[] Algorithms =
+    {
+        CompressionType.None,
+        CompressionType.LZ4,
+        CompressionType.Zstd,
+        CompressionType.Brotli,
+        CompressionType.Snappy,
+        CompressionType.Zlib,
+        CompressionType.LZ4_HC,
+        CompressionType.BZip2,
+    };
+}
+
+public sealed class CompressionBenchmarkProgress
+{
+    public CompressionBenchmarkSource Source { get; init; }
+
+    public CompressionBenchmarkReplayMode ReplayMode { get; init; }
+
+    public long BlocksProcessed { get; init; }
+
+    public long TotalBlocks { get; init; }
+
+    public long SamplesProcessed { get; init; }
+
+    public long TargetSamples { get; init; }
+
+    public long EncodedBatchCount { get; init; }
+
+    public int SelectedChannelCount { get; init; }
+
+    public int TotalCandidateChannelCount { get; init; }
+
+    public double ProgressPercent { get; init; }
+
+    public bool IsIndeterminate { get; init; }
+
+    public string StatusText { get; init; } = "";
 }
 
 public sealed class CompressionMetricCard
@@ -136,6 +200,14 @@ public sealed class CompressionSessionSnapshot
 
     public IReadOnlyList<string> WrittenFiles { get; set; } = Array.Empty<string>();
 
+    public CompressionBenchmarkSource BenchmarkSource { get; set; }
+
+    public string BenchmarkSourcePath { get; set; } = "";
+
+    public int BenchmarkBatchSize { get; set; } = CompressionBenchmarkDefaults.BatchSize;
+
+    public CompressionBenchmarkReplayMode BenchmarkReplayMode { get; set; } = CompressionBenchmarkReplayMode.Auto;
+
     public string StorageModeText => StorageMode == CompressionStorageMode.SingleFile ? "单文件" : "每通道单文件";
 
     public string CompressionTypeText => CompressionReportFormatting.FormatCompressionType(CompressionType);
@@ -143,6 +215,8 @@ public sealed class CompressionSessionSnapshot
     public string PreprocessTypeText => CompressionReportFormatting.FormatPreprocessType(PreprocessType);
 
     public string ParameterSummary => CompressionReportFormatting.FormatCompressionOptions(CompressionType, CompressionOptions);
+
+    public string BenchmarkReplayModeText => CompressionReportFormatting.FormatBenchmarkReplayMode(BenchmarkReplayMode);
 
     public string SampleRateText => SampleRateHz > 0
         ? $"{SampleRateHz:N0} Hz"
@@ -201,7 +275,13 @@ public sealed class CompressionSessionSnapshot
         : $"{WrittenFiles.Count} 个文件";
 
     public string BenchmarkSampleSummaryText => BenchmarkSamples.Count == 0
-        ? "未采集到 benchmark 样本"
+        ? BenchmarkSource switch
+        {
+            CompressionBenchmarkSource.RawCaptureReplay => string.IsNullOrWhiteSpace(BenchmarkSourcePath)
+                ? $"已保存原始数据分层回放，按 {BenchmarkBatchSize:N0} 点/通道重组批次"
+                : $"已保存原始数据 {Path.GetFileName(BenchmarkSourcePath)} 分层回放，按 {BenchmarkBatchSize:N0} 点/通道重组批次",
+            _ => "未采集到 benchmark 样本"
+        }
         : $"{BenchmarkSamples.Count} 个采样批次，原始数据 {CompressionReportFormatting.FormatBytes(BenchmarkSampleBytes)}";
 
     public long BenchmarkSampleBytes => BenchmarkSamples.Sum(static sample => sample.RawBytes);
@@ -326,6 +406,7 @@ internal sealed class CompressionMetricsCollector
     private readonly CompressionOptions _compressionOptions;
     private readonly double _sampleRateHz;
     private readonly int _configuredChannelCount;
+    private readonly int _benchmarkBatchSize;
     private readonly Dictionary<int, ChannelAccumulator> _channels = new();
     private readonly List<double> _encodeLatencyMsSamples = new();
     private readonly List<double> _writeLatencyMsSamples = new();
@@ -347,7 +428,8 @@ internal sealed class CompressionMetricsCollector
         PreprocessType preprocessType,
         CompressionOptions compressionOptions,
         double sampleRateHz,
-        int configuredChannelCount)
+        int configuredChannelCount,
+        int benchmarkBatchSize = CompressionBenchmarkDefaults.BatchSize)
     {
         _storageMode = storageMode;
         _sessionName = sessionName;
@@ -356,6 +438,7 @@ internal sealed class CompressionMetricsCollector
         _compressionOptions = compressionOptions.Clone();
         _sampleRateHz = sampleRateHz;
         _configuredChannelCount = configuredChannelCount;
+        _benchmarkBatchSize = benchmarkBatchSize > 0 ? benchmarkBatchSize : CompressionBenchmarkDefaults.BatchSize;
     }
 
     public void RecordBatch(int channelId, double[] rawSamples, StorageCodec.StorageEncodeResult encodeResult, TimeSpan encodeElapsed, TimeSpan writeElapsed)
@@ -410,6 +493,10 @@ internal sealed class CompressionMetricsCollector
                     .OrderBy(static channel => channel.ChannelId)
                     .Select(static channel => channel.ToSnapshot())
                     .ToArray(),
+                BenchmarkSource = _benchmarkSamples.Count > 0
+                    ? CompressionBenchmarkSource.SampledBatches
+                    : CompressionBenchmarkSource.None,
+                BenchmarkBatchSize = _benchmarkBatchSize,
                 BenchmarkSamples = _benchmarkSamples
                     .Select(static sample => new CompressionBenchmarkSample
                     {
@@ -521,30 +608,90 @@ internal sealed class CompressionMetricsCollector
 
 public static class CompressionBenchmarkService
 {
-    private static readonly CompressionType[] BenchmarkAlgorithms =
+    public static CompressionBenchmarkReplayMode ResolveReplayMode(
+        CompressionSessionSnapshot snapshot,
+        CompressionBenchmarkReplayMode? requestedMode = null)
     {
-        CompressionType.None,
-        CompressionType.LZ4,
-        CompressionType.Zstd,
-        CompressionType.Brotli,
-        CompressionType.Snappy,
-        CompressionType.Zlib,
-        CompressionType.LZ4_HC,
-        CompressionType.BZip2,
-    };
+        CompressionBenchmarkReplayMode mode = requestedMode ?? snapshot.BenchmarkReplayMode;
+        if (snapshot.BenchmarkSource != CompressionBenchmarkSource.RawCaptureReplay)
+        {
+            return mode == CompressionBenchmarkReplayMode.Auto
+                ? CompressionBenchmarkReplayMode.Full
+                : mode;
+        }
 
-    public static IReadOnlyList<CompressionBenchmarkRow> BuildBenchmarkRows(CompressionSessionSnapshot snapshot, CancellationToken cancellationToken = default)
+        if (mode != CompressionBenchmarkReplayMode.Auto)
+        {
+            return mode;
+        }
+
+        long rawBytes = snapshot.RawBytes;
+        if (!string.IsNullOrWhiteSpace(snapshot.BenchmarkSourcePath) && File.Exists(snapshot.BenchmarkSourcePath))
+        {
+            try
+            {
+                rawBytes = new FileInfo(snapshot.BenchmarkSourcePath).Length;
+            }
+            catch
+            {
+            }
+        }
+
+        if (rawBytes > CompressionBenchmarkDefaults.AutoFullMaxRawBytes
+            || snapshot.ChannelCount > CompressionBenchmarkDefaults.AutoFullMaxChannels
+            || snapshot.TotalSamples > CompressionBenchmarkDefaults.AutoFullMaxSamples)
+        {
+            return CompressionBenchmarkReplayMode.Fast;
+        }
+
+        return CompressionBenchmarkReplayMode.Full;
+    }
+
+    public static bool HasBenchmarkInput(CompressionSessionSnapshot snapshot)
     {
+        if (snapshot.BenchmarkSource == CompressionBenchmarkSource.RawCaptureReplay
+            && !string.IsNullOrWhiteSpace(snapshot.BenchmarkSourcePath)
+            && File.Exists(snapshot.BenchmarkSourcePath))
+        {
+            return true;
+        }
+
+        return snapshot.BenchmarkSamples.Count > 0;
+    }
+
+    public static IReadOnlyList<CompressionBenchmarkRow> BuildBenchmarkRows(
+        CompressionSessionSnapshot snapshot,
+        CancellationToken cancellationToken = default,
+        Action<CompressionBenchmarkProgress>? progressCallback = null)
+    {
+        if (snapshot.BenchmarkSource == CompressionBenchmarkSource.RawCaptureReplay
+            && !string.IsNullOrWhiteSpace(snapshot.BenchmarkSourcePath)
+            && File.Exists(snapshot.BenchmarkSourcePath))
+        {
+            return SdkRawCompressionBenchmarkService.BuildBenchmarkRows(snapshot, progressCallback, cancellationToken);
+        }
+
         if (snapshot.BenchmarkSamples.Count == 0)
         {
             return Array.Empty<CompressionBenchmarkRow>();
         }
 
-        var rows = new List<CompressionBenchmarkRow>(BenchmarkAlgorithms.Length);
-        foreach (var algorithm in BenchmarkAlgorithms)
+        var rows = new List<CompressionBenchmarkRow>(CompressionBenchmarkDefaults.Algorithms.Length);
+        int algorithmCount = CompressionBenchmarkDefaults.Algorithms.Length;
+        for (int index = 0; index < algorithmCount; index++)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            var algorithm = CompressionBenchmarkDefaults.Algorithms[index];
             rows.Add(BuildRow(snapshot, algorithm, cancellationToken));
+            progressCallback?.Invoke(new CompressionBenchmarkProgress
+            {
+                Source = CompressionBenchmarkSource.SampledBatches,
+                ReplayMode = CompressionBenchmarkReplayMode.Full,
+                EncodedBatchCount = index + 1,
+                ProgressPercent = (index + 1) * 100d / algorithmCount,
+                IsIndeterminate = false,
+                StatusText = $"正在基于采样批次评估各压缩算法性能（{index + 1}/{algorithmCount}，{(index + 1) * 100d / algorithmCount:F1}%）..."
+            });
         }
 
         return rows;
@@ -623,6 +770,17 @@ internal static class CompressionReportFormatting
             PreprocessType.DiffOrder2 => "二阶差分",
             PreprocessType.LinearPrediction => "线性预测",
             _ => type.ToString(),
+        };
+    }
+
+    public static string FormatBenchmarkReplayMode(CompressionBenchmarkReplayMode mode)
+    {
+        return mode switch
+        {
+            CompressionBenchmarkReplayMode.Auto => "自动",
+            CompressionBenchmarkReplayMode.Fast => "快速模式",
+            CompressionBenchmarkReplayMode.Full => "全量模式",
+            _ => mode.ToString(),
         };
     }
 

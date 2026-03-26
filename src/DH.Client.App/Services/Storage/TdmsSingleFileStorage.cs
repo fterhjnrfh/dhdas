@@ -51,7 +51,8 @@ namespace DH.Client.App.Services.Storage
                 preprocessType,
                 _compressionOptions,
                 sampleRateHz,
-                new HashSet<int>(channelIds).Count);
+                new HashSet<int>(channelIds).Count,
+                BatchSize);
 
             if (!_useTdms)
             {

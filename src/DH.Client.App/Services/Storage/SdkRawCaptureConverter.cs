@@ -164,6 +164,9 @@ internal sealed class SdkRawCaptureConverter
                     .Where(File.Exists)
                     .Select(path => new FileInfo(path).Length)
                     .Sum();
+                snapshot.BenchmarkSource = CompressionBenchmarkSource.RawCaptureReplay;
+                snapshot.BenchmarkSourcePath = capturePath;
+                snapshot.BenchmarkBatchSize = CompressionBenchmarkDefaults.BatchSize;
             }
 
             return new SdkRawCaptureConversionResult
@@ -445,6 +448,11 @@ internal sealed class SdkRawCaptureConverter
         return ReadFileHeader(reader);
     }
 
+    internal static void SkipFileHeader(BinaryReader reader)
+    {
+        _ = ReadFileHeader(reader);
+    }
+
     private static RawFileHeader ReadFileHeader(BinaryReader reader)
     {
         ulong magic = reader.ReadUInt64();
@@ -514,6 +522,9 @@ internal sealed class SdkRawCaptureConverter
 
         return true;
     }
+
+    internal static bool TryReadRawBlock(BinaryReader reader, out SdkRawBlock rawBlock)
+        => TryReadBlock(reader, out rawBlock);
 
     private static bool TryReadBlockHeader(BinaryReader reader, out RawBlockHeader header)
     {

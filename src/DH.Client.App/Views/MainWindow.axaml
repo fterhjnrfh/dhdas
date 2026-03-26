@@ -302,6 +302,19 @@
 								<Button Content="查看性能报告" Command="{Binding ViewCompressionReportCommand}" IsEnabled="{Binding CanViewCompressionReport}" Padding="16,6"/>
 								<TextBlock Text="{Binding CompressionReportStatusMessage}" VerticalAlignment="Center" Foreground="#555555"/>
 							</StackPanel>
+							<WrapPanel Orientation="Horizontal">
+								<TextBlock Text="算法对比模式" VerticalAlignment="Center" Foreground="#555555"/>
+								<ComboBox SelectedIndex="{Binding CompressionBenchmarkReplayModeIndex}" Width="220">
+									<ComboBoxItem Content="自动（大文件快速）"/>
+									<ComboBoxItem Content="快速（部分通道+部分批次）"/>
+									<ComboBoxItem Content="全量（完整原始数据）"/>
+								</ComboBox>
+								<TextBlock Text="仅影响压缩性能报告的算法对比，不影响实时原始写入与 TDMS 转换。"
+								           VerticalAlignment="Center"
+								           MaxWidth="420"
+								           Foreground="#777777"
+								           TextWrapping="Wrap"/>
+							</WrapPanel>
 						</StackPanel>
 						
 						<TextBlock Grid.Column="2" Text="{Binding StorageStatusMessage}" VerticalAlignment="Center" 
@@ -503,7 +516,15 @@
                                 <TextBlock Text="{Binding CompressionReportStatusMessage}" Foreground="#555555" TextWrapping="Wrap"/>
                             </StackPanel>
                             <Button Grid.Column="1" Content="返回存储配置" Command="{Binding BackToStorageConfigCommand}" Padding="14,6"/>
-                            <ProgressBar Grid.Row="1" Grid.ColumnSpan="2" Margin="0,8,0,0" IsVisible="{Binding IsCompressionReportGenerating}" IsIndeterminate="True" Height="6"/>
+                            <StackPanel Grid.Row="1" Grid.ColumnSpan="2" Margin="0,8,0,0" Spacing="4" IsVisible="{Binding IsCompressionReportGenerating}">
+                                <ProgressBar IsIndeterminate="{Binding CompressionBenchmarkProgressIsIndeterminate}"
+                                             Value="{Binding CompressionBenchmarkProgressPercent}"
+                                             Maximum="100"
+                                             Height="6"/>
+                                <TextBlock Text="{Binding CompressionBenchmarkProgressText}"
+                                           Foreground="#666666"
+                                           TextWrapping="Wrap"/>
+                            </StackPanel>
                         </Grid>
                     </Border>
 
@@ -511,7 +532,7 @@
                             IsVisible="{Binding ShowCompressionReportPlaceholder}">
                         <StackPanel Spacing="8">
                             <TextBlock Text="停止写入后会自动生成压缩性能报告。" FontSize="15" FontWeight="SemiBold" Foreground="#333333"/>
-                            <TextBlock Text="报告会包含本次真实写入的压缩比、压缩带宽、写盘带宽，以及基于采样批次的多算法对比结果。" Foreground="#666666" TextWrapping="Wrap"/>
+                            <TextBlock Text="报告会包含本次真实写入的压缩比、压缩带宽、写盘带宽，以及基于已保存原始数据或采样批次的多算法对比结果。" Foreground="#666666" TextWrapping="Wrap"/>
                         </StackPanel>
                     </Border>
 

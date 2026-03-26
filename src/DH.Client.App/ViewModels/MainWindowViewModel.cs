@@ -155,6 +155,10 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty] private bool _hasCompressionReport;
     [ObservableProperty] private bool _isCompressionReportGenerating;
     [ObservableProperty] private string _compressionReportStatusMessage = "尚未生成压缩性能报告";
+    [ObservableProperty] private int _compressionBenchmarkReplayModeIndex = 0;
+    [ObservableProperty] private double _compressionBenchmarkProgressPercent;
+    [ObservableProperty] private bool _compressionBenchmarkProgressIsIndeterminate = true;
+    [ObservableProperty] private string _compressionBenchmarkProgressText = "";
     private CompressionSessionSnapshot? _lastCompressionSessionSnapshot;
     private CancellationTokenSource? _compressionReportCts;
     private List<int> _rawTdmsAvailableChannelIds = new();
@@ -330,6 +334,12 @@ public partial class MainWindowViewModel : ObservableObject
 
     public bool CanViewCompressionReport => HasCompressionReport || IsCompressionReportGenerating;
     public bool ShowCompressionReportPlaceholder => !HasCompressionReport && !IsCompressionReportGenerating;
+    public CompressionBenchmarkReplayMode SelectedCompressionBenchmarkReplayMode => CompressionBenchmarkReplayModeIndex switch
+    {
+        1 => CompressionBenchmarkReplayMode.Fast,
+        2 => CompressionBenchmarkReplayMode.Full,
+        _ => CompressionBenchmarkReplayMode.Auto
+    };
     public string CompressionBenchmarkStatusText
     {
         get
@@ -341,12 +351,16 @@ public partial class MainWindowViewModel : ObservableObject
 
             if (IsCompressionReportGenerating)
             {
-                return "正在基于采样批次评估各压缩算法性能...";
+                return CurrentCompressionReport.BenchmarkSource == CompressionBenchmarkSource.RawCaptureReplay
+                    ? "正在基于已保存原始数据评估各压缩算法性能..."
+                    : "正在基于采样批次评估各压缩算法性能...";
             }
 
             if (CompressionBenchmarkRows.Count == 0)
             {
-                return "当前会话仅生成了真实写入指标，未采集到可用于对比的 benchmark 样本。";
+                return CurrentCompressionReport.BenchmarkSource == CompressionBenchmarkSource.RawCaptureReplay
+                    ? "当前会话仅生成了真实写入指标，未能从已保存原始数据生成算法对比结果。"
+                    : "当前会话仅生成了真实写入指标，未采集到可用于对比的 benchmark 样本。";
             }
 
             return $"对比基准：{CurrentCompressionReport.BenchmarkSampleSummaryText}。";
@@ -2579,6 +2593,9 @@ public partial class MainWindowViewModel : ObservableObject
         HasCompressionReport = false;
         IsCompressionReportGenerating = false;
         CompressionReportStatusMessage = statusMessage;
+        CompressionBenchmarkProgressPercent = 0d;
+        CompressionBenchmarkProgressIsIndeterminate = true;
+        CompressionBenchmarkProgressText = "";
         CurrentCompressionReport = new CompressionSessionSnapshot();
         CompressionSummaryCards.Clear();
         CompressionBenchmarkRows.Clear();
@@ -2590,9 +2607,19 @@ public partial class MainWindowViewModel : ObservableObject
     {
         _compressionReportCts?.Cancel();
         _compressionReportCts = null;
+        if (snapshot.BenchmarkSource == CompressionBenchmarkSource.RawCaptureReplay)
+        {
+            snapshot.BenchmarkReplayMode = CompressionBenchmarkService.ResolveReplayMode(snapshot, SelectedCompressionBenchmarkReplayMode);
+        }
+
         _lastCompressionSessionSnapshot = snapshot;
         CurrentCompressionReport = snapshot;
         HasCompressionReport = true;
+        CompressionBenchmarkProgressPercent = 0d;
+        CompressionBenchmarkProgressIsIndeterminate = true;
+        CompressionBenchmarkProgressText = snapshot.BenchmarkSource == CompressionBenchmarkSource.RawCaptureReplay
+            ? $"对比模式：{DescribeCompressionBenchmarkReplayMode(snapshot.BenchmarkReplayMode)}"
+            : "";
         CompressionChannelRows.Clear();
         foreach (var channel in snapshot.Channels)
         {
@@ -2600,16 +2627,20 @@ public partial class MainWindowViewModel : ObservableObject
         }
 
         CompressionBenchmarkRows.Clear();
-        if (snapshot.BenchmarkSamples.Count == 0)
+        if (!CompressionBenchmarkService.HasBenchmarkInput(snapshot))
         {
             IsCompressionReportGenerating = false;
-            CompressionReportStatusMessage = "压缩性能报告已生成，仅包含真实写入指标。";
+            CompressionReportStatusMessage = "压缩性能报告已生成，仅包含真实写入指标，未获得可用于算法对比的基准数据。";
+            CompressionReportStatusMessage = "压缩性能报告已生成，仅包含真实写入指标，未获得可用于算法对比的基准数据。";
             OnPropertyChanged(nameof(CompressionBenchmarkStatusText));
             return;
         }
 
         IsCompressionReportGenerating = true;
-        CompressionReportStatusMessage = "正在生成压缩性能报告...";
+        CompressionReportStatusMessage = $"正在生成压缩性能报告（对比基准：{DescribeCompressionBenchmarkSource(snapshot)}）...";
+        CompressionReportStatusMessage = snapshot.BenchmarkSource == CompressionBenchmarkSource.RawCaptureReplay
+            ? $"正在生成压缩性能报告（对比基准：{DescribeCompressionBenchmarkSource(snapshot)}，模式：{DescribeCompressionBenchmarkReplayMode(snapshot.BenchmarkReplayMode)}）..."
+            : $"正在生成压缩性能报告（对比基准：{DescribeCompressionBenchmarkSource(snapshot)}）...";
         var cts = new CancellationTokenSource();
         _compressionReportCts = cts;
         _ = RunCompressionBenchmarkAsync(snapshot, cts.Token);
@@ -2619,7 +2650,31 @@ public partial class MainWindowViewModel : ObservableObject
     {
         try
         {
-            var rows = await Task.Run(() => CompressionBenchmarkService.BuildBenchmarkRows(snapshot, token), token);
+            IProgress<CompressionBenchmarkProgress> progress = new Progress<CompressionBenchmarkProgress>(update =>
+            {
+                if (token.IsCancellationRequested)
+                {
+                    return;
+                }
+
+                CompressionBenchmarkProgressPercent = update.ProgressPercent;
+                CompressionBenchmarkProgressIsIndeterminate = update.IsIndeterminate;
+                CompressionBenchmarkProgressText = update.StatusText;
+                if (!string.IsNullOrWhiteSpace(update.StatusText))
+                {
+                    CompressionReportStatusMessage = update.StatusText;
+                }
+
+                CompressionReportStatusMessage = snapshot.BenchmarkSource == CompressionBenchmarkSource.RawCaptureReplay
+                    ? $"压缩性能报告已生成（对比基准：{DescribeCompressionBenchmarkSource(snapshot)}，模式：{DescribeCompressionBenchmarkReplayMode(snapshot.BenchmarkReplayMode)}）。"
+                    : $"压缩性能报告已生成（对比基准：{DescribeCompressionBenchmarkSource(snapshot)}）。";
+                CompressionReportStatusMessage = update.StatusText;
+                OnPropertyChanged(nameof(CompressionBenchmarkStatusText));
+            });
+
+            var rows = await Task.Run(
+                () => CompressionBenchmarkService.BuildBenchmarkRows(snapshot, token, update => progress.Report(update)),
+                token);
             if (token.IsCancellationRequested)
             {
                 return;
@@ -2639,7 +2694,12 @@ public partial class MainWindowViewModel : ObservableObject
                 }
 
                 IsCompressionReportGenerating = false;
-                CompressionReportStatusMessage = "压缩性能报告已生成。";
+                CompressionBenchmarkProgressPercent = 100d;
+                CompressionBenchmarkProgressIsIndeterminate = false;
+                CompressionBenchmarkProgressText = snapshot.BenchmarkSource == CompressionBenchmarkSource.RawCaptureReplay
+                    ? $"已完成基于{DescribeCompressionBenchmarkSource(snapshot)}的算法对比（{DescribeCompressionBenchmarkReplayMode(snapshot.BenchmarkReplayMode)}）。"
+                    : "已完成基于采样批次的算法对比。";
+                CompressionReportStatusMessage = $"压缩性能报告已生成（对比基准：{DescribeCompressionBenchmarkSource(snapshot)}）。";
                 OnPropertyChanged(nameof(CompressionBenchmarkStatusText));
             });
         }
@@ -2656,11 +2716,22 @@ public partial class MainWindowViewModel : ObservableObject
                 }
 
                 IsCompressionReportGenerating = false;
-                CompressionReportStatusMessage = $"压缩性能报告生成失败: {ex.Message}";
+                CompressionReportStatusMessage = $"压缩性能报告生成失败（对比基准：{DescribeCompressionBenchmarkSource(snapshot)}）: {ex.Message}";
                 OnPropertyChanged(nameof(CompressionBenchmarkStatusText));
             });
         }
     }
+
+    private static string DescribeCompressionBenchmarkSource(CompressionSessionSnapshot snapshot)
+        => snapshot.BenchmarkSource switch
+        {
+            CompressionBenchmarkSource.RawCaptureReplay => "已保存原始数据",
+            CompressionBenchmarkSource.SampledBatches => "采样批次",
+            _ => "无"
+        };
+
+    private static string DescribeCompressionBenchmarkReplayMode(CompressionBenchmarkReplayMode replayMode)
+        => CompressionReportFormatting.FormatBenchmarkReplayMode(replayMode);
 
     private void RefreshCompressionMetricCards()
     {

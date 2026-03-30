@@ -13,72 +13,72 @@ build_property.PlatformNeutralAssembly =
 build_property.EnforceExtendedAnalyzerRules = 
 build_property._SupportedPlatformList = Linux,macOS,Windows
 build_property.RootNamespace = NewAvalonia
-build_property.ProjectDir = C:\GIt\dhdas\src\DH.UI\
+build_property.ProjectDir = D:\GIT-PROJECT\dhdas\src\DH.UI\
 build_property.EnableComHosting = 
 build_property.EnableGeneratedComInterfaceComImportInterop = 
 build_property.CsWinRTUseWindowsUIXamlProjections = false
 build_property.EffectiveAnalysisLevelStyle = 6.0
 build_property.EnableCodeStyleSeverity = 
 
-[C:/GIt/dhdas/src/DH.UI/App.axaml]
+[D:/GIT-PROJECT/dhdas/src/DH.UI/App.axaml]
 build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml
 
-[C:/GIt/dhdas/src/DH.UI/Controls/SimplifiedWaveformDisplay.axaml]
+[D:/GIT-PROJECT/dhdas/src/DH.UI/Controls/SimplifiedWaveformDisplay.axaml]
 build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml
 
-[C:/GIt/dhdas/src/DH.UI/Controls/WaveformAlgorithmParameterControl.axaml]
+[D:/GIT-PROJECT/dhdas/src/DH.UI/Controls/WaveformAlgorithmParameterControl.axaml]
 build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml
 
-[C:/GIt/dhdas/src/DH.UI/FlowEditor/FlowEditorControl.axaml]
+[D:/GIT-PROJECT/dhdas/src/DH.UI/FlowEditor/FlowEditorControl.axaml]
 build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml
 
-[C:/GIt/dhdas/src/DH.UI/MainWindow.axaml]
+[D:/GIT-PROJECT/dhdas/src/DH.UI/MainWindow.axaml]
 build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml
 
-[C:/GIt/dhdas/src/DH.UI/Views/ConnectionLineView.axaml]
+[D:/GIT-PROJECT/dhdas/src/DH.UI/Views/ConnectionLineView.axaml]
 build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml
 
-[C:/GIt/dhdas/src/DH.UI/Views/ConnectionPointView.axaml]
+[D:/GIT-PROJECT/dhdas/src/DH.UI/Views/ConnectionPointView.axaml]
 build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml
 
-[C:/GIt/dhdas/src/DH.UI/Views/ControlGroupBorderView.axaml]
+[D:/GIT-PROJECT/dhdas/src/DH.UI/Views/ControlGroupBorderView.axaml]
 build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml
 
-[C:/GIt/dhdas/src/DH.UI/Views/DesignerWorkbenchView.axaml]
+[D:/GIT-PROJECT/dhdas/src/DH.UI/Views/DesignerWorkbenchView.axaml]
 build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml
 
-[C:/GIt/dhdas/src/DH.UI/Views/DisplayControl.axaml]
+[D:/GIT-PROJECT/dhdas/src/DH.UI/Views/DisplayControl.axaml]
 build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml
 
-[C:/GIt/dhdas/src/DH.UI/Views/DisplayControl2.axaml]
+[D:/GIT-PROJECT/dhdas/src/DH.UI/Views/DisplayControl2.axaml]
 build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml
 
-[C:/GIt/dhdas/src/DH.UI/Views/GLSimulatedSignalControl.axaml]
+[D:/GIT-PROJECT/dhdas/src/DH.UI/Views/GLSimulatedSignalControl.axaml]
 build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml
 
-[C:/GIt/dhdas/src/DH.UI/Views/GPUAcceleratedWaveformControl.axaml]
+[D:/GIT-PROJECT/dhdas/src/DH.UI/Views/GPUAcceleratedWaveformControl.axaml]
 build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml
 
-[C:/GIt/dhdas/src/DH.UI/Views/NewOpenGLSinWaveControl.axaml]
+[D:/GIT-PROJECT/dhdas/src/DH.UI/Views/NewOpenGLSinWaveControl.axaml]
 build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml
 
-[C:/GIt/dhdas/src/DH.UI/Views/NewOxyPlotSinWaveControl.axaml]
+[D:/GIT-PROJECT/dhdas/src/DH.UI/Views/NewOxyPlotSinWaveControl.axaml]
 build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml
 
-[C:/GIt/dhdas/src/DH.UI/Views/PreviewWindow.axaml]
+[D:/GIT-PROJECT/dhdas/src/DH.UI/Views/PreviewWindow.axaml]
 build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml
 
-[C:/GIt/dhdas/src/DH.UI/Views/SimulatedSignalSourceControl.axaml]
+[D:/GIT-PROJECT/dhdas/src/DH.UI/Views/SimulatedSignalSourceControl.axaml]
 build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml
 
-[C:/GIt/dhdas/src/DH.UI/Views/SimulatedSignalSourceSKControl.axaml]
+[D:/GIT-PROJECT/dhdas/src/DH.UI/Views/SimulatedSignalSourceSKControl.axaml]
 build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml
 
-[C:/GIt/dhdas/src/DH.UI/Views/TcpSquareWaveGlControl.axaml]
+[D:/GIT-PROJECT/dhdas/src/DH.UI/Views/TcpSquareWaveGlControl.axaml]
 build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml
 
-[C:/GIt/dhdas/src/DH.UI/Views/TcpSquareWaveSkiaControl.axaml]
+[D:/GIT-PROJECT/dhdas/src/DH.UI/Views/TcpSquareWaveSkiaControl.axaml]
 build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml
 
-[C:/GIt/dhdas/src/DH.UI/Views/WorkingLogicSelectionDialog.axaml]
+[D:/GIT-PROJECT/dhdas/src/DH.UI/Views/WorkingLogicSelectionDialog.axaml]
 build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml

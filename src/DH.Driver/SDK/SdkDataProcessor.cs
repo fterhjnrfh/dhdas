@@ -204,7 +204,20 @@ public class SdkDataProcessor : IDisposable
             bool connected = HardwareSDK.RefindAndConnecMac();
             Console.WriteLine($"[SDK] RefindAndConnecMac 返回: {connected}");
             
-            int deviceCount = HardwareSDK.GetAllMacOnlineCount();
+            // 增加轮询等待机制，由于模拟硬件或其他网络设备的响应需要时间
+            int deviceCount = 0;
+            for (int retry = 0; retry < 10; retry++)
+            {
+                deviceCount = HardwareSDK.GetAllMacOnlineCount();
+                if (deviceCount > 0) // 一旦找到一些，再稍等一下确保所有设备都跟上
+                {
+                    System.Threading.Thread.Sleep(500); 
+                    deviceCount = HardwareSDK.GetAllMacOnlineCount();
+                    break;
+                }
+                System.Threading.Thread.Sleep(200);
+            }
+            
             Console.WriteLine($"[SDK] GetAllMacOnlineCount 返回: {deviceCount}");
             _onlineDeviceCount = deviceCount;
             
@@ -630,6 +643,11 @@ public class SdkDataProcessor : IDisposable
 
     private void UpdateObservedDeviceMapping(int machineId, int channelDeviceId)
     {
+        // 屏蔽在回调期间强制篡改 ChannelDeviceId 的逻辑
+        // 因为在多台模拟仪器环境下，可能多个仪器的 GroupId / MachineId 返回重复或跳号，
+        // 再去强行修改 _deviceInfoList 中的 ChannelDeviceId，会导致多台设备合并或者乱序，
+        // 原有设备通道被覆盖，最终引发设备和通道数量异常。
+        /*
         if (channelDeviceId < 0)
         {
             return;
@@ -657,6 +675,7 @@ public class SdkDataProcessor : IDisposable
                 }
             }
         }
+        */
     }
 
     private void RefreshIngestBatchSettings()

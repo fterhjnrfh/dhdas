@@ -1,21 +1,25 @@
 {
   "format": 1,
   "restore": {
-    "C:\\GIt\\dhdas\\src\\DH.UI\\AlgorithmModule\\AlgorithmModule.csproj": {}
+    "D:\\GIT-PROJECT\\dhdas\\src\\DH.UI\\AlgorithmModule\\AlgorithmModule.csproj": {}
   },
   "projects": {
-    "C:\\GIt\\dhdas\\src\\DH.UI\\AlgorithmModule\\AlgorithmModule.csproj": {
+    "D:\\GIT-PROJECT\\dhdas\\src\\DH.UI\\AlgorithmModule\\AlgorithmModule.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\GIt\\dhdas\\src\\DH.UI\\AlgorithmModule\\AlgorithmModule.csproj",
+        "projectUniqueName": "D:\\GIT-PROJECT\\dhdas\\src\\DH.UI\\AlgorithmModule\\AlgorithmModule.csproj",
         "projectName": "AlgorithmModule",
-        "projectPath": "C:\\GIt\\dhdas\\src\\DH.UI\\AlgorithmModule\\AlgorithmModule.csproj",
-        "packagesPath": "C:\\Users\\26453\\.nuget\\packages\\",
-        "outputPath": "C:\\GIt\\dhdas\\src\\DH.UI\\AlgorithmModule\\obj\\",
+        "projectPath": "D:\\GIT-PROJECT\\dhdas\\src\\DH.UI\\AlgorithmModule\\AlgorithmModule.csproj",
+        "packagesPath": "C:\\Users\\27249\\.nuget\\packages\\",
+        "outputPath": "D:\\GIT-PROJECT\\dhdas\\src\\DH.UI\\AlgorithmModule\\obj\\",
         "projectStyle": "PackageReference",
+        "fallbackFolders": [
+          "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
+        ],
         "configFilePaths": [
-          "C:\\GIt\\dhdas\\NuGet.Config",
-          "C:\\Users\\26453\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "D:\\GIT-PROJECT\\dhdas\\NuGet.Config",
+          "C:\\Users\\27249\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
         "originalTargetFrameworks": [
@@ -75,7 +79,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.310\\RuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.304\\RuntimeIdentifierGraph.json"
         }
       }
     }

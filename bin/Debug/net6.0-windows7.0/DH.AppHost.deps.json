@@ -277,15 +277,15 @@
           }
         }
       },
-      "CommunityToolkit.Mvvm/8.4.0": {
+      "CommunityToolkit.Mvvm/8.4.2": {
         "dependencies": {
           "System.ComponentModel.Annotations": "5.0.0",
-          "System.Runtime.CompilerServices.Unsafe": "6.1.0"
+          "System.Runtime.CompilerServices.Unsafe": "6.1.2"
         },
         "runtime": {
           "lib/netstandard2.1/CommunityToolkit.Mvvm.dll": {
             "assemblyVersion": "8.4.0.0",
-            "fileVersion": "8.4.0.1"
+            "fileVersion": "8.4.2.1"
           }
         }
       },
@@ -415,7 +415,7 @@
           "System.Collections.Immutable": "5.0.0",
           "System.Memory": "4.5.4",
           "System.Reflection.Metadata": "5.0.0",
-          "System.Runtime.CompilerServices.Unsafe": "6.1.0",
+          "System.Runtime.CompilerServices.Unsafe": "6.1.2",
           "System.Text.Encoding.CodePages": "4.5.1",
           "System.Threading.Tasks.Extensions": "4.5.4"
         },
@@ -743,7 +743,7 @@
       },
       "OpenTK.Mathematics/4.8.2": {
         "dependencies": {
-          "System.Runtime.CompilerServices.Unsafe": "6.1.0"
+          "System.Runtime.CompilerServices.Unsafe": "6.1.2"
         },
         "runtime": {
           "lib/netcoreapp3.1/OpenTK.Mathematics.dll": {
@@ -1175,11 +1175,11 @@
           "Microsoft.NETCore.Targets": "1.1.0"
         }
       },
-      "System.Runtime.CompilerServices.Unsafe/6.1.0": {
+      "System.Runtime.CompilerServices.Unsafe/6.1.2": {
         "runtime": {
-          "lib/netstandard2.0/System.Runtime.CompilerServices.Unsafe.dll": {
+          "lib/net6.0/System.Runtime.CompilerServices.Unsafe.dll": {
             "assemblyVersion": "6.0.0.0",
-            "fileVersion": "6.100.24.56208"
+            "fileVersion": "6.100.225.20307"
           }
         }
       },
@@ -1217,7 +1217,7 @@
       "System.Text.Encoding.CodePages/4.5.1": {
         "dependencies": {
           "Microsoft.NETCore.Platforms": "3.1.4",
-          "System.Runtime.CompilerServices.Unsafe": "6.1.0"
+          "System.Runtime.CompilerServices.Unsafe": "6.1.2"
         }
       },
       "System.Threading/4.3.0": {
@@ -1290,7 +1290,7 @@
           "Avalonia.ReactiveUI": "11.0.10",
           "Avalonia.Skia": "11.0.10",
           "Avalonia.Themes.Fluent": "11.0.10",
-          "CommunityToolkit.Mvvm": "8.4.0",
+          "CommunityToolkit.Mvvm": "8.4.2",
           "DH.Configmanage": "1.0.0",
           "DH.Contracts": "1.0.0",
           "DH.Display": "1.0.0",
@@ -1380,7 +1380,7 @@
           "Avalonia.Fonts.Inter": "11.0.10",
           "Avalonia.Skia": "11.0.10",
           "Avalonia.Themes.Fluent": "11.0.10",
-          "CommunityToolkit.Mvvm": "8.4.0",
+          "CommunityToolkit.Mvvm": "8.4.2",
           "DH.Driver": "1.0.0",
           "Microsoft.CodeAnalysis.CSharp": "3.8.0",
           "MsBox.Avalonia": "3.0.0-rc2",
@@ -1530,12 +1530,12 @@
       "path": "colortextblock.avalonia/11.0.0-d1",
       "hashPath": "colortextblock.avalonia.11.0.0-d1.nupkg.sha512"
     },
-    "CommunityToolkit.Mvvm/8.4.0": {
+    "CommunityToolkit.Mvvm/8.4.2": {
       "type": "package",
       "serviceable": true,
-      "sha512": "sha512-tqVU8yc/ADO9oiTRyTnwhFN68hCwvkliMierptWOudIAvWY1mWCh5VFh+guwHJmpMwfg0J0rY+yyd5Oy7ty9Uw==",
-      "path": "communitytoolkit.mvvm/8.4.0",
-      "hashPath": "communitytoolkit.mvvm.8.4.0.nupkg.sha512"
+      "sha512": "sha512-WadCzGEc2U+3e20avRLng4qNtt4zoOGWrdUISqJWrHe3/FSnrYjuM5Sb4yQb09LhkBXrrI4Zt3dLKgRMbItsrg==",
+      "path": "communitytoolkit.mvvm/8.4.2",
+      "hashPath": "communitytoolkit.mvvm.8.4.2.nupkg.sha512"
     },
     "DialogHost.Avalonia/0.7.5": {
       "type": "package",
@@ -2020,12 +2020,12 @@
       "path": "system.runtime/4.3.0",
       "hashPath": "system.runtime.4.3.0.nupkg.sha512"
     },
-    "System.Runtime.CompilerServices.Unsafe/6.1.0": {
+    "System.Runtime.CompilerServices.Unsafe/6.1.2": {
       "type": "package",
       "serviceable": true,
-      "sha512": "sha512-5o/HZxx6RVqYlhKSq8/zronDkALJZUT2Vz0hx43f0gwe8mwlM0y2nYlqdBwLMzr262Bwvpikeb/yEwkAa5PADg==",
-      "path": "system.runtime.compilerservices.unsafe/6.1.0",
-      "hashPath": "system.runtime.compilerservices.unsafe.6.1.0.nupkg.sha512"
+      "sha512": "sha512-2hBr6zdbIBTDE3EhK7NSVNdX58uTK6iHW/P/Axmm9sl1xoGSLqDvMtpecn226TNwHByFokYwJmt/aQQNlO5CRw==",
+      "path": "system.runtime.compilerservices.unsafe/6.1.2",
+      "hashPath": "system.runtime.compilerservices.unsafe.6.1.2.nupkg.sha512"
     },
     "System.Runtime.Extensions/4.3.0": {
       "type": "package",

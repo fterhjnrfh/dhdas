@@ -36,3 +36,5 @@
 2026-01-27 12:19:06.577 ERROR [57412] [LogCollection@130] IOCPClientEx.cpp[1209]: CIOCPClient::SetupIOWorkerThreads m_bNUMA 0 m_nWorkerThread 64
 2026-01-28 15:55:16.713 ERROR [13760] [LogCollection@130] MultiControlDeviceBase.cpp[532]: CMultiControlDeviceBase Init 0 NUMANode 0
 2026-01-28 15:55:16.715 ERROR [13760] [LogCollection@130] IOCPClientEx.cpp[1209]: CIOCPClient::SetupIOWorkerThreads m_bNUMA 0 m_nWorkerThread 64
+2026-03-29 14:06:51.316 ERROR [29680] [LogCollection@130] MultiControlDeviceBase.cpp[532]: CMultiControlDeviceBase Init 0 NUMANode 0
+2026-03-29 14:06:51.317 ERROR [29680] [LogCollection@130] IOCPClientEx.cpp[1209]: CIOCPClient::SetupIOWorkerThreads m_bNUMA 0 m_nWorkerThread 64

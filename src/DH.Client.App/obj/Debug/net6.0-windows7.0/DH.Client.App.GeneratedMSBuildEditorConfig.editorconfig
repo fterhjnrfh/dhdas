@@ -18,27 +18,27 @@ build_property.PlatformNeutralAssembly =
 build_property.EnforceExtendedAnalyzerRules = 
 build_property._SupportedPlatformList = Linux,macOS,Windows
 build_property.RootNamespace = DH.Client.App
-build_property.ProjectDir = C:\GIt\dhdas\src\DH.Client.App\
+build_property.ProjectDir = D:\GIT-PROJECT\dhdas\src\DH.Client.App\
 build_property.EnableComHosting = 
 build_property.EnableGeneratedComInterfaceComImportInterop = 
 build_property.CsWinRTUseWindowsUIXamlProjections = false
 build_property.EffectiveAnalysisLevelStyle = 6.0
 build_property.EnableCodeStyleSeverity = 
 
-[C:/GIt/dhdas/src/DH.Client.App/App.axaml]
+[D:/GIT-PROJECT/dhdas/src/DH.Client.App/App.axaml]
 build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml
 
-[C:/GIt/dhdas/src/DH.Client.App/Views/ChannelSelector.axaml]
+[D:/GIT-PROJECT/dhdas/src/DH.Client.App/Views/ChannelSelector.axaml]
 build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml
 
-[C:/GIt/dhdas/src/DH.Client.App/Views/CurvePanel.axaml]
+[D:/GIT-PROJECT/dhdas/src/DH.Client.App/Views/CurvePanel.axaml]
 build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml
 
-[C:/GIt/dhdas/src/DH.Client.App/Views/MainWindow.axaml]
+[D:/GIT-PROJECT/dhdas/src/DH.Client.App/Views/MainWindow.axaml]
 build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml
 
-[C:/GIt/dhdas/src/DH.Client.App/Views/SenderPanel.axaml]
+[D:/GIT-PROJECT/dhdas/src/DH.Client.App/Views/SenderPanel.axaml]
 build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml
 
-[C:/GIt/dhdas/src/DH.Client.App/Views/TdmsViewerView.axaml]
+[D:/GIT-PROJECT/dhdas/src/DH.Client.App/Views/TdmsViewerView.axaml]
 build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml

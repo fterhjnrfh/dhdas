@@ -512,7 +512,10 @@
             </Grid>
         </TabItem>
         <TabItem Header="TDMS查看">
-            <views:TdmsViewerView SelectedFile="{Binding SelectedTdmsFile}" SelectedDeviceId="{Binding SelectedDeviceId}" OnlineChannelManager="{Binding OnlineChannelManager}"/>
+            <views:TdmsViewerView SelectedFile="{Binding SelectedStoredFilePath}" SelectedDeviceId="{Binding SelectedDeviceId}" OnlineChannelManager="{Binding OnlineChannelManager}"/>
+        </TabItem>
+        <TabItem Header="HDF5查看">
+            <views:Hdf5ViewerView SelectedFile="{Binding SelectedStoredFilePath}" SelectedDeviceId="{Binding SelectedDeviceId}"/>
         </TabItem>
         <TabItem Header="GUI设计">
             <dhui:DesignerWorkbenchView/>

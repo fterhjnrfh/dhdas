@@ -152,6 +152,7 @@ public partial class MainWindowViewModel : ObservableObject
     private Avalonia.Threading.DispatcherTimer? _storageTimer;
     public ObservableCollection<TdmsFileItem> RecentTdmsFiles { get; } = new();
     [ObservableProperty] private TdmsFileItem? _selectedTdmsFile;
+    public string? SelectedStoredFilePath => SelectedTdmsFile?.FullPath;
     public ObservableCollection<RawTdmsExportDeviceOption> RawTdmsExportDevices { get; } = new();
     public ObservableCollection<RawTdmsExportChannelOption> RawTdmsExportChannels { get; } = new();
     public ObservableCollection<CompressionMetricCard> CompressionSummaryCards { get; } = new();
@@ -3169,6 +3170,7 @@ public partial class MainWindowViewModel : ObservableObject
 
     partial void OnSelectedTdmsFileChanged(TdmsFileItem? value)
     {
+        OnPropertyChanged(nameof(SelectedStoredFilePath));
         (TestReadSelectedFileCommand as RelayCommand)?.NotifyCanExecuteChanged();
         (VerifyStoredFileCommand as AsyncRelayCommand)?.NotifyCanExecuteChanged();
         (ConvertSelectedToTdmsCommand as AsyncRelayCommand)?.NotifyCanExecuteChanged();

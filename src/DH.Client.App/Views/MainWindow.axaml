@@ -172,12 +172,23 @@
 
 						<!-- 模式与会话名 -->
 						<Grid ColumnDefinitions="Auto, *, 20, Auto, *" VerticalAlignment="Center">
-							<TextBlock Text="TDMS导出" Grid.Column="0" VerticalAlignment="Center" Width="70" Foreground="#444444"/>
-							<ComboBox Grid.Column="1" SelectedIndex="{Binding StorageModeIndex}" HorizontalAlignment="Stretch">
+							<TextBlock Text="TDMS导出" Grid.Column="0" VerticalAlignment="Center" Width="70" Foreground="#444444"
+									   IsVisible="{Binding IsTdmsStorageModeVisible}"/>
+							<ComboBox Grid.Column="1" SelectedIndex="{Binding StorageModeIndex}" HorizontalAlignment="Stretch"
+									  IsVisible="{Binding IsTdmsStorageModeVisible}">
 								<ComboBoxItem Content="单文件（会话单 .tdms）"/>
 								<ComboBoxItem Content="多文件（每通道一 .tdms）"/>
 							</ComboBox>
 							
+							<TextBlock Text="SDK格式" Grid.Column="0" VerticalAlignment="Center" Width="70" Foreground="#444444"
+									   IsVisible="{Binding IsSdkCaptureOutputModeVisible}"/>
+							<ComboBox Grid.Column="1" SelectedIndex="{Binding SdkCaptureOutputModeIndex}" HorizontalAlignment="Stretch"
+									  IsVisible="{Binding IsSdkCaptureOutputModeVisible}">
+								<ComboBoxItem Content="BIN 原始文件"/>
+								<ComboBoxItem Content="HDF5 文件"/>
+								<ComboBoxItem Content="BIN + HDF5"/>
+							</ComboBox>
+
 							<TextBlock Text="导出名称" Grid.Column="3" VerticalAlignment="Center" Width="70" Foreground="#444444"/>
 							<TextBox Grid.Column="4" Text="{Binding StorageSessionName}"/>
 						</Grid>

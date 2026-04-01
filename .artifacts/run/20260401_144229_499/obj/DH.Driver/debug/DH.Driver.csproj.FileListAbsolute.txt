@@ -1,0 +1,14 @@
+D:\GIT-PROJECT\dhdas\.artifacts\run\20260401_144229_499\bin\DH.Driver\debug\DH.Driver.deps.json
+D:\GIT-PROJECT\dhdas\.artifacts\run\20260401_144229_499\bin\DH.Driver\debug\DH.Driver.dll
+D:\GIT-PROJECT\dhdas\.artifacts\run\20260401_144229_499\bin\DH.Driver\debug\DH.Driver.pdb
+D:\GIT-PROJECT\dhdas\.artifacts\run\20260401_144229_499\obj\DH.Driver\debug\DH.Driver.csproj.AssemblyReference.cache
+D:\GIT-PROJECT\dhdas\.artifacts\run\20260401_144229_499\obj\DH.Driver\debug\DH.Driver.GeneratedMSBuildEditorConfig.editorconfig
+D:\GIT-PROJECT\dhdas\.artifacts\run\20260401_144229_499\obj\DH.Driver\debug\DH.Driver.AssemblyInfoInputs.cache
+D:\GIT-PROJECT\dhdas\.artifacts\run\20260401_144229_499\obj\DH.Driver\debug\DH.Driver.AssemblyInfo.cs
+D:\GIT-PROJECT\dhdas\.artifacts\run\20260401_144229_499\obj\DH.Driver\debug\DH.Driver.csproj.CoreCompileInputs.cache
+D:\GIT-PROJECT\dhdas\.artifacts\run\20260401_144229_499\obj\DH.Driver\debug\DH.Driver.sourcelink.json
+D:\GIT-PROJECT\dhdas\.artifacts\run\20260401_144229_499\obj\DH.Driver\debug\DH.Driver.csproj.Up2Date
+D:\GIT-PROJECT\dhdas\.artifacts\run\20260401_144229_499\obj\DH.Driver\debug\DH.Driver.dll
+D:\GIT-PROJECT\dhdas\.artifacts\run\20260401_144229_499\obj\DH.Driver\debug\refint\DH.Driver.dll
+D:\GIT-PROJECT\dhdas\.artifacts\run\20260401_144229_499\obj\DH.Driver\debug\DH.Driver.pdb
+D:\GIT-PROJECT\dhdas\.artifacts\run\20260401_144229_499\obj\DH.Driver\debug\ref\DH.Driver.dll

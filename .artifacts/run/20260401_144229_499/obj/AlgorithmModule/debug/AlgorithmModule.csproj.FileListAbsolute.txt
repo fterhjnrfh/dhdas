@@ -1,0 +1,12 @@
+D:\GIT-PROJECT\dhdas\.artifacts\run\20260401_144229_499\bin\AlgorithmModule\debug\AlgorithmModule.deps.json
+D:\GIT-PROJECT\dhdas\.artifacts\run\20260401_144229_499\bin\AlgorithmModule\debug\AlgorithmModule.dll
+D:\GIT-PROJECT\dhdas\.artifacts\run\20260401_144229_499\bin\AlgorithmModule\debug\AlgorithmModule.pdb
+D:\GIT-PROJECT\dhdas\.artifacts\run\20260401_144229_499\obj\AlgorithmModule\debug\AlgorithmModule.GeneratedMSBuildEditorConfig.editorconfig
+D:\GIT-PROJECT\dhdas\.artifacts\run\20260401_144229_499\obj\AlgorithmModule\debug\AlgorithmModule.AssemblyInfoInputs.cache
+D:\GIT-PROJECT\dhdas\.artifacts\run\20260401_144229_499\obj\AlgorithmModule\debug\AlgorithmModule.AssemblyInfo.cs
+D:\GIT-PROJECT\dhdas\.artifacts\run\20260401_144229_499\obj\AlgorithmModule\debug\AlgorithmModule.csproj.CoreCompileInputs.cache
+D:\GIT-PROJECT\dhdas\.artifacts\run\20260401_144229_499\obj\AlgorithmModule\debug\AlgorithmModule.sourcelink.json
+D:\GIT-PROJECT\dhdas\.artifacts\run\20260401_144229_499\obj\AlgorithmModule\debug\AlgorithmModule.dll
+D:\GIT-PROJECT\dhdas\.artifacts\run\20260401_144229_499\obj\AlgorithmModule\debug\refint\AlgorithmModule.dll
+D:\GIT-PROJECT\dhdas\.artifacts\run\20260401_144229_499\obj\AlgorithmModule\debug\AlgorithmModule.pdb
+D:\GIT-PROJECT\dhdas\.artifacts\run\20260401_144229_499\obj\AlgorithmModule\debug\ref\AlgorithmModule.dll

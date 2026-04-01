@@ -1,6 +1,9 @@
 // DH.Driver/SDK/HardwareSDK.cs
 // 东华SDK接口封装 - 从Demo_C#项目移植
 using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Reflection;
 using System.Runtime.InteropServices;
 
 namespace DH.Driver.SDK;
@@ -13,6 +16,156 @@ public static class HardwareSDK
 {
     public const int StandardCapacity = 204800;
     private const string LibName = "Hardware_Standard_C_Interface.dll";
+    private static readonly object NativeLoadSync = new();
+    private static IntPtr s_nativeHandle;
+    private static bool s_nativeLoadAttempted;
+    private static string? s_nativeLoadError;
+
+    static HardwareSDK()
+    {
+        NativeLibrary.SetDllImportResolver(typeof(HardwareSDK).Assembly, ResolveSdkNativeLibrary);
+    }
+
+    public static string? NativeLoadDiagnostics => s_nativeLoadError;
+
+    private static IntPtr ResolveSdkNativeLibrary(string libraryName, Assembly assembly, DllImportSearchPath? searchPath)
+    {
+        if (!string.Equals(libraryName, LibName, StringComparison.OrdinalIgnoreCase))
+        {
+            return IntPtr.Zero;
+        }
+
+        EnsureSdkNativeLibraryLoaded();
+        return s_nativeHandle;
+    }
+
+    private static void EnsureSdkNativeLibraryLoaded()
+    {
+        lock (NativeLoadSync)
+        {
+            if (s_nativeLoadAttempted)
+            {
+                if (s_nativeHandle == IntPtr.Zero && !string.IsNullOrWhiteSpace(s_nativeLoadError))
+                {
+                    throw new DllNotFoundException(s_nativeLoadError);
+                }
+
+                return;
+            }
+
+            s_nativeLoadAttempted = true;
+
+            foreach (string dir in EnumerateSdkRuntimeDirectories())
+            {
+                try
+                {
+                    PrepareNativeSearchPath(dir);
+
+                    string dllPath = Path.Combine(dir, LibName);
+                    if (!File.Exists(dllPath))
+                    {
+                        continue;
+                    }
+
+                    if (NativeLibrary.TryLoad(dllPath, out s_nativeHandle))
+                    {
+                        s_nativeLoadError = null;
+                        return;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    s_nativeLoadError = $"Unable to load {LibName} from '{dir}': {ex.Message}";
+                }
+            }
+
+            s_nativeLoadError ??= $"Unable to locate {LibName}. Checked AppContext.BaseDirectory and repository SDK output folders.";
+            throw new DllNotFoundException(s_nativeLoadError);
+        }
+    }
+
+    private static IEnumerable<string> EnumerateSdkRuntimeDirectories()
+    {
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var result = new List<string>();
+
+        void Add(string? path)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                return;
+            }
+
+            string fullPath;
+            try
+            {
+                fullPath = Path.GetFullPath(path);
+            }
+            catch
+            {
+                return;
+            }
+
+            if (Directory.Exists(fullPath) && seen.Add(fullPath))
+            {
+                result.Add(fullPath);
+            }
+        }
+
+        Add(AppContext.BaseDirectory);
+        Add(Path.GetDirectoryName(typeof(HardwareSDK).Assembly.Location));
+
+        string? repoRoot = TryFindRepositoryRoot(AppContext.BaseDirectory);
+        if (repoRoot is not null)
+        {
+            Add(Path.Combine(repoRoot, "bin", "Debug", "net6.0-windows7.0"));
+            Add(Path.Combine(repoRoot, "src", "DH.UI", "bin", "Debug", "net6.0-windows7.0"));
+        }
+
+        return result;
+    }
+
+    private static string? TryFindRepositoryRoot(string startDirectory)
+    {
+        DirectoryInfo? current = new DirectoryInfo(startDirectory);
+        while (current is not null)
+        {
+            string appHostProject = Path.Combine(current.FullName, "DH.AppHost.csproj");
+            string srcDirectory = Path.Combine(current.FullName, "src");
+            if (File.Exists(appHostProject) && Directory.Exists(srcDirectory))
+            {
+                return current.FullName;
+            }
+
+            current = current.Parent;
+        }
+
+        return null;
+    }
+
+    private static void PrepareNativeSearchPath(string directory)
+    {
+        PrependProcessPath(directory);
+
+        string bm1302Dir = Path.Combine(directory, "BM1302");
+        if (Directory.Exists(bm1302Dir))
+        {
+            PrependProcessPath(bm1302Dir);
+        }
+    }
+
+    private static void PrependProcessPath(string directory)
+    {
+        string currentPath = Environment.GetEnvironmentVariable("PATH") ?? string.Empty;
+        string prefix = directory + Path.PathSeparator;
+        if (currentPath.Contains(prefix, StringComparison.OrdinalIgnoreCase) ||
+            currentPath.Equals(directory, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        Environment.SetEnvironmentVariable("PATH", prefix + currentPath);
+    }
 
     #region 回调委托定义
 

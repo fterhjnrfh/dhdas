@@ -21,6 +21,7 @@ using DH.Algorithms.Builtins;
 using DH.Client.App.Data;
 using DH.Client.App.Services.Storage;
 using DH.Client.App.Controls;
+using HDF5DotNet;
 
 namespace DH.Client.App.ViewModels;
 
@@ -107,13 +108,18 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty] private string _storagePath = "./data";
     // 新增：存储控制与模式
     public enum StorageModeOption { SingleFile, PerChannel }
+    public enum SdkCaptureOutputModeOption { RawBinOnly, Hdf5Only, RawBinAndHdf5 }
     private enum StorageRuntimeKind { Tdms, SdkRawCapture }
     [ObservableProperty] private StorageModeOption _storageMode = StorageModeOption.SingleFile;
+    [ObservableProperty] private SdkCaptureOutputModeOption _sdkCaptureOutputMode = SdkCaptureOutputModeOption.RawBinOnly;
     [ObservableProperty] private bool _storageEnabled;
     [ObservableProperty] private string _storageSessionName = "session";
     [ObservableProperty] private int _storageModeIndex = 0; // 0: 单文件, 1: 多文件
+    [ObservableProperty] private int _sdkCaptureOutputModeIndex = 0; // 0: BIN 1: HDF5 2: BIN+HDF5
     [ObservableProperty] private int _compressionTypeIndex = 0; // 0: 不压缩, 1: LZ4, 2: Zstd, 3: Brotli, 4: Snappy, 5: Zlib, 6: LZ4_HC, 7: BZip2
     [ObservableProperty] private int _preprocessTypeIndex = 0; // 0: 不预处理, 1: 一阶差分, 2: 二阶差分, 3: 线性预测
+    public bool IsTdmsStorageModeVisible => DataSourceMode != 1;
+    public bool IsSdkCaptureOutputModeVisible => DataSourceMode == 1;
     
     // 压缩参数配置
     private CompressionOptions _compressionOptions = new();
@@ -535,7 +541,7 @@ public partial class MainWindowViewModel : ObservableObject
             }
             else
             {
-                StorageStatusMessage = "TDMS库已检测到（SDK实时写入将保存为 .sdkraw.bin，可离线转换为 .tdms）";
+                StorageStatusMessage = "TDMS库已检测到（SDK写入可保存为 .sdkraw.bin，并可在停止后导出为 HDF5 / TDMS）";
             }
         }
         catch { /* ignore */ }
@@ -1523,6 +1529,20 @@ public partial class MainWindowViewModel : ObservableObject
 
     private bool ShouldUseSdkRawCapture() => DataSourceMode == 1;
 
+    private bool ShouldExportSdkCaptureToHdf5()
+        => SdkCaptureOutputMode is SdkCaptureOutputModeOption.Hdf5Only or SdkCaptureOutputModeOption.RawBinAndHdf5;
+
+    private bool ShouldKeepSdkRawCaptureFile()
+        => SdkCaptureOutputMode is not SdkCaptureOutputModeOption.Hdf5Only;
+
+    private string DescribeSdkCaptureOutputMode()
+        => SdkCaptureOutputMode switch
+        {
+            SdkCaptureOutputModeOption.Hdf5Only => "HDF5",
+            SdkCaptureOutputModeOption.RawBinAndHdf5 => "BIN + HDF5",
+            _ => "BIN"
+        };
+
     private void SetSdkRealtimePublishEnabled(bool enabled)
     {
         try
@@ -1546,7 +1566,7 @@ public partial class MainWindowViewModel : ObservableObject
         string queueBytes = FormatStorageSize(stats.PendingPayloadBytes);
         string peakBytes = FormatStorageSize(stats.PeakPendingPayloadBytes);
         string limitBytes = FormatStorageSize(stats.PendingPayloadByteLimit);
-        string modeSummary = $"SDK原始采集中，已写 {stats.WrittenBlockCount:N0} 块，待写 {stats.PendingBlockCount:N0}/{stats.PendingBlockLimit:N0} 块，队列 {queueBytes}/{limitBytes}，峰值 {stats.PeakPendingBlockCount:N0} 块/{peakBytes}";
+        string modeSummary = $"SDK {DescribeSdkCaptureOutputMode()} 写入中，已写 {stats.WrittenBlockCount:N0} 块，待写 {stats.PendingBlockCount:N0}/{stats.PendingBlockLimit:N0} 块，队列 {queueBytes}/{limitBytes}，峰值 {stats.PeakPendingBlockCount:N0} 块/{peakBytes}";
         if (stats.HasTimingAnalysis && stats.ConfiguredSampleRateHz > 0d)
         {
             string effectiveRateText = FormatTimingRange(stats.MinEffectiveSampleRateHz, stats.MaxEffectiveSampleRateHz, "N0");
@@ -1628,7 +1648,7 @@ public partial class MainWindowViewModel : ObservableObject
         CleanupSdkRawCaptureSubscription();
         _sdkRawCaptureWriter?.Dispose();
         _sdkRawCaptureWriter = new SdkRawCaptureWriter();
-        _sdkRawCaptureWriter.Start(basePath, StorageSessionName, SampleRate, channelIds);
+        _sdkRawCaptureWriter.Start(basePath, StorageSessionName, SampleRate, channelIds, enableHdf5Mirror: false);
         _sdkRawCaptureProtectionStopPending = false;
         SetSdkRealtimePublishEnabled(false);
 
@@ -1671,6 +1691,8 @@ public partial class MainWindowViewModel : ObservableObject
     private void StopSdkRawCaptureStorage(TimeSpan finalElapsed)
     {
         CompressionSessionSnapshot? compressionSnapshot = null;
+        SdkRawCaptureHdf5ExportResult? hdf5ExportResult = null;
+        string? hdf5ExportFailure = null;
 
         StorageEnabled = false;
         CleanupSdkRawCaptureSubscription();
@@ -1692,34 +1714,84 @@ public partial class MainWindowViewModel : ObservableObject
             _sdkRawCaptureWriter = null;
             _activeStorageRuntime = null;
 
+            bool captureHealthy = result?.Manifest is { } manifest && IsRawCaptureHealthy(manifest);
+            bool hdf5Requested = ShouldExportSdkCaptureToHdf5();
+            bool keepRawCaptureFile = ShouldKeepSdkRawCaptureFile();
+
+            if (hdf5Requested && result?.WrittenFiles is { Count: > 0 })
+            {
+                try
+                {
+                    string capturePath = result.WrittenFiles[0];
+                    StorageStatusMessage = $"正在将 {Path.GetFileName(capturePath)} 导出为 HDF5…";
+                    hdf5ExportResult = ExportSdkRawCaptureToHdf5(capturePath, ResolveStoragePath(StoragePath));
+
+                    if (!keepRawCaptureFile)
+                    {
+                        DeleteSdkRawCaptureArtifacts(capturePath);
+                        _lastWrittenFiles = Array.Empty<string>();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    hdf5ExportFailure = ex.Message;
+                }
+            }
+
             compressionSnapshot = result?.Snapshot;
             if (compressionSnapshot != null)
             {
                 compressionSnapshot.StartedAt = _storageStartTime;
                 compressionSnapshot.StoppedAt = DateTime.Now;
                 compressionSnapshot.Elapsed = finalElapsed;
-                compressionSnapshot.WrittenFiles = (_lastWrittenFiles ?? Array.Empty<string>()).ToArray();
+                compressionSnapshot.WrittenFiles = keepRawCaptureFile
+                    ? (_lastWrittenFiles ?? Array.Empty<string>()).ToArray()
+                    : (hdf5ExportResult?.WrittenFiles ?? Array.Empty<string>()).ToArray();
                 compressionSnapshot.StoredBytes = CalculateStoredBytes(compressionSnapshot.WrittenFiles);
             }
 
-            bool captureHealthy = result?.Manifest is { } manifest && IsRawCaptureHealthy(manifest);
+            string formatText = DescribeSdkCaptureOutputMode();
+            string hdf5Suffix = hdf5ExportResult != null
+                ? $"，HDF5 已输出到 {hdf5ExportResult.OutputRootPath}"
+                : !string.IsNullOrWhiteSpace(hdf5ExportFailure)
+                    ? $"，HDF5 导出失败: {hdf5ExportFailure}"
+                    : string.Empty;
+            string rawCleanupSuffix = hdf5ExportResult != null && !keepRawCaptureFile
+                ? "，原始临时 BIN 已清理"
+                : string.Empty;
 
             StorageStatusMessage = captureHealthy
-                ? "写入已停止，SDK原始采集文件已封存"
-                : $"写入已停止，但检测到积压/写入异常：保护 {result?.Manifest.ProtectionTriggered ?? false}，拒绝 {result?.Manifest.RejectedBlockCount ?? 0:N0}，故障 {result?.Manifest.WriteFaultCount ?? 0:N0}";
+                ? $"写入已停止（{formatText}），SDK 原始采集已完成{hdf5Suffix}{rawCleanupSuffix}"
+                : $"写入已停止（{formatText}），但检测到采集/写入异常：保护 {result?.Manifest.ProtectionTriggered ?? false}，拒绝 {result?.Manifest.RejectedBlockCount ?? 0:N0}，故障 {result?.Manifest.WriteFaultCount ?? 0:N0}{hdf5Suffix}";
 
-            if (_lastWrittenFiles != null && _lastWrittenFiles.Count > 0 && result?.Manifest != null)
+            if (result?.Manifest != null && keepRawCaptureFile && _lastWrittenFiles != null && _lastWrittenFiles.Count > 0)
+            {
+                FileVerifyPassed = captureHealthy && string.IsNullOrWhiteSpace(hdf5ExportFailure);
+                FileVerifyResult = BuildRawCaptureSummary(_lastWrittenFiles[0], result.Manifest);
+            }
+            else if (hdf5ExportResult != null)
             {
                 FileVerifyPassed = captureHealthy;
-                FileVerifyResult = BuildRawCaptureSummary(_lastWrittenFiles[0], result.Manifest);
+                FileVerifyResult = hdf5ExportResult.Summary;
+            }
+            else if (!string.IsNullOrWhiteSpace(hdf5ExportFailure))
+            {
+                FileVerifyPassed = false;
+                FileVerifyResult = $"HDF5 导出失败: {hdf5ExportFailure}";
             }
             else
             {
                 FileVerifyPassed = captureHealthy;
                 FileVerifyResult = captureHealthy
-                    ? "原始采集已完成，可使用“验证”按钮检查清单和文件大小。"
-                    : "原始采集已结束，但存在异常，请使用“验证”按钮检查清单。";
+                    ? "原始采集已完成。"
+                    : "原始采集已结束，但存在异常，请检查 manifest。";
             }
+
+            if (!keepRawCaptureFile)
+            {
+                compressionSnapshot = null;
+            }
+
         }
         catch (Exception ex)
         {
@@ -1744,6 +1816,58 @@ public partial class MainWindowViewModel : ObservableObject
         }
 
         _ = AutoVerifyAfterStopAsync();
+    }
+
+    private static SdkRawCaptureHdf5ExportResult ExportSdkRawCaptureToHdf5(string capturePath, string basePath)
+    {
+        var exporter = new SdkRawCaptureHdf5Exporter();
+        return exporter.Export(capturePath, basePath);
+    }
+
+    private static void DeleteSdkRawCaptureArtifacts(string capturePath)
+    {
+        if (string.IsNullOrWhiteSpace(capturePath))
+        {
+            return;
+        }
+
+        string manifestPath = SdkRawCaptureFormat.GetManifestPath(capturePath);
+
+        try
+        {
+            if (File.Exists(capturePath))
+            {
+                File.Delete(capturePath);
+            }
+        }
+        catch
+        {
+        }
+
+        try
+        {
+            if (File.Exists(manifestPath))
+            {
+                File.Delete(manifestPath);
+            }
+        }
+        catch
+        {
+        }
+
+        try
+        {
+            string? directory = Path.GetDirectoryName(capturePath);
+            if (!string.IsNullOrWhiteSpace(directory)
+                && Directory.Exists(directory)
+                && !Directory.EnumerateFileSystemEntries(directory).Any())
+            {
+                Directory.Delete(directory);
+            }
+        }
+        catch
+        {
+        }
     }
 
     private void StopStorage()
@@ -1881,7 +2005,6 @@ public partial class MainWindowViewModel : ObservableObject
     {
         if (_lastWrittenFiles == null || _lastWrittenFiles.Count == 0)
         {
-            FileVerifyResult = "";
             return;
         }
 
@@ -1936,6 +2059,96 @@ public partial class MainWindowViewModel : ObservableObject
         string ext = Path.GetExtension(filePath);
         return string.Equals(ext, ".tdms", StringComparison.OrdinalIgnoreCase)
             || string.Equals(ext, ".tdm", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsHdf5File(string filePath)
+    {
+        string ext = Path.GetExtension(filePath);
+        return string.Equals(ext, ".h5", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(ext, ".hdf5", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static (bool passed, string summary) VerifyHdf5File(string filePath)
+    {
+        try
+        {
+            string summary = ReadHdf5Preview(filePath, out long sampleCount);
+            return (sampleCount > 0, summary);
+        }
+        catch (Exception ex)
+        {
+            return (false, $"HDF5 读取失败: {ex.Message}");
+        }
+    }
+
+    private static string ReadHdf5Preview(string filePath, out long sampleCount)
+    {
+        const string datasetName = "samples";
+        var fileId = H5F.open(filePath, H5F.OpenMode.ACC_RDONLY);
+
+        try
+        {
+            var datasetId = H5D.open(fileId, datasetName);
+            try
+            {
+                var fileSpaceId = H5D.getSpace(datasetId);
+                try
+                {
+                    long[] dims = H5S.getSimpleExtentDims(fileSpaceId);
+                    sampleCount = dims.Length > 0 ? dims[0] : 0;
+                    int previewCount = (int)Math.Min(sampleCount, 10);
+                    float[] preview = Array.Empty<float>();
+
+                    if (previewCount > 0)
+                    {
+                        preview = new float[previewCount];
+                        var memorySpaceId = H5S.create_simple(1, new long[] { previewCount });
+                        try
+                        {
+                            H5S.selectHyperslab(
+                                fileSpaceId,
+                                H5S.SelectOperator.SET,
+                                new long[] { 0 },
+                                new long[] { previewCount });
+                            H5D.read<float>(
+                                datasetId,
+                                new H5DataTypeId(H5T.H5Type.NATIVE_FLOAT),
+                                memorySpaceId,
+                                fileSpaceId,
+                                new H5PropertyListId(H5P.Template.DEFAULT),
+                                new H5Array<float>(preview));
+                        }
+                        finally
+                        {
+                            H5S.close(memorySpaceId);
+                        }
+                    }
+
+                    var sb = new StringBuilder();
+                    sb.AppendLine($"文件: {Path.GetFileName(filePath)}");
+                    sb.AppendLine($"数据集: {datasetName}");
+                    sb.AppendLine($"样本数: {sampleCount:N0}");
+                    if (previewCount > 0)
+                    {
+                        sb.AppendLine($"前 {previewCount} 个样本: {string.Join(", ", preview.Select(value => value.ToString("F3")))}");
+                    }
+
+                    return sb.ToString();
+                }
+                finally
+                {
+                    H5S.close(fileSpaceId);
+                }
+            }
+            finally
+            {
+                H5D.close(datasetId);
+            }
+        }
+        finally
+        {
+            H5F.close(fileId);
+        }
     }
 
     private static string FormatStorageSize(long bytes) => bytes switch
@@ -2296,6 +2509,12 @@ public partial class MainWindowViewModel : ObservableObject
         sb.AppendLine($"保护触发: {(manifest.ProtectionTriggered ? "是" : "否")}");
         sb.AppendLine($"开始: {manifest.StartedAtUtc.ToLocalTime():yyyy-MM-dd HH:mm:ss}");
         sb.AppendLine($"结束: {manifest.StoppedAtUtc.ToLocalTime():yyyy-MM-dd HH:mm:ss}");
+        if (!string.IsNullOrWhiteSpace(manifest.Hdf5MirrorDirectory))
+        {
+            sb.AppendLine(manifest.Hdf5MirrorFaulted
+                ? $"HDF5 支线: 异常，目录={manifest.Hdf5MirrorDirectory}，原因={manifest.Hdf5MirrorFailureReason}"
+                : $"HDF5 支线: {manifest.Hdf5MirrorFileCount:N0} 个通道文件，目录={manifest.Hdf5MirrorDirectory}");
+        }
 
         AppendRawCaptureTimingSummary(sb, manifest);
 
@@ -2821,6 +3040,32 @@ public partial class MainWindowViewModel : ObservableObject
     {
         StorageModeIndex = value == StorageModeOption.SingleFile ? 0 : 1;
     }
+
+    partial void OnSdkCaptureOutputModeIndexChanged(int value)
+    {
+        SdkCaptureOutputMode = value switch
+        {
+            1 => SdkCaptureOutputModeOption.Hdf5Only,
+            2 => SdkCaptureOutputModeOption.RawBinAndHdf5,
+            _ => SdkCaptureOutputModeOption.RawBinOnly
+        };
+    }
+
+    partial void OnSdkCaptureOutputModeChanged(SdkCaptureOutputModeOption value)
+    {
+        SdkCaptureOutputModeIndex = value switch
+        {
+            SdkCaptureOutputModeOption.Hdf5Only => 1,
+            SdkCaptureOutputModeOption.RawBinAndHdf5 => 2,
+            _ => 0
+        };
+    }
+
+    partial void OnDataSourceModeChanged(int value)
+    {
+        OnPropertyChanged(nameof(IsTdmsStorageModeVisible));
+        OnPropertyChanged(nameof(IsSdkCaptureOutputModeVisible));
+    }
     
     partial void OnStorageEnabledChanged(bool value)
     {
@@ -2879,6 +3124,14 @@ public partial class MainWindowViewModel : ObservableObject
             if (SdkRawCaptureFormat.IsRawCaptureFile(filePath))
             {
                 var (passed, summary) = VerifyRawCaptureFile(filePath);
+                FileVerifyPassed = passed;
+                FileVerifyResult = summary;
+                return;
+            }
+
+            if (IsHdf5File(filePath))
+            {
+                var (passed, summary) = VerifyHdf5File(filePath);
                 FileVerifyPassed = passed;
                 FileVerifyResult = summary;
                 return;
@@ -3104,6 +3357,7 @@ public partial class MainWindowViewModel : ObservableObject
             var tdmFiles = Directory.EnumerateFiles(path, "*.tdm", SearchOption.AllDirectories)
                 .Where(f => !f.EndsWith("_index", StringComparison.OrdinalIgnoreCase));
             var rawCaptureFiles = Directory.EnumerateFiles(path, $"*{SdkRawCaptureFormat.FileSuffix}", SearchOption.AllDirectories);
+            var hdf5Files = Directory.EnumerateFiles(path, "*.h5", SearchOption.AllDirectories);
             // 也收集公共文档下的 TDMS/TDM（ASCII 路径回退时产生）
             var altBase = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonDocuments), "DH", "TDMS");
             var altTdmsFiles = Directory.Exists(altBase)
@@ -3114,7 +3368,7 @@ public partial class MainWindowViewModel : ObservableObject
                 ? Directory.EnumerateFiles(altBase, "*.tdm", SearchOption.AllDirectories)
                     .Where(f => !f.EndsWith("_index", StringComparison.OrdinalIgnoreCase))
                 : Array.Empty<string>();
-            var files = tdmsFiles.Concat(tdmFiles).Concat(rawCaptureFiles).Concat(altTdmsFiles).Concat(altTdmFiles)
+            var files = tdmsFiles.Concat(tdmFiles).Concat(rawCaptureFiles).Concat(hdf5Files).Concat(altTdmsFiles).Concat(altTdmFiles)
                 .Select(fp => new FileInfo(fp))
                 .Where(fi => fi.Exists)
                 .OrderByDescending(fi => fi.LastWriteTimeUtc)
@@ -3242,6 +3496,13 @@ public partial class MainWindowViewModel : ObservableObject
                 }
 
                 FileVerifyResult = BuildRawCaptureSummary(fp, manifest);
+                FileVerifyPassed = true;
+                return;
+            }
+
+            if (IsHdf5File(fp))
+            {
+                FileVerifyResult = ReadHdf5Preview(fp, out _);
                 FileVerifyPassed = true;
                 return;
             }

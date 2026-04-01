@@ -1,0 +1,14 @@
+D:\GIT-PROJECT\dhdas\.artifacts\run\20260401_161925_364\bin\DH.Datamanage\debug\DH.Datamanage.deps.json
+D:\GIT-PROJECT\dhdas\.artifacts\run\20260401_161925_364\bin\DH.Datamanage\debug\DH.Datamanage.dll
+D:\GIT-PROJECT\dhdas\.artifacts\run\20260401_161925_364\bin\DH.Datamanage\debug\DH.Datamanage.pdb
+D:\GIT-PROJECT\dhdas\.artifacts\run\20260401_161925_364\obj\DH.Datamanage\debug\DH.Datamanage.csproj.AssemblyReference.cache
+D:\GIT-PROJECT\dhdas\.artifacts\run\20260401_161925_364\obj\DH.Datamanage\debug\DH.Datamanage.GeneratedMSBuildEditorConfig.editorconfig
+D:\GIT-PROJECT\dhdas\.artifacts\run\20260401_161925_364\obj\DH.Datamanage\debug\DH.Datamanage.AssemblyInfoInputs.cache
+D:\GIT-PROJECT\dhdas\.artifacts\run\20260401_161925_364\obj\DH.Datamanage\debug\DH.Datamanage.AssemblyInfo.cs
+D:\GIT-PROJECT\dhdas\.artifacts\run\20260401_161925_364\obj\DH.Datamanage\debug\DH.Datamanage.csproj.CoreCompileInputs.cache
+D:\GIT-PROJECT\dhdas\.artifacts\run\20260401_161925_364\obj\DH.Datamanage\debug\DH.Datamanage.sourcelink.json
+D:\GIT-PROJECT\dhdas\.artifacts\run\20260401_161925_364\obj\DH.Datamanage\debug\DH.Datam.7C7361E4.Up2Date
+D:\GIT-PROJECT\dhdas\.artifacts\run\20260401_161925_364\obj\DH.Datamanage\debug\DH.Datamanage.dll
+D:\GIT-PROJECT\dhdas\.artifacts\run\20260401_161925_364\obj\DH.Datamanage\debug\refint\DH.Datamanage.dll
+D:\GIT-PROJECT\dhdas\.artifacts\run\20260401_161925_364\obj\DH.Datamanage\debug\DH.Datamanage.pdb
+D:\GIT-PROJECT\dhdas\.artifacts\run\20260401_161925_364\obj\DH.Datamanage\debug\ref\DH.Datamanage.dll

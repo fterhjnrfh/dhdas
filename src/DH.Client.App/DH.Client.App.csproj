@@ -32,6 +32,24 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Reference Include="HDF5DotNet">
+      <HintPath>..\..\bin\Debug\net6.0-windows7.0\HDF5DotNet.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\bin\Debug\net6.0-windows7.0\hdf5dll.dll">
+      <Link>hdf5dll.dll</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\..\bin\Debug\net6.0-windows7.0\hdf5_hldll.dll">
+      <Link>hdf5_hldll.dll</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\DH.Contracts\DH.Contracts.csproj" />
     <ProjectReference Include="..\DH.Display\DH.Display.csproj" />
     <ProjectReference Include="..\DH.Configmanage\DH.Configmanage.csproj" />

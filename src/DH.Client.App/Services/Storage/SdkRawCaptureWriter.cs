@@ -148,6 +148,14 @@ internal sealed class SdkRawCaptureManifest
 
     public string SampleRateConsistencySummary { get; set; } = "";
 
+    public string Hdf5MirrorDirectory { get; set; } = "";
+
+    public int Hdf5MirrorFileCount { get; set; }
+
+    public bool Hdf5MirrorFaulted { get; set; }
+
+    public string Hdf5MirrorFailureReason { get; set; } = "";
+
     public List<SdkRawCaptureDeviceIntegrity> DeviceIntegrity { get; set; } = new();
 
     public Dictionary<string, long> ChannelSampleCounts { get; set; } = new(StringComparer.OrdinalIgnoreCase);
@@ -322,6 +330,8 @@ internal sealed class SdkRawCaptureResult
     public SdkRawCaptureWriterStatistics Statistics { get; init; } = new();
 
     public SdkRawCaptureManifest Manifest { get; init; } = new();
+
+    public SdkRawCaptureHdf5MirrorResult Hdf5Mirror { get; init; } = new();
 }
 
 internal sealed class SdkRawCaptureLiveTimingState
@@ -366,6 +376,7 @@ internal sealed class SdkRawCaptureWriter : IDisposable
     private FileStream? _stream;
     private BinaryWriter? _writer;
     private Task? _writerTask;
+    private SdkRawCaptureHdf5MirrorWriter? _hdf5MirrorWriter;
     private string? _capturePath;
     private string? _manifestPath;
     private string _sessionName = "session";
@@ -394,7 +405,12 @@ internal sealed class SdkRawCaptureWriter : IDisposable
 
     public bool ProtectionTriggered => Volatile.Read(ref _protectionTriggered) != 0;
 
-    public void Start(string basePath, string sessionName, double sampleRateHz, IReadOnlyCollection<int> expectedChannelIds)
+    public void Start(
+        string basePath,
+        string sessionName,
+        double sampleRateHz,
+        IReadOnlyCollection<int> expectedChannelIds,
+        bool enableHdf5Mirror = false)
     {
         if (_started)
         {
@@ -423,6 +439,21 @@ internal sealed class SdkRawCaptureWriter : IDisposable
         _writer = new BinaryWriter(_stream, Encoding.UTF8, leaveOpen: true);
         WriteFileHeader();
 
+        if (enableHdf5Mirror)
+        {
+            try
+            {
+                _hdf5MirrorWriter = new SdkRawCaptureHdf5MirrorWriter();
+                _hdf5MirrorWriter.Start(basePath, safeName, sampleRateHz, expectedChannelIds);
+            }
+            catch (Exception ex)
+            {
+                _hdf5MirrorWriter?.Dispose();
+                _hdf5MirrorWriter = null;
+                Console.WriteLine($"[SdkRawCapture][HDF5] 鍚姩 HDF5 鏀嚎澶辫触: {ex.Message}");
+            }
+        }
+
         _writerTask = Task.Run(ProcessQueueAsync);
         _started = true;
     }
@@ -445,6 +476,7 @@ internal sealed class SdkRawCaptureWriter : IDisposable
         }
 
         Interlocked.Increment(ref _enqueuedBlockCount);
+        _hdf5MirrorWriter?.TryEnqueueClone(rawBlock);
         long pendingBlockCount = Interlocked.Increment(ref _pendingBlockCount);
         long pendingPayloadBytes = Interlocked.Add(ref _pendingPayloadBytes, rawBlock.PayloadBytes);
         TrackLiveTiming(rawBlock);
@@ -531,8 +563,9 @@ internal sealed class SdkRawCaptureWriter : IDisposable
         _stream?.Dispose();
         _stream = null;
 
+        var hdf5MirrorResult = CompleteHdf5MirrorWriter();
         string capturePath = _capturePath ?? string.Empty;
-        var manifest = BuildManifest();
+        var manifest = BuildManifest(hdf5MirrorResult);
         PersistManifest(manifest);
         var sampleCounts = manifest.ChannelSampleCounts
             .ToDictionary(kvp => kvp.Key, kvp => kvp.Value, StringComparer.OrdinalIgnoreCase);
@@ -545,7 +578,8 @@ internal sealed class SdkRawCaptureWriter : IDisposable
             SampleCounts = sampleCounts,
             Snapshot = BuildSnapshot(manifest),
             Statistics = GetStatistics(),
-            Manifest = manifest
+            Manifest = manifest,
+            Hdf5Mirror = hdf5MirrorResult
         };
     }
 
@@ -559,8 +593,10 @@ internal sealed class SdkRawCaptureWriter : IDisposable
         {
             _writer?.Dispose();
             _stream?.Dispose();
+            _hdf5MirrorWriter?.Dispose();
             _writer = null;
             _stream = null;
+            _hdf5MirrorWriter = null;
         }
     }
 
@@ -573,6 +609,7 @@ internal sealed class SdkRawCaptureWriter : IDisposable
         {
             _liveTimingStates.Clear();
         }
+        _hdf5MirrorWriter = null;
         _capturePath = null;
         _manifestPath = null;
         _stoppedAtUtc = default;
@@ -906,7 +943,7 @@ internal sealed class SdkRawCaptureWriter : IDisposable
         state.IssueExamples.Add(message);
     }
 
-    private SdkRawCaptureManifest BuildManifest()
+    private SdkRawCaptureManifest BuildManifest(SdkRawCaptureHdf5MirrorResult? hdf5MirrorResult = null)
     {
         string capturePath = _capturePath ?? string.Empty;
         long captureBytes = !string.IsNullOrEmpty(capturePath) && File.Exists(capturePath)
@@ -1031,6 +1068,10 @@ internal sealed class SdkRawCaptureWriter : IDisposable
             MaxEffectiveSampleRateHz = sampleRateAnalysis.MaxEffectiveSampleRateHz,
             SampleRateConsistencyPassed = sampleRateAnalysis.IsConsistent,
             SampleRateConsistencySummary = sampleRateAnalysis.Summary,
+            Hdf5MirrorDirectory = hdf5MirrorResult?.OutputRootPath ?? "",
+            Hdf5MirrorFileCount = hdf5MirrorResult?.FileCount ?? 0,
+            Hdf5MirrorFaulted = hdf5MirrorResult?.Faulted ?? false,
+            Hdf5MirrorFailureReason = hdf5MirrorResult?.FailureReason ?? "",
             DeviceIntegrity = deviceIntegrity,
             ChannelSampleCounts = sampleCounts
         };
@@ -1256,6 +1297,34 @@ internal sealed class SdkRawCaptureWriter : IDisposable
             WriteIndented = true
         });
         File.WriteAllText(_manifestPath, json);
+    }
+
+    private SdkRawCaptureHdf5MirrorResult CompleteHdf5MirrorWriter()
+    {
+        if (_hdf5MirrorWriter == null)
+        {
+            return new SdkRawCaptureHdf5MirrorResult();
+        }
+
+        try
+        {
+            return _hdf5MirrorWriter.Complete();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[SdkRawCapture][HDF5] 鍋滄 HDF5 鏀嚎鏃跺嚭閿? {ex.Message}");
+            return new SdkRawCaptureHdf5MirrorResult
+            {
+                OutputRootPath = _hdf5MirrorWriter.OutputRootPath,
+                Faulted = true,
+                FailureReason = ex.Message
+            };
+        }
+        finally
+        {
+            _hdf5MirrorWriter.Dispose();
+            _hdf5MirrorWriter = null;
+        }
     }
 
     private CompressionSessionSnapshot BuildSnapshot(SdkRawCaptureManifest manifest)

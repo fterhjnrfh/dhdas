@@ -169,6 +169,7 @@ public class SdkDataProcessor : IDisposable
             }
             
             Console.WriteLine($"[SDK] 初始化配置路径: {configPath}");
+            Console.WriteLine($"[SDK] AppContext.BaseDirectory: {AppContext.BaseDirectory}");
             
             // 尝试先释放之前的SDK实例（如果有）
             try
@@ -291,7 +292,8 @@ public class SdkDataProcessor : IDisposable
         }
         catch (DllNotFoundException ex)
         {
-            UpdateStatus(false, $"找不到SDK DLL: {ex.Message}");
+            string diagnostics = HardwareSDK.NativeLoadDiagnostics ?? "No additional diagnostics.";
+            UpdateStatus(false, $"找不到SDK DLL: {ex.Message} | 诊断: {diagnostics}");
             return false;
         }
         catch (Exception ex)

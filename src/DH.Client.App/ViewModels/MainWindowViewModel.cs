@@ -19,6 +19,7 @@ using DH.Driver.SDK;
 using DH.Datamanage.Realtime;
 using DH.Algorithms.Builtins;
 using DH.Client.App.Data;
+using DH.Client.App.Services;
 using DH.Client.App.Services.Storage;
 using DH.Client.App.Controls;
 
@@ -206,6 +207,7 @@ public partial class MainWindowViewModel : ObservableObject
     private readonly TcpDriverManager _tcpDriverManager;
     private readonly DataBus _bus = new();
     private readonly StreamTable _table;
+    private readonly AppUserSettings _userSettings;
     
     private CancellationTokenSource? _cts = new();
     
@@ -369,6 +371,9 @@ public partial class MainWindowViewModel : ObservableObject
 
     public MainWindowViewModel()
     {
+        _userSettings = AppUserSettingsStore.Load();
+        ApplyPersistedUserSettings();
+
         _bus = new DataBus();
         _table = new StreamTable(_bus);
         
@@ -550,16 +555,10 @@ public partial class MainWindowViewModel : ObservableObject
     private void InitializeSdkSupport()
     {
         // 设置默认SDK配置路径（尝试查找Config文件夹）
-        string basePath = AppDomain.CurrentDomain.BaseDirectory;
-        string configPath = Path.Combine(basePath, "Config");
-        if (Directory.Exists(configPath))
-        {
-            SdkConfigPath = configPath;
-        }
-        else
-        {
-            SdkConfigPath = basePath;
-        }
+        string persistedSdkConfigPath = NormalizePersistedPath(_userSettings.SdkConfigPath);
+        SdkConfigPath = string.IsNullOrWhiteSpace(persistedSdkConfigPath)
+            ? ResolveDefaultSdkConfigPath()
+            : persistedSdkConfigPath;
 
         // 创建SDK驱动管理器
         _sdkDriverManager = new SdkDriverManager(_bus, _table, OnSdkStatusChanged);
@@ -895,6 +894,39 @@ public partial class MainWindowViewModel : ObservableObject
         {
             Console.WriteLine($"[SDK] 浏览文件夹异常: {ex.Message}");
         }
+    }
+
+    private void ApplyPersistedUserSettings()
+    {
+        string persistedStoragePath = NormalizePersistedPath(_userSettings.StoragePath);
+        if (!string.IsNullOrWhiteSpace(persistedStoragePath))
+        {
+            StoragePath = persistedStoragePath;
+        }
+    }
+
+    private void SaveUserSettings()
+    {
+        try
+        {
+            _userSettings.StoragePath = NormalizePersistedPath(StoragePath);
+            _userSettings.SdkConfigPath = NormalizePersistedPath(SdkConfigPath);
+            AppUserSettingsStore.Save(_userSettings);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Settings] Failed to save user settings: {ex.Message}");
+        }
+    }
+
+    private static string NormalizePersistedPath(string? path)
+        => string.IsNullOrWhiteSpace(path) ? string.Empty : path.Trim();
+
+    private static string ResolveDefaultSdkConfigPath()
+    {
+        string basePath = AppDomain.CurrentDomain.BaseDirectory;
+        string configPath = Path.Combine(basePath, "Config");
+        return Directory.Exists(configPath) ? configPath : basePath;
     }
 
     private void BuildDevices()
@@ -2817,6 +2849,11 @@ public partial class MainWindowViewModel : ObservableObject
         StorageMode = value == 0 ? StorageModeOption.SingleFile : StorageModeOption.PerChannel;
     }
 
+    partial void OnStoragePathChanged(string value)
+    {
+        SaveUserSettings();
+    }
+
     partial void OnStorageModeChanged(StorageModeOption value)
     {
         StorageModeIndex = value == StorageModeOption.SingleFile ? 0 : 1;
@@ -2851,6 +2888,11 @@ public partial class MainWindowViewModel : ObservableObject
     {
         RefreshCompressionMetricCards();
         OnPropertyChanged(nameof(CompressionBenchmarkStatusText));
+    }
+
+    partial void OnSdkConfigPathChanged(string value)
+    {
+        SaveUserSettings();
     }
 
     partial void OnLz4LevelChanged(int value) => _compressionOptions.LZ4Level = value;

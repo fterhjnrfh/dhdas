@@ -28,6 +28,11 @@ namespace DH.Client.App.Services.Storage
         /// <returns>Array of double values from the channel.</returns>
         public static double[] ReadChannelData(string filePath, string groupName, string channelName)
         {
+            if (SdkRawCaptureFormat.IsRawCaptureFile(filePath))
+            {
+                return SdkRawCaptureReaderUtil.ReadChannelData(filePath, groupName, channelName);
+            }
+
             using var tdms = new NationalInstruments.Tdms.File(filePath);
             tdms.Open();
             if (!tdms.Groups.TryGetValue(groupName, out var group))
@@ -253,6 +258,11 @@ namespace DH.Client.App.Services.Storage
         /// </summary>
         public static IReadOnlyDictionary<string, string[]> ListGroupsAndChannels(string filePath)
         {
+            if (SdkRawCaptureFormat.IsRawCaptureFile(filePath))
+            {
+                return SdkRawCaptureReaderUtil.ListGroupsAndChannels(filePath);
+            }
+
             using var tdms = new NationalInstruments.Tdms.File(filePath);
             tdms.Open();
             var dict = new Dictionary<string, string[]>();
@@ -271,6 +281,11 @@ namespace DH.Client.App.Services.Storage
         /// </summary>
         public static IReadOnlyDictionary<string, object> ReadChannelProperties(string filePath, string groupName, string channelName)
         {
+            if (SdkRawCaptureFormat.IsRawCaptureFile(filePath))
+            {
+                return SdkRawCaptureReaderUtil.ReadChannelProperties(filePath, groupName, channelName);
+            }
+
             var props = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
             IntPtr file = IntPtr.Zero;
             int err = TdmsNative.DDC_OpenFileEx(filePath, "TDMS", 1, ref file);

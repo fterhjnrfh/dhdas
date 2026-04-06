@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("DH.Contracts")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+f3c3ea3d1677357f4da5b13edd9058b72321c2ac")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+d58f9242d9cf2a1f12d2f126c692aacc894c2af3")]
 [assembly: System.Reflection.AssemblyProductAttribute("DH.Contracts")]
 [assembly: System.Reflection.AssemblyTitleAttribute("DH.Contracts")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

@@ -1,25 +1,21 @@
 {
   "format": 1,
   "restore": {
-    "D:\\GIT-PROJECT\\dhdas\\src\\DH.Algorithms\\DH.Algorithms.csproj": {}
+    "C:\\GIt\\dhdas\\src\\DH.Algorithms\\DH.Algorithms.csproj": {}
   },
   "projects": {
-    "D:\\GIT-PROJECT\\dhdas\\src\\DH.Algorithms\\DH.Algorithms.csproj": {
+    "C:\\GIt\\dhdas\\src\\DH.Algorithms\\DH.Algorithms.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "D:\\GIT-PROJECT\\dhdas\\src\\DH.Algorithms\\DH.Algorithms.csproj",
+        "projectUniqueName": "C:\\GIt\\dhdas\\src\\DH.Algorithms\\DH.Algorithms.csproj",
         "projectName": "DH.Algorithms",
-        "projectPath": "D:\\GIT-PROJECT\\dhdas\\src\\DH.Algorithms\\DH.Algorithms.csproj",
-        "packagesPath": "C:\\Users\\27249\\.nuget\\packages\\",
-        "outputPath": "D:\\GIT-PROJECT\\dhdas\\src\\DH.Algorithms\\obj\\",
+        "projectPath": "C:\\GIt\\dhdas\\src\\DH.Algorithms\\DH.Algorithms.csproj",
+        "packagesPath": "C:\\Users\\26453\\.nuget\\packages\\",
+        "outputPath": "C:\\GIt\\dhdas\\src\\DH.Algorithms\\obj\\",
         "projectStyle": "PackageReference",
-        "fallbackFolders": [
-          "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
-        ],
         "configFilePaths": [
-          "D:\\GIT-PROJECT\\dhdas\\NuGet.Config",
-          "C:\\Users\\27249\\AppData\\Roaming\\NuGet\\NuGet.Config",
-          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
+          "C:\\GIt\\dhdas\\NuGet.Config",
+          "C:\\Users\\26453\\AppData\\Roaming\\NuGet\\NuGet.Config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
         "originalTargetFrameworks": [
@@ -32,11 +28,11 @@
           "net6.0-windows7.0": {
             "targetAlias": "net6.0-windows7.0",
             "projectReferences": {
-              "D:\\GIT-PROJECT\\dhdas\\src\\DH.Contracts\\DH.Contracts.csproj": {
-                "projectPath": "D:\\GIT-PROJECT\\dhdas\\src\\DH.Contracts\\DH.Contracts.csproj"
+              "C:\\GIt\\dhdas\\src\\DH.Contracts\\DH.Contracts.csproj": {
+                "projectPath": "C:\\GIt\\dhdas\\src\\DH.Contracts\\DH.Contracts.csproj"
               },
-              "D:\\GIT-PROJECT\\dhdas\\src\\DH.Datamanage\\DH.Datamanage.csproj": {
-                "projectPath": "D:\\GIT-PROJECT\\dhdas\\src\\DH.Datamanage\\DH.Datamanage.csproj"
+              "C:\\GIt\\dhdas\\src\\DH.Datamanage\\DH.Datamanage.csproj": {
+                "projectPath": "C:\\GIt\\dhdas\\src\\DH.Datamanage\\DH.Datamanage.csproj"
               }
             }
           }
@@ -86,26 +82,22 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.304\\RuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.310\\RuntimeIdentifierGraph.json"
         }
       }
     },
-    "D:\\GIT-PROJECT\\dhdas\\src\\DH.Contracts\\DH.Contracts.csproj": {
+    "C:\\GIt\\dhdas\\src\\DH.Contracts\\DH.Contracts.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "D:\\GIT-PROJECT\\dhdas\\src\\DH.Contracts\\DH.Contracts.csproj",
+        "projectUniqueName": "C:\\GIt\\dhdas\\src\\DH.Contracts\\DH.Contracts.csproj",
         "projectName": "DH.Contracts",
-        "projectPath": "D:\\GIT-PROJECT\\dhdas\\src\\DH.Contracts\\DH.Contracts.csproj",
-        "packagesPath": "C:\\Users\\27249\\.nuget\\packages\\",
-        "outputPath": "D:\\GIT-PROJECT\\dhdas\\src\\DH.Contracts\\obj\\",
+        "projectPath": "C:\\GIt\\dhdas\\src\\DH.Contracts\\DH.Contracts.csproj",
+        "packagesPath": "C:\\Users\\26453\\.nuget\\packages\\",
+        "outputPath": "C:\\GIt\\dhdas\\src\\DH.Contracts\\obj\\",
         "projectStyle": "PackageReference",
-        "fallbackFolders": [
-          "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
-        ],
         "configFilePaths": [
-          "D:\\GIT-PROJECT\\dhdas\\NuGet.Config",
-          "C:\\Users\\27249\\AppData\\Roaming\\NuGet\\NuGet.Config",
-          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
+          "C:\\GIt\\dhdas\\NuGet.Config",
+          "C:\\Users\\26453\\AppData\\Roaming\\NuGet\\NuGet.Config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
         "originalTargetFrameworks": [
@@ -165,26 +157,22 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.304\\RuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.310\\RuntimeIdentifierGraph.json"
         }
       }
     },
-    "D:\\GIT-PROJECT\\dhdas\\src\\DH.Datamanage\\DH.Datamanage.csproj": {
+    "C:\\GIt\\dhdas\\src\\DH.Datamanage\\DH.Datamanage.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "D:\\GIT-PROJECT\\dhdas\\src\\DH.Datamanage\\DH.Datamanage.csproj",
+        "projectUniqueName": "C:\\GIt\\dhdas\\src\\DH.Datamanage\\DH.Datamanage.csproj",
         "projectName": "DH.Datamanage",
-        "projectPath": "D:\\GIT-PROJECT\\dhdas\\src\\DH.Datamanage\\DH.Datamanage.csproj",
-        "packagesPath": "C:\\Users\\27249\\.nuget\\packages\\",
-        "outputPath": "D:\\GIT-PROJECT\\dhdas\\src\\DH.Datamanage\\obj\\",
+        "projectPath": "C:\\GIt\\dhdas\\src\\DH.Datamanage\\DH.Datamanage.csproj",
+        "packagesPath": "C:\\Users\\26453\\.nuget\\packages\\",
+        "outputPath": "C:\\GIt\\dhdas\\src\\DH.Datamanage\\obj\\",
         "projectStyle": "PackageReference",
-        "fallbackFolders": [
-          "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
-        ],
         "configFilePaths": [
-          "D:\\GIT-PROJECT\\dhdas\\NuGet.Config",
-          "C:\\Users\\27249\\AppData\\Roaming\\NuGet\\NuGet.Config",
-          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
+          "C:\\GIt\\dhdas\\NuGet.Config",
+          "C:\\Users\\26453\\AppData\\Roaming\\NuGet\\NuGet.Config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
         "originalTargetFrameworks": [
@@ -197,8 +185,8 @@
           "net6.0-windows7.0": {
             "targetAlias": "net6.0-windows7.0",
             "projectReferences": {
-              "D:\\GIT-PROJECT\\dhdas\\src\\DH.Contracts\\DH.Contracts.csproj": {
-                "projectPath": "D:\\GIT-PROJECT\\dhdas\\src\\DH.Contracts\\DH.Contracts.csproj"
+              "C:\\GIt\\dhdas\\src\\DH.Contracts\\DH.Contracts.csproj": {
+                "projectPath": "C:\\GIt\\dhdas\\src\\DH.Contracts\\DH.Contracts.csproj"
               }
             }
           }
@@ -248,7 +236,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.304\\RuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.310\\RuntimeIdentifierGraph.json"
         }
       }
     }

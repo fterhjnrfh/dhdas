@@ -977,25 +977,20 @@
     ]
   },
   "packageFolders": {
-    "C:\\Users\\27249\\.nuget\\packages\\": {},
-    "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages": {}
+    "C:\\Users\\26453\\.nuget\\packages\\": {}
   },
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "D:\\GIT-PROJECT\\dhdas\\src\\DH.Display\\DH.Display.csproj",
+      "projectUniqueName": "C:\\GIt\\dhdas\\src\\DH.Display\\DH.Display.csproj",
       "projectName": "DH.Display",
-      "projectPath": "D:\\GIT-PROJECT\\dhdas\\src\\DH.Display\\DH.Display.csproj",
-      "packagesPath": "C:\\Users\\27249\\.nuget\\packages\\",
-      "outputPath": "D:\\GIT-PROJECT\\dhdas\\src\\DH.Display\\obj\\",
+      "projectPath": "C:\\GIt\\dhdas\\src\\DH.Display\\DH.Display.csproj",
+      "packagesPath": "C:\\Users\\26453\\.nuget\\packages\\",
+      "outputPath": "C:\\GIt\\dhdas\\src\\DH.Display\\obj\\",
       "projectStyle": "PackageReference",
-      "fallbackFolders": [
-        "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
-      ],
       "configFilePaths": [
-        "D:\\GIT-PROJECT\\dhdas\\NuGet.Config",
-        "C:\\Users\\27249\\AppData\\Roaming\\NuGet\\NuGet.Config",
-        "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
+        "C:\\GIt\\dhdas\\NuGet.Config",
+        "C:\\Users\\26453\\AppData\\Roaming\\NuGet\\NuGet.Config",
         "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
       ],
       "originalTargetFrameworks": [
@@ -1008,17 +1003,17 @@
         "net6.0-windows7.0": {
           "targetAlias": "net6.0-windows7.0",
           "projectReferences": {
-            "D:\\GIT-PROJECT\\dhdas\\src\\DH.Algorithms\\DH.Algorithms.csproj": {
-              "projectPath": "D:\\GIT-PROJECT\\dhdas\\src\\DH.Algorithms\\DH.Algorithms.csproj"
+            "C:\\GIt\\dhdas\\src\\DH.Algorithms\\DH.Algorithms.csproj": {
+              "projectPath": "C:\\GIt\\dhdas\\src\\DH.Algorithms\\DH.Algorithms.csproj"
             },
-            "D:\\GIT-PROJECT\\dhdas\\src\\DH.Configmanage\\DH.Configmanage.csproj": {
-              "projectPath": "D:\\GIT-PROJECT\\dhdas\\src\\DH.Configmanage\\DH.Configmanage.csproj"
+            "C:\\GIt\\dhdas\\src\\DH.Configmanage\\DH.Configmanage.csproj": {
+              "projectPath": "C:\\GIt\\dhdas\\src\\DH.Configmanage\\DH.Configmanage.csproj"
             },
-            "D:\\GIT-PROJECT\\dhdas\\src\\DH.Contracts\\DH.Contracts.csproj": {
-              "projectPath": "D:\\GIT-PROJECT\\dhdas\\src\\DH.Contracts\\DH.Contracts.csproj"
+            "C:\\GIt\\dhdas\\src\\DH.Contracts\\DH.Contracts.csproj": {
+              "projectPath": "C:\\GIt\\dhdas\\src\\DH.Contracts\\DH.Contracts.csproj"
             },
-            "D:\\GIT-PROJECT\\dhdas\\src\\DH.Datamanage\\DH.Datamanage.csproj": {
-              "projectPath": "D:\\GIT-PROJECT\\dhdas\\src\\DH.Datamanage\\DH.Datamanage.csproj"
+            "C:\\GIt\\dhdas\\src\\DH.Datamanage\\DH.Datamanage.csproj": {
+              "projectPath": "C:\\GIt\\dhdas\\src\\DH.Datamanage\\DH.Datamanage.csproj"
             }
           }
         }
@@ -1078,7 +1073,7 @@
             "privateAssets": "all"
           }
         },
-        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.304\\RuntimeIdentifierGraph.json"
+        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.310\\RuntimeIdentifierGraph.json"
       }
     }
   }

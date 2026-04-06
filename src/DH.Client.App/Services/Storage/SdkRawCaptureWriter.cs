@@ -345,9 +345,19 @@ internal sealed class SdkRawCaptureLiveTimingState
 
 internal sealed class SdkRawCaptureWriter : IDisposable
 {
-    private const int FlushBlockStride = 128;
-    private const long MaxPendingBlockLimit = 128;
-    private const long MaxPendingPayloadByteLimit = 512L * 1024 * 1024;
+    private const int FlushBlockStride = 512;
+    private const long MinimumPendingBlockLimit = 256;
+    private const long MaximumPendingBlockLimit = 2048;
+    private const long MinimumPendingPayloadByteLimit = 512L * 1024 * 1024;
+    private const long MaximumPendingPayloadByteLimit = 2L * 1024 * 1024 * 1024;
+    private const double TargetBufferedSeconds = 6d;
+    private const int FileHeaderBytes = sizeof(ulong) + sizeof(int) + sizeof(long) + sizeof(double) + sizeof(int) + sizeof(int);
+    private const int BlockHeaderBytes =
+        sizeof(uint) + sizeof(int) + sizeof(long) + sizeof(int) + sizeof(int) + sizeof(int) +
+        sizeof(long) + sizeof(int) + sizeof(int) + sizeof(int) + sizeof(int) + sizeof(float) +
+        sizeof(long) + sizeof(int) + sizeof(int);
+    private const int FileStreamBufferBytes = 4 * 1024 * 1024;
+    private const int BufferedWriteStreamBytes = 64 * 1024 * 1024;
 
     private readonly Channel<SdkRawBlock> _queue = Channel.CreateUnbounded<SdkRawBlock>(
         new UnboundedChannelOptions
@@ -360,10 +370,13 @@ internal sealed class SdkRawCaptureWriter : IDisposable
     private readonly ConcurrentDictionary<int, long> _channelSampleCounts = new();
     private readonly ConcurrentDictionary<int, long> _channelBatchCounts = new();
     private readonly Dictionary<int, SdkRawCaptureDeviceIntegrityState> _deviceIntegrityStates = new();
+    private readonly Dictionary<int, long> _deviceWrittenSampleCounts = new();
+    private readonly List<SdkRawCaptureIndexEntry> _indexEntries = new();
     private readonly object _liveTimingLock = new();
     private readonly Dictionary<int, SdkRawCaptureLiveTimingState> _liveTimingStates = new();
 
     private FileStream? _stream;
+    private BufferedStream? _bufferedStream;
     private BinaryWriter? _writer;
     private Task? _writerTask;
     private string? _capturePath;
@@ -389,6 +402,9 @@ internal sealed class SdkRawCaptureWriter : IDisposable
     private int _protectionTriggered;
     private string _protectionReason = "";
     private Exception? _writerFault;
+    private long _pendingBlockLimit = MinimumPendingBlockLimit;
+    private long _pendingPayloadByteLimit = MinimumPendingPayloadByteLimit;
+    private long _writePosition;
 
     public string? CapturePath => _capturePath;
 
@@ -411,6 +427,7 @@ internal sealed class SdkRawCaptureWriter : IDisposable
         _sampleRateHz = sampleRateHz;
         _expectedChannelCount = expectedChannelIds?.Count ?? 0;
         _startedAtUtc = DateTime.UtcNow;
+        (_pendingBlockLimit, _pendingPayloadByteLimit) = ComputePendingLimits(sampleRateHz, _expectedChannelCount);
         _capturePath = Path.Combine(sessionFolder, $"{safeName}{SdkRawCaptureFormat.FileSuffix}");
         _manifestPath = SdkRawCaptureFormat.GetManifestPath(_capturePath);
         _stream = new FileStream(
@@ -418,12 +435,17 @@ internal sealed class SdkRawCaptureWriter : IDisposable
             FileMode.Create,
             FileAccess.Write,
             FileShare.Read,
-            bufferSize: 1024 * 1024,
+            bufferSize: FileStreamBufferBytes,
             options: FileOptions.SequentialScan);
-        _writer = new BinaryWriter(_stream, Encoding.UTF8, leaveOpen: true);
+        _bufferedStream = new BufferedStream(_stream, BufferedWriteStreamBytes);
+        _writer = new BinaryWriter(_bufferedStream, Encoding.UTF8, leaveOpen: true);
         WriteFileHeader();
 
-        _writerTask = Task.Run(ProcessQueueAsync);
+        _writerTask = Task.Factory.StartNew(
+            ProcessQueueLoop,
+            CancellationToken.None,
+            TaskCreationOptions.LongRunning,
+            TaskScheduler.Default);
         _started = true;
     }
 
@@ -451,9 +473,9 @@ internal sealed class SdkRawCaptureWriter : IDisposable
         UpdatePeak(ref _peakPendingBlockCount, pendingBlockCount);
         UpdatePeak(ref _peakPendingPayloadBytes, pendingPayloadBytes);
 
-        if (pendingBlockCount > MaxPendingBlockLimit || pendingPayloadBytes > MaxPendingPayloadByteLimit)
+        if (pendingBlockCount > _pendingBlockLimit || pendingPayloadBytes > _pendingPayloadByteLimit)
         {
-            string reason = $"Pending raw capture queue exceeded hard limit ({pendingBlockCount:N0}/{MaxPendingBlockLimit:N0} blocks, {pendingPayloadBytes:N0}/{MaxPendingPayloadByteLimit:N0} bytes).";
+            string reason = $"Pending raw capture queue exceeded hard limit ({pendingBlockCount:N0}/{_pendingBlockLimit:N0} blocks, {pendingPayloadBytes:N0}/{_pendingPayloadByteLimit:N0} bytes).";
             TriggerProtection(reason);
         }
 
@@ -476,8 +498,8 @@ internal sealed class SdkRawCaptureWriter : IDisposable
             PendingPayloadBytes = Interlocked.Read(ref _pendingPayloadBytes),
             PeakPendingBlockCount = Interlocked.Read(ref _peakPendingBlockCount),
             PeakPendingPayloadBytes = Interlocked.Read(ref _peakPendingPayloadBytes),
-            PendingBlockLimit = MaxPendingBlockLimit,
-            PendingPayloadByteLimit = MaxPendingPayloadByteLimit,
+            PendingBlockLimit = _pendingBlockLimit,
+            PendingPayloadByteLimit = _pendingPayloadByteLimit,
             ProtectionTriggered = ProtectionTriggered,
             ProtectionReason = _protectionReason,
             WrittenPayloadBytes = Interlocked.Read(ref _rawPayloadBytes),
@@ -520,7 +542,7 @@ internal sealed class SdkRawCaptureWriter : IDisposable
         try
         {
             _writer?.Flush();
-            _stream?.Flush(flushToDisk: false);
+            _bufferedStream?.Flush();
         }
         catch
         {
@@ -528,12 +550,15 @@ internal sealed class SdkRawCaptureWriter : IDisposable
 
         _writer?.Dispose();
         _writer = null;
+        _bufferedStream?.Dispose();
+        _bufferedStream = null;
         _stream?.Dispose();
         _stream = null;
 
         string capturePath = _capturePath ?? string.Empty;
         var manifest = BuildManifest();
         PersistManifest(manifest);
+        PersistIndex(capturePath);
         var sampleCounts = manifest.ChannelSampleCounts
             .ToDictionary(kvp => kvp.Key, kvp => kvp.Value, StringComparer.OrdinalIgnoreCase);
 
@@ -558,8 +583,10 @@ internal sealed class SdkRawCaptureWriter : IDisposable
         else
         {
             _writer?.Dispose();
+            _bufferedStream?.Dispose();
             _stream?.Dispose();
             _writer = null;
+            _bufferedStream = null;
             _stream = null;
         }
     }
@@ -569,6 +596,8 @@ internal sealed class SdkRawCaptureWriter : IDisposable
         _channelSampleCounts.Clear();
         _channelBatchCounts.Clear();
         _deviceIntegrityStates.Clear();
+        _deviceWrittenSampleCounts.Clear();
+        _indexEntries.Clear();
         lock (_liveTimingLock)
         {
             _liveTimingStates.Clear();
@@ -591,6 +620,9 @@ internal sealed class SdkRawCaptureWriter : IDisposable
         _protectionTriggered = 0;
         _protectionReason = "";
         _writerFault = null;
+        _pendingBlockLimit = MinimumPendingBlockLimit;
+        _pendingPayloadByteLimit = MinimumPendingPayloadByteLimit;
+        _writePosition = 0;
     }
 
     private async Task ProcessQueueAsync()
@@ -628,6 +660,44 @@ internal sealed class SdkRawCaptureWriter : IDisposable
         }
     }
 
+    private void ProcessQueueLoop()
+    {
+        var reader = _queue.Reader;
+        try
+        {
+            while (reader.WaitToReadAsync().AsTask().GetAwaiter().GetResult())
+            {
+                while (reader.TryRead(out var rawBlock))
+                {
+                    Interlocked.Decrement(ref _pendingBlockCount);
+                    Interlocked.Add(ref _pendingPayloadBytes, -rawBlock.PayloadBytes);
+
+                    try
+                    {
+                        WriteBlock(rawBlock);
+                    }
+                    catch (Exception ex)
+                    {
+                        _writerFault ??= ex;
+                        Interlocked.Increment(ref _writeFaultCount);
+                        Console.WriteLine($"[SdkRawCapture] Block write failed: {ex.Message}");
+                        DrainPendingBlocks(reader);
+                        return;
+                    }
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception ex)
+        {
+            _writerFault ??= ex;
+            Interlocked.Increment(ref _writeFaultCount);
+            Console.WriteLine($"[SdkRawCapture] Writer loop failed: {ex.Message}");
+        }
+    }
+
     private void DrainPendingBlocks(ChannelReader<SdkRawBlock> reader)
     {
         while (reader.TryRead(out var rawBlock))
@@ -651,6 +721,7 @@ internal sealed class SdkRawCaptureWriter : IDisposable
         _writer.Write(_sampleRateHz);
         _writer.Write(_expectedChannelCount);
         _writer.Write(0);
+        _writePosition = FileHeaderBytes;
     }
 
     private void WriteBlock(SdkRawBlock rawBlock)
@@ -665,6 +736,10 @@ internal sealed class SdkRawCaptureWriter : IDisposable
 
         try
         {
+            int deviceId = ResolveChannelDeviceId(rawBlock.GroupId, rawBlock.MachineId);
+            _deviceWrittenSampleCounts.TryGetValue(deviceId, out long firstSampleIndexPerChannel);
+            long blockOffset = _writePosition;
+
             _writer.Write(SdkRawCaptureFormat.BlockMagic);
             _writer.Write(SdkRawCaptureFormat.FormatVersion);
             _writer.Write(rawBlock.SampleTime);
@@ -680,7 +755,9 @@ internal sealed class SdkRawCaptureWriter : IDisposable
             _writer.Write(rawBlock.ReceivedAtUtc.Ticks);
             _writer.Write(rawBlock.PayloadFloatCount);
             _writer.Write(rawBlock.PayloadBytes);
+            long payloadOffset = blockOffset + BlockHeaderBytes;
             _writer.Write(payload);
+            _writePosition = payloadOffset + rawBlock.PayloadBytes;
 
             writeStopwatch.Stop();
             _writeSeconds += writeStopwatch.Elapsed.TotalSeconds;
@@ -688,7 +765,21 @@ internal sealed class SdkRawCaptureWriter : IDisposable
             _totalSamples += (long)rawBlock.ChannelCount * rawBlock.DataCountPerChannel;
             _rawPayloadBytes += rawBlock.PayloadBytes;
             Interlocked.Increment(ref _writtenBlockCount);
-            int deviceId = ResolveChannelDeviceId(rawBlock.GroupId, rawBlock.MachineId);
+            _indexEntries.Add(new SdkRawCaptureIndexEntry(
+                blockOffset,
+                payloadOffset,
+                rawBlock.PayloadBytes,
+                deviceId,
+                rawBlock.GroupId,
+                rawBlock.MachineId,
+                rawBlock.ChannelCount,
+                rawBlock.DataCountPerChannel,
+                rawBlock.BlockIndex,
+                rawBlock.TotalDataCount,
+                firstSampleIndexPerChannel,
+                rawBlock.SampleTime,
+                rawBlock.ReceivedAtUtc.Ticks));
+            _deviceWrittenSampleCounts[deviceId] = firstSampleIndexPerChannel + rawBlock.DataCountPerChannel;
             TrackDeviceIntegrity(rawBlock, deviceId);
             for (int ch = 0; ch < rawBlock.ChannelCount; ch++)
             {
@@ -702,7 +793,6 @@ internal sealed class SdkRawCaptureWriter : IDisposable
                 try
                 {
                     _writer.Flush();
-                    _stream?.Flush(flushToDisk: false);
                 }
                 catch
                 {
@@ -1008,8 +1098,8 @@ internal sealed class SdkRawCaptureWriter : IDisposable
             WriteFaultCount = Interlocked.Read(ref _writeFaultCount),
             PeakPendingBlockCount = Interlocked.Read(ref _peakPendingBlockCount),
             PeakPendingPayloadBytes = Interlocked.Read(ref _peakPendingPayloadBytes),
-            PendingBlockLimit = MaxPendingBlockLimit,
-            PendingPayloadByteLimit = MaxPendingPayloadByteLimit,
+            PendingBlockLimit = _pendingBlockLimit,
+            PendingPayloadByteLimit = _pendingPayloadByteLimit,
             ProtectionTriggered = ProtectionTriggered,
             ProtectionReason = _protectionReason,
             LastError = _writerFault?.Message ?? _protectionReason,
@@ -1233,6 +1323,44 @@ internal sealed class SdkRawCaptureWriter : IDisposable
         });
     }
 
+    private static (long pendingBlockLimit, long pendingPayloadByteLimit) ComputePendingLimits(double sampleRateHz, int expectedChannelCount)
+    {
+        long payloadLimit = MinimumPendingPayloadByteLimit;
+
+        try
+        {
+            int effectiveChannelCount = Math.Max(1, expectedChannelCount);
+            if (sampleRateHz > 0d)
+            {
+                double estimatedBytesPerSecond = sampleRateHz * effectiveChannelCount * sizeof(float);
+                if (estimatedBytesPerSecond > 0d)
+                {
+                    payloadLimit = (long)Math.Ceiling(estimatedBytesPerSecond * TargetBufferedSeconds);
+                }
+            }
+
+            long totalAvailableMemory = GC.GetGCMemoryInfo().TotalAvailableMemoryBytes;
+            if (totalAvailableMemory > 0)
+            {
+                long memoryBudget = totalAvailableMemory / 4;
+                payloadLimit = Math.Min(payloadLimit, memoryBudget);
+            }
+        }
+        catch
+        {
+            payloadLimit = MinimumPendingPayloadByteLimit;
+        }
+
+        payloadLimit = Math.Max(MinimumPendingPayloadByteLimit, payloadLimit);
+        payloadLimit = Math.Min(MaximumPendingPayloadByteLimit, payloadLimit);
+
+        long blockLimit = payloadLimit / (4L * 1024 * 1024);
+        blockLimit = Math.Max(MinimumPendingBlockLimit, blockLimit);
+        blockLimit = Math.Min(MaximumPendingBlockLimit, blockLimit);
+
+        return (blockLimit, payloadLimit);
+    }
+
     private void TriggerProtection(string reason)
     {
         if (Interlocked.CompareExchange(ref _protectionTriggered, 1, 0) != 0)
@@ -1256,6 +1384,23 @@ internal sealed class SdkRawCaptureWriter : IDisposable
             WriteIndented = true
         });
         File.WriteAllText(_manifestPath, json);
+    }
+
+    private void PersistIndex(string capturePath)
+    {
+        if (string.IsNullOrEmpty(capturePath) || _indexEntries.Count == 0)
+        {
+            return;
+        }
+
+        try
+        {
+            SdkRawCaptureIndexFormat.Save(capturePath, _sampleRateHz, _indexEntries);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[SdkRawCapture] Failed to persist index: {ex.Message}");
+        }
     }
 
     private CompressionSessionSnapshot BuildSnapshot(SdkRawCaptureManifest manifest)

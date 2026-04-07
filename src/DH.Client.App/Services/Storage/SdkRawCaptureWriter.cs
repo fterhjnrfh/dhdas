@@ -356,8 +356,13 @@ internal sealed class SdkRawCaptureLiveTimingState
 internal sealed class SdkRawCaptureWriter : IDisposable
 {
     private const int FlushBlockStride = 128;
-    private const long MaxPendingBlockLimit = 128;
-    private const long MaxPendingPayloadByteLimit = 512L * 1024 * 1024;
+    private const long DefaultPendingBlockLimit = 128;
+    private const long DefaultPendingPayloadByteLimit = 512L * 1024 * 1024;
+    private const long MaxAdaptivePendingBlockLimit = 1024;
+    private const long MaxAdaptivePendingPayloadByteLimit = 2L * 1024 * 1024 * 1024;
+    private const int TargetBufferedBatchesPerDevice = 32;
+    private const double TargetBufferedSeconds = 3.0d;
+    private const int RawCaptureFileBufferSize = 8 * 1024 * 1024;
 
     private readonly Channel<SdkRawBlock> _queue = Channel.CreateUnbounded<SdkRawBlock>(
         new UnboundedChannelOptions
@@ -397,6 +402,8 @@ internal sealed class SdkRawCaptureWriter : IDisposable
     private long _pendingPayloadBytes;
     private long _peakPendingBlockCount;
     private long _peakPendingPayloadBytes;
+    private long _pendingBlockLimit = DefaultPendingBlockLimit;
+    private long _pendingPayloadByteLimit = DefaultPendingPayloadByteLimit;
     private int _protectionTriggered;
     private string _protectionReason = "";
     private Exception? _writerFault;
@@ -426,6 +433,8 @@ internal sealed class SdkRawCaptureWriter : IDisposable
         _sessionName = safeName;
         _sampleRateHz = sampleRateHz;
         _expectedChannelCount = expectedChannelIds?.Count ?? 0;
+        _pendingBlockLimit = ResolvePendingBlockLimit(expectedChannelIds);
+        _pendingPayloadByteLimit = ResolvePendingPayloadByteLimit(sampleRateHz, _expectedChannelCount);
         _startedAtUtc = DateTime.UtcNow;
         _capturePath = Path.Combine(sessionFolder, $"{safeName}{SdkRawCaptureFormat.FileSuffix}");
         _manifestPath = SdkRawCaptureFormat.GetManifestPath(_capturePath);
@@ -434,7 +443,7 @@ internal sealed class SdkRawCaptureWriter : IDisposable
             FileMode.Create,
             FileAccess.Write,
             FileShare.Read,
-            bufferSize: 1024 * 1024,
+            bufferSize: RawCaptureFileBufferSize,
             options: FileOptions.SequentialScan);
         _writer = new BinaryWriter(_stream, Encoding.UTF8, leaveOpen: true);
         WriteFileHeader();
@@ -483,9 +492,9 @@ internal sealed class SdkRawCaptureWriter : IDisposable
         UpdatePeak(ref _peakPendingBlockCount, pendingBlockCount);
         UpdatePeak(ref _peakPendingPayloadBytes, pendingPayloadBytes);
 
-        if (pendingBlockCount > MaxPendingBlockLimit || pendingPayloadBytes > MaxPendingPayloadByteLimit)
+        if (pendingBlockCount > _pendingBlockLimit || pendingPayloadBytes > _pendingPayloadByteLimit)
         {
-            string reason = $"Pending raw capture queue exceeded hard limit ({pendingBlockCount:N0}/{MaxPendingBlockLimit:N0} blocks, {pendingPayloadBytes:N0}/{MaxPendingPayloadByteLimit:N0} bytes).";
+            string reason = $"Pending raw capture queue exceeded hard limit ({pendingBlockCount:N0}/{_pendingBlockLimit:N0} blocks, {pendingPayloadBytes:N0}/{_pendingPayloadByteLimit:N0} bytes).";
             TriggerProtection(reason);
         }
 
@@ -508,8 +517,8 @@ internal sealed class SdkRawCaptureWriter : IDisposable
             PendingPayloadBytes = Interlocked.Read(ref _pendingPayloadBytes),
             PeakPendingBlockCount = Interlocked.Read(ref _peakPendingBlockCount),
             PeakPendingPayloadBytes = Interlocked.Read(ref _peakPendingPayloadBytes),
-            PendingBlockLimit = MaxPendingBlockLimit,
-            PendingPayloadByteLimit = MaxPendingPayloadByteLimit,
+            PendingBlockLimit = _pendingBlockLimit,
+            PendingPayloadByteLimit = _pendingPayloadByteLimit,
             ProtectionTriggered = ProtectionTriggered,
             ProtectionReason = _protectionReason,
             WrittenPayloadBytes = Interlocked.Read(ref _rawPayloadBytes),
@@ -625,6 +634,8 @@ internal sealed class SdkRawCaptureWriter : IDisposable
         _pendingPayloadBytes = 0;
         _peakPendingBlockCount = 0;
         _peakPendingPayloadBytes = 0;
+        _pendingBlockLimit = DefaultPendingBlockLimit;
+        _pendingPayloadByteLimit = DefaultPendingPayloadByteLimit;
         _protectionTriggered = 0;
         _protectionReason = "";
         _writerFault = null;
@@ -802,8 +813,19 @@ internal sealed class SdkRawCaptureWriter : IDisposable
     private SdkRawCaptureSampleRateAnalysis AnalyzeLiveTimingStatistics(DateTime observedAtUtc)
     {
         List<SdkRawCaptureDeviceIntegrity> liveDevices;
+        DateTime observedStartAtUtc = _startedAtUtc;
+        DateTime observedStopAtUtc = observedAtUtc;
         lock (_liveTimingLock)
         {
+            if (TryGetObservedCaptureWindowUnsafe(out var firstReceivedAtUtc, out var lastReceivedAtUtc))
+            {
+                observedStartAtUtc = firstReceivedAtUtc;
+                if (lastReceivedAtUtc > observedStopAtUtc)
+                {
+                    observedStopAtUtc = lastReceivedAtUtc;
+                }
+            }
+
             liveDevices = _liveTimingStates.Values
                 .Select(state =>
                 {
@@ -826,10 +848,52 @@ internal sealed class SdkRawCaptureWriter : IDisposable
 
         return AnalyzeSampleRateConsistency(
             _sampleRateHz,
-            _startedAtUtc,
-            observedAtUtc,
+            observedStartAtUtc,
+            observedStopAtUtc,
             liveDevices,
             sampleCounts: Array.Empty<KeyValuePair<string, long>>().ToDictionary(static kvp => kvp.Key, static kvp => kvp.Value, StringComparer.OrdinalIgnoreCase));
+    }
+
+    private bool TryGetObservedCaptureWindow(out DateTime firstReceivedAtUtc, out DateTime lastReceivedAtUtc)
+    {
+        lock (_liveTimingLock)
+        {
+            return TryGetObservedCaptureWindowUnsafe(out firstReceivedAtUtc, out lastReceivedAtUtc);
+        }
+    }
+
+    private bool TryGetObservedCaptureWindowUnsafe(out DateTime firstReceivedAtUtc, out DateTime lastReceivedAtUtc)
+    {
+        firstReceivedAtUtc = default;
+        lastReceivedAtUtc = default;
+
+        if (_liveTimingStates.Count == 0)
+        {
+            return false;
+        }
+
+        bool found = false;
+        foreach (var state in _liveTimingStates.Values)
+        {
+            if (state.FirstReceivedAtUtc == default || state.LastReceivedAtUtc == default)
+            {
+                continue;
+            }
+
+            if (!found || state.FirstReceivedAtUtc < firstReceivedAtUtc)
+            {
+                firstReceivedAtUtc = state.FirstReceivedAtUtc;
+            }
+
+            if (!found || state.LastReceivedAtUtc > lastReceivedAtUtc)
+            {
+                lastReceivedAtUtc = state.LastReceivedAtUtc;
+            }
+
+            found = true;
+        }
+
+        return found && lastReceivedAtUtc >= firstReceivedAtUtc;
     }
 
     private void TrackDeviceIntegrity(SdkRawBlock rawBlock, int deviceId)
@@ -1017,10 +1081,18 @@ internal sealed class SdkRawCaptureWriter : IDisposable
             deviceSampleCountsBalanced,
             minDeviceSamplesPerChannel,
             maxDeviceSamplesPerChannel);
+        DateTime observedStartAtUtc = _startedAtUtc;
+        DateTime observedStopAtUtc = _stoppedAtUtc;
+        if (TryGetObservedCaptureWindow(out var firstReceivedAtUtc, out var lastReceivedAtUtc))
+        {
+            observedStartAtUtc = firstReceivedAtUtc;
+            observedStopAtUtc = lastReceivedAtUtc;
+        }
+
         var sampleRateAnalysis = AnalyzeSampleRateConsistency(
             _sampleRateHz,
-            _startedAtUtc,
-            _stoppedAtUtc,
+            observedStartAtUtc,
+            observedStopAtUtc,
             deviceIntegrity,
             sampleCounts);
 
@@ -1045,8 +1117,8 @@ internal sealed class SdkRawCaptureWriter : IDisposable
             WriteFaultCount = Interlocked.Read(ref _writeFaultCount),
             PeakPendingBlockCount = Interlocked.Read(ref _peakPendingBlockCount),
             PeakPendingPayloadBytes = Interlocked.Read(ref _peakPendingPayloadBytes),
-            PendingBlockLimit = MaxPendingBlockLimit,
-            PendingPayloadByteLimit = MaxPendingPayloadByteLimit,
+            PendingBlockLimit = _pendingBlockLimit,
+            PendingPayloadByteLimit = _pendingPayloadByteLimit,
             ProtectionTriggered = ProtectionTriggered,
             ProtectionReason = _protectionReason,
             LastError = _writerFault?.Message ?? _protectionReason,
@@ -1388,6 +1460,58 @@ internal sealed class SdkRawCaptureWriter : IDisposable
             }
         }
         while (Interlocked.CompareExchange(ref target, candidate, current) != current);
+    }
+
+    private static long ResolvePendingBlockLimit(IReadOnlyCollection<int>? expectedChannelIds)
+    {
+        if (expectedChannelIds == null || expectedChannelIds.Count == 0)
+        {
+            return DefaultPendingBlockLimit;
+        }
+
+        int expectedDeviceCount = expectedChannelIds
+            .Select(DH.Contracts.ChannelNaming.GetDeviceId)
+            .Where(deviceId => deviceId >= 0)
+            .Distinct()
+            .Count();
+
+        if (expectedDeviceCount <= 0)
+        {
+            expectedDeviceCount = Math.Max(1, (int)Math.Ceiling(expectedChannelIds.Count / 16d));
+        }
+
+        long adaptiveLimit = Math.Max(
+            DefaultPendingBlockLimit,
+            (long)expectedDeviceCount * TargetBufferedBatchesPerDevice);
+
+        return Math.Min(adaptiveLimit, MaxAdaptivePendingBlockLimit);
+    }
+
+    private static long ResolvePendingPayloadByteLimit(double sampleRateHz, int expectedChannelCount)
+    {
+        if (sampleRateHz <= 0d || expectedChannelCount <= 0)
+        {
+            return DefaultPendingPayloadByteLimit;
+        }
+
+        double rawBytesPerSecond = sampleRateHz * expectedChannelCount * sizeof(float);
+        if (!double.IsFinite(rawBytesPerSecond) || rawBytesPerSecond <= 0d)
+        {
+            return DefaultPendingPayloadByteLimit;
+        }
+
+        long adaptiveLimit;
+        try
+        {
+            adaptiveLimit = checked((long)Math.Ceiling(rawBytesPerSecond * TargetBufferedSeconds));
+        }
+        catch (OverflowException)
+        {
+            adaptiveLimit = MaxAdaptivePendingPayloadByteLimit;
+        }
+
+        adaptiveLimit = Math.Max(DefaultPendingPayloadByteLimit, adaptiveLimit);
+        return Math.Min(adaptiveLimit, MaxAdaptivePendingPayloadByteLimit);
     }
 
     private static string SanitizeName(string name)

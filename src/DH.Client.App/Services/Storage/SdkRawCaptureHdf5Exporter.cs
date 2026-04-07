@@ -30,6 +30,8 @@ internal sealed class SdkRawCaptureHdf5ExportResult
     public long SamplesProcessed { get; init; }
 
     public string Summary { get; init; } = "";
+
+    public string CompressionSummary { get; init; } = "";
 }
 
 internal sealed class SdkRawCaptureHdf5Exporter
@@ -38,6 +40,8 @@ internal sealed class SdkRawCaptureHdf5Exporter
         string capturePath,
         string outputBasePath,
         string? sessionName = null,
+        CompressionType compressionType = CompressionType.None,
+        CompressionOptions? compressionOptions = null,
         Action<SdkRawCaptureHdf5ExportProgress>? progressCallback = null)
     {
         if (string.IsNullOrWhiteSpace(capturePath))
@@ -78,6 +82,8 @@ internal sealed class SdkRawCaptureHdf5Exporter
             effectiveSessionName,
             manifest.SampleRateHz,
             channelIds,
+            compressionType,
+            compressionOptions,
             useBackgroundWriter: false);
 
         long totalBlocks = manifest.BlockCount;
@@ -122,7 +128,8 @@ internal sealed class SdkRawCaptureHdf5Exporter
             SampleCounts = result.SampleCounts,
             BlocksProcessed = blocksProcessed,
             SamplesProcessed = samplesProcessed,
-            Summary = BuildSummary(result, blocksProcessed, totalBlocks, samplesProcessed)
+            Summary = $"{BuildSummary(result, blocksProcessed, totalBlocks, samplesProcessed)}; compression={result.CompressionSummary}",
+            CompressionSummary = result.CompressionSummary
         };
     }
 

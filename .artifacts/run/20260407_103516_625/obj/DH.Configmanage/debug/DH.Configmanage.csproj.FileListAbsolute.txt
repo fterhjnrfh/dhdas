@@ -1,0 +1,14 @@
+D:\GIT-PROJECT\dhdas\.artifacts\run\20260407_103516_625\bin\DH.Configmanage\debug\DH.Configmanage.deps.json
+D:\GIT-PROJECT\dhdas\.artifacts\run\20260407_103516_625\bin\DH.Configmanage\debug\DH.Configmanage.dll
+D:\GIT-PROJECT\dhdas\.artifacts\run\20260407_103516_625\bin\DH.Configmanage\debug\DH.Configmanage.pdb
+D:\GIT-PROJECT\dhdas\.artifacts\run\20260407_103516_625\obj\DH.Configmanage\debug\DH.Configmanage.csproj.AssemblyReference.cache
+D:\GIT-PROJECT\dhdas\.artifacts\run\20260407_103516_625\obj\DH.Configmanage\debug\DH.Configmanage.GeneratedMSBuildEditorConfig.editorconfig
+D:\GIT-PROJECT\dhdas\.artifacts\run\20260407_103516_625\obj\DH.Configmanage\debug\DH.Configmanage.AssemblyInfoInputs.cache
+D:\GIT-PROJECT\dhdas\.artifacts\run\20260407_103516_625\obj\DH.Configmanage\debug\DH.Configmanage.AssemblyInfo.cs
+D:\GIT-PROJECT\dhdas\.artifacts\run\20260407_103516_625\obj\DH.Configmanage\debug\DH.Configmanage.csproj.CoreCompileInputs.cache
+D:\GIT-PROJECT\dhdas\.artifacts\run\20260407_103516_625\obj\DH.Configmanage\debug\DH.Configmanage.sourcelink.json
+D:\GIT-PROJECT\dhdas\.artifacts\run\20260407_103516_625\obj\DH.Configmanage\debug\DH.Confi.0B237972.Up2Date
+D:\GIT-PROJECT\dhdas\.artifacts\run\20260407_103516_625\obj\DH.Configmanage\debug\DH.Configmanage.dll
+D:\GIT-PROJECT\dhdas\.artifacts\run\20260407_103516_625\obj\DH.Configmanage\debug\refint\DH.Configmanage.dll
+D:\GIT-PROJECT\dhdas\.artifacts\run\20260407_103516_625\obj\DH.Configmanage\debug\DH.Configmanage.pdb
+D:\GIT-PROJECT\dhdas\.artifacts\run\20260407_103516_625\obj\DH.Configmanage\debug\ref\DH.Configmanage.dll

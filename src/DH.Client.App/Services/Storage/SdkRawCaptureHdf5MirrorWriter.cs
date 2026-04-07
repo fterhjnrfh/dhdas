@@ -25,17 +25,25 @@ internal sealed class SdkRawCaptureHdf5MirrorResult
     public bool Faulted { get; init; }
 
     public string FailureReason { get; init; } = "";
+
+    public string CompressionSummary { get; init; } = "";
 }
 
 internal sealed class SdkRawCaptureHdf5MirrorWriter : IDisposable
 {
     private const string DatasetName = "samples";
+    private const string SampleRateAttributeName = "sample_rate_hz";
+    private const string RequestedCompressionAttributeName = "requested_compression_type";
+    private const string EffectiveCompressionAttributeName = "effective_compression_type";
+    private const string DeflateLevelAttributeName = "hdf5_deflate_level";
     private const int FlushBlockStride = 32;
     private const long MaxPendingBlockLimit = 64;
     private const long MaxPendingPayloadByteLimit = 256L * 1024 * 1024;
 
     private static readonly H5PropertyListId DefaultPropertyListId = new(H5P.Template.DEFAULT);
     private static readonly H5DataTypeId NativeFloatTypeId = new(H5T.H5Type.NATIVE_FLOAT);
+    private static readonly H5DataTypeId NativeDoubleTypeId = new(H5T.H5Type.NATIVE_DOUBLE);
+    private static readonly H5DataTypeId NativeIntTypeId = new(H5T.H5Type.NATIVE_INT);
 
     private readonly Channel<SdkRawBlock> _queue = Channel.CreateUnbounded<SdkRawBlock>(
         new UnboundedChannelOptions
@@ -58,6 +66,7 @@ internal sealed class SdkRawCaptureHdf5MirrorWriter : IDisposable
     private double _sampleRateHz;
     private string _sessionName = "session";
     private bool _started;
+    private Hdf5CompressionSettings _compressionSettings;
 
     public string OutputRootPath => _outputRootPath;
 
@@ -70,6 +79,8 @@ internal sealed class SdkRawCaptureHdf5MirrorWriter : IDisposable
         string sessionName,
         double sampleRateHz,
         IReadOnlyCollection<int>? expectedChannelIds = null,
+        CompressionType compressionType = CompressionType.None,
+        CompressionOptions? compressionOptions = null,
         bool useBackgroundWriter = true)
     {
         if (_started)
@@ -81,6 +92,7 @@ internal sealed class SdkRawCaptureHdf5MirrorWriter : IDisposable
 
         _sessionName = SanitizeName(sessionName);
         _sampleRateHz = sampleRateHz;
+        _compressionSettings = Hdf5CompressionSettings.From(compressionType, compressionOptions);
         _outputRootPath = CreateIncrementalDirectory(basePath, _sessionName);
         PrecreateDeviceDirectories(expectedChannelIds);
         _started = true;
@@ -250,6 +262,7 @@ internal sealed class SdkRawCaptureHdf5MirrorWriter : IDisposable
         _sampleRateHz = 0d;
         _sessionName = "session";
         _started = false;
+        _compressionSettings = default;
         Volatile.Write(ref _acceptingWrites, 0);
         Volatile.Write(ref _faulted, 0);
         CloseAllFiles();
@@ -336,7 +349,7 @@ internal sealed class SdkRawCaptureHdf5MirrorWriter : IDisposable
 
         string filePath = Path.Combine(deviceDirectory, $"{channelName}.h5");
         int chunkSize = Math.Max(1, suggestedChunkSize);
-        var state = ChannelHdf5State.Create(filePath, chunkSize);
+        var state = ChannelHdf5State.Create(filePath, chunkSize, _sampleRateHz, _compressionSettings);
         _channelStates[channelId] = state;
         return state;
     }
@@ -407,7 +420,8 @@ internal sealed class SdkRawCaptureHdf5MirrorWriter : IDisposable
             WrittenFiles = writtenFiles,
             SampleCounts = sampleCounts,
             Faulted = Faulted,
-            FailureReason = _failureReason
+            FailureReason = _failureReason,
+            CompressionSummary = _compressionSettings.Summary
         };
     }
 
@@ -486,7 +500,11 @@ internal sealed class SdkRawCaptureHdf5MirrorWriter : IDisposable
 
         public long SampleCount { get; private set; }
 
-        public static ChannelHdf5State Create(string filePath, int chunkSize)
+        public static ChannelHdf5State Create(
+            string filePath,
+            int chunkSize,
+            double sampleRateHz,
+            Hdf5CompressionSettings compressionSettings)
         {
             var fileId = H5F.create(filePath, H5F.CreateMode.ACC_TRUNC);
             var dataSpaceId = H5S.create_simple(1, new long[] { 0 }, new long[] { -1 });
@@ -495,6 +513,11 @@ internal sealed class SdkRawCaptureHdf5MirrorWriter : IDisposable
             try
             {
                 H5P.setChunk(datasetCreatePropertyId, new long[] { chunkSize });
+                if (compressionSettings.CompressionApplied)
+                {
+                    H5P.setDeflate(datasetCreatePropertyId, compressionSettings.DeflateLevel);
+                }
+
                 var datasetId = H5D.create(
                     fileId,
                     DatasetName,
@@ -503,6 +526,11 @@ internal sealed class SdkRawCaptureHdf5MirrorWriter : IDisposable
                     DefaultPropertyListId,
                     datasetCreatePropertyId,
                     DefaultPropertyListId);
+
+                WriteDoubleAttribute(fileId, SampleRateAttributeName, sampleRateHz);
+                WriteIntAttribute(fileId, RequestedCompressionAttributeName, (int)compressionSettings.RequestedType);
+                WriteIntAttribute(fileId, EffectiveCompressionAttributeName, (int)compressionSettings.EffectiveType);
+                WriteIntAttribute(fileId, DeflateLevelAttributeName, compressionSettings.DeflateLevel);
 
                 return new ChannelHdf5State(filePath, fileId, datasetId);
             }
@@ -515,6 +543,48 @@ internal sealed class SdkRawCaptureHdf5MirrorWriter : IDisposable
             {
                 H5S.close(dataSpaceId);
                 H5P.close(datasetCreatePropertyId);
+            }
+        }
+
+        private static void WriteDoubleAttribute(H5FileId fileId, string attributeName, double value)
+        {
+            var spaceId = H5S.create_simple(1, new long[] { 1 });
+            try
+            {
+                var attributeId = H5A.create(fileId, attributeName, NativeDoubleTypeId, spaceId);
+                try
+                {
+                    H5A.write(attributeId, NativeDoubleTypeId, new H5Array<double>(new[] { value }));
+                }
+                finally
+                {
+                    H5A.close(attributeId);
+                }
+            }
+            finally
+            {
+                H5S.close(spaceId);
+            }
+        }
+
+        private static void WriteIntAttribute(H5FileId fileId, string attributeName, int value)
+        {
+            var spaceId = H5S.create_simple(1, new long[] { 1 });
+            try
+            {
+                var attributeId = H5A.create(fileId, attributeName, NativeIntTypeId, spaceId);
+                try
+                {
+                    H5A.write(attributeId, NativeIntTypeId, new H5Array<int>(new[] { value }));
+                }
+                finally
+                {
+                    H5A.close(attributeId);
+                }
+            }
+            finally
+            {
+                H5S.close(spaceId);
             }
         }
 

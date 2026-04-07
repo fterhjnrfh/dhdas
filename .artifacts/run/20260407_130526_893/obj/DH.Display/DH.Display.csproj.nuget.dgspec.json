@@ -1,0 +1,441 @@
+{
+  "format": 1,
+  "restore": {
+    "D:\\GIT-PROJECT\\dhdas\\src\\DH.Display\\DH.Display.csproj": {}
+  },
+  "projects": {
+    "D:\\GIT-PROJECT\\dhdas\\src\\DH.Algorithms\\DH.Algorithms.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "D:\\GIT-PROJECT\\dhdas\\src\\DH.Algorithms\\DH.Algorithms.csproj",
+        "projectName": "DH.Algorithms",
+        "projectPath": "D:\\GIT-PROJECT\\dhdas\\src\\DH.Algorithms\\DH.Algorithms.csproj",
+        "packagesPath": "C:\\Users\\27249\\.nuget\\packages\\",
+        "outputPath": "D:\\GIT-PROJECT\\dhdas\\.artifacts\\run\\20260407_130526_893\\obj\\DH.Algorithms\\",
+        "projectStyle": "PackageReference",
+        "fallbackFolders": [
+          "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
+        ],
+        "configFilePaths": [
+          "D:\\GIT-PROJECT\\dhdas\\NuGet.Config",
+          "C:\\Users\\27249\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
+        ],
+        "originalTargetFrameworks": [
+          "net6.0-windows7.0"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net6.0-windows7.0": {
+            "targetAlias": "net6.0-windows7.0",
+            "projectReferences": {
+              "D:\\GIT-PROJECT\\dhdas\\src\\DH.Contracts\\DH.Contracts.csproj": {
+                "projectPath": "D:\\GIT-PROJECT\\dhdas\\src\\DH.Contracts\\DH.Contracts.csproj"
+              },
+              "D:\\GIT-PROJECT\\dhdas\\src\\DH.Datamanage\\DH.Datamanage.csproj": {
+                "projectPath": "D:\\GIT-PROJECT\\dhdas\\src\\DH.Datamanage\\DH.Datamanage.csproj"
+              }
+            }
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        },
+        "SdkAnalysisLevel": "9.0.300"
+      },
+      "frameworks": {
+        "net6.0-windows7.0": {
+          "targetAlias": "net6.0-windows7.0",
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "downloadDependencies": [
+            {
+              "name": "Microsoft.AspNetCore.App.Ref",
+              "version": "[6.0.36, 6.0.36]"
+            },
+            {
+              "name": "Microsoft.NETCore.App.Ref",
+              "version": "[6.0.36, 6.0.36]"
+            },
+            {
+              "name": "Microsoft.WindowsDesktop.App.Ref",
+              "version": "[6.0.36, 6.0.36]"
+            }
+          ],
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.304\\RuntimeIdentifierGraph.json"
+        }
+      }
+    },
+    "D:\\GIT-PROJECT\\dhdas\\src\\DH.Configmanage\\DH.Configmanage.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "D:\\GIT-PROJECT\\dhdas\\src\\DH.Configmanage\\DH.Configmanage.csproj",
+        "projectName": "DH.Configmanage",
+        "projectPath": "D:\\GIT-PROJECT\\dhdas\\src\\DH.Configmanage\\DH.Configmanage.csproj",
+        "packagesPath": "C:\\Users\\27249\\.nuget\\packages\\",
+        "outputPath": "D:\\GIT-PROJECT\\dhdas\\.artifacts\\run\\20260407_130526_893\\obj\\DH.Configmanage\\",
+        "projectStyle": "PackageReference",
+        "fallbackFolders": [
+          "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
+        ],
+        "configFilePaths": [
+          "D:\\GIT-PROJECT\\dhdas\\NuGet.Config",
+          "C:\\Users\\27249\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
+        ],
+        "originalTargetFrameworks": [
+          "net6.0-windows7.0"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net6.0-windows7.0": {
+            "targetAlias": "net6.0-windows7.0",
+            "projectReferences": {
+              "D:\\GIT-PROJECT\\dhdas\\src\\DH.Contracts\\DH.Contracts.csproj": {
+                "projectPath": "D:\\GIT-PROJECT\\dhdas\\src\\DH.Contracts\\DH.Contracts.csproj"
+              }
+            }
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        },
+        "SdkAnalysisLevel": "9.0.300"
+      },
+      "frameworks": {
+        "net6.0-windows7.0": {
+          "targetAlias": "net6.0-windows7.0",
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "downloadDependencies": [
+            {
+              "name": "Microsoft.AspNetCore.App.Ref",
+              "version": "[6.0.36, 6.0.36]"
+            },
+            {
+              "name": "Microsoft.NETCore.App.Ref",
+              "version": "[6.0.36, 6.0.36]"
+            },
+            {
+              "name": "Microsoft.WindowsDesktop.App.Ref",
+              "version": "[6.0.36, 6.0.36]"
+            }
+          ],
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.304\\RuntimeIdentifierGraph.json"
+        }
+      }
+    },
+    "D:\\GIT-PROJECT\\dhdas\\src\\DH.Contracts\\DH.Contracts.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "D:\\GIT-PROJECT\\dhdas\\src\\DH.Contracts\\DH.Contracts.csproj",
+        "projectName": "DH.Contracts",
+        "projectPath": "D:\\GIT-PROJECT\\dhdas\\src\\DH.Contracts\\DH.Contracts.csproj",
+        "packagesPath": "C:\\Users\\27249\\.nuget\\packages\\",
+        "outputPath": "D:\\GIT-PROJECT\\dhdas\\.artifacts\\run\\20260407_130526_893\\obj\\DH.Contracts\\",
+        "projectStyle": "PackageReference",
+        "fallbackFolders": [
+          "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
+        ],
+        "configFilePaths": [
+          "D:\\GIT-PROJECT\\dhdas\\NuGet.Config",
+          "C:\\Users\\27249\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
+        ],
+        "originalTargetFrameworks": [
+          "net6.0-windows7.0"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net6.0-windows7.0": {
+            "targetAlias": "net6.0-windows7.0",
+            "projectReferences": {}
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        },
+        "SdkAnalysisLevel": "9.0.300"
+      },
+      "frameworks": {
+        "net6.0-windows7.0": {
+          "targetAlias": "net6.0-windows7.0",
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "downloadDependencies": [
+            {
+              "name": "Microsoft.AspNetCore.App.Ref",
+              "version": "[6.0.36, 6.0.36]"
+            },
+            {
+              "name": "Microsoft.NETCore.App.Ref",
+              "version": "[6.0.36, 6.0.36]"
+            },
+            {
+              "name": "Microsoft.WindowsDesktop.App.Ref",
+              "version": "[6.0.36, 6.0.36]"
+            }
+          ],
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.304\\RuntimeIdentifierGraph.json"
+        }
+      }
+    },
+    "D:\\GIT-PROJECT\\dhdas\\src\\DH.Datamanage\\DH.Datamanage.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "D:\\GIT-PROJECT\\dhdas\\src\\DH.Datamanage\\DH.Datamanage.csproj",
+        "projectName": "DH.Datamanage",
+        "projectPath": "D:\\GIT-PROJECT\\dhdas\\src\\DH.Datamanage\\DH.Datamanage.csproj",
+        "packagesPath": "C:\\Users\\27249\\.nuget\\packages\\",
+        "outputPath": "D:\\GIT-PROJECT\\dhdas\\.artifacts\\run\\20260407_130526_893\\obj\\DH.Datamanage\\",
+        "projectStyle": "PackageReference",
+        "fallbackFolders": [
+          "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
+        ],
+        "configFilePaths": [
+          "D:\\GIT-PROJECT\\dhdas\\NuGet.Config",
+          "C:\\Users\\27249\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
+        ],
+        "originalTargetFrameworks": [
+          "net6.0-windows7.0"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net6.0-windows7.0": {
+            "targetAlias": "net6.0-windows7.0",
+            "projectReferences": {
+              "D:\\GIT-PROJECT\\dhdas\\src\\DH.Contracts\\DH.Contracts.csproj": {
+                "projectPath": "D:\\GIT-PROJECT\\dhdas\\src\\DH.Contracts\\DH.Contracts.csproj"
+              }
+            }
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        },
+        "SdkAnalysisLevel": "9.0.300"
+      },
+      "frameworks": {
+        "net6.0-windows7.0": {
+          "targetAlias": "net6.0-windows7.0",
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "downloadDependencies": [
+            {
+              "name": "Microsoft.AspNetCore.App.Ref",
+              "version": "[6.0.36, 6.0.36]"
+            },
+            {
+              "name": "Microsoft.NETCore.App.Ref",
+              "version": "[6.0.36, 6.0.36]"
+            },
+            {
+              "name": "Microsoft.WindowsDesktop.App.Ref",
+              "version": "[6.0.36, 6.0.36]"
+            }
+          ],
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.304\\RuntimeIdentifierGraph.json"
+        }
+      }
+    },
+    "D:\\GIT-PROJECT\\dhdas\\src\\DH.Display\\DH.Display.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "D:\\GIT-PROJECT\\dhdas\\src\\DH.Display\\DH.Display.csproj",
+        "projectName": "DH.Display",
+        "projectPath": "D:\\GIT-PROJECT\\dhdas\\src\\DH.Display\\DH.Display.csproj",
+        "packagesPath": "C:\\Users\\27249\\.nuget\\packages\\",
+        "outputPath": "D:\\GIT-PROJECT\\dhdas\\.artifacts\\run\\20260407_130526_893\\obj\\DH.Display\\",
+        "projectStyle": "PackageReference",
+        "fallbackFolders": [
+          "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
+        ],
+        "configFilePaths": [
+          "D:\\GIT-PROJECT\\dhdas\\NuGet.Config",
+          "C:\\Users\\27249\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
+        ],
+        "originalTargetFrameworks": [
+          "net6.0-windows7.0"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net6.0-windows7.0": {
+            "targetAlias": "net6.0-windows7.0",
+            "projectReferences": {
+              "D:\\GIT-PROJECT\\dhdas\\src\\DH.Algorithms\\DH.Algorithms.csproj": {
+                "projectPath": "D:\\GIT-PROJECT\\dhdas\\src\\DH.Algorithms\\DH.Algorithms.csproj"
+              },
+              "D:\\GIT-PROJECT\\dhdas\\src\\DH.Configmanage\\DH.Configmanage.csproj": {
+                "projectPath": "D:\\GIT-PROJECT\\dhdas\\src\\DH.Configmanage\\DH.Configmanage.csproj"
+              },
+              "D:\\GIT-PROJECT\\dhdas\\src\\DH.Contracts\\DH.Contracts.csproj": {
+                "projectPath": "D:\\GIT-PROJECT\\dhdas\\src\\DH.Contracts\\DH.Contracts.csproj"
+              },
+              "D:\\GIT-PROJECT\\dhdas\\src\\DH.Datamanage\\DH.Datamanage.csproj": {
+                "projectPath": "D:\\GIT-PROJECT\\dhdas\\src\\DH.Datamanage\\DH.Datamanage.csproj"
+              }
+            }
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        },
+        "SdkAnalysisLevel": "9.0.300"
+      },
+      "frameworks": {
+        "net6.0-windows7.0": {
+          "targetAlias": "net6.0-windows7.0",
+          "dependencies": {
+            "ScottPlot.Avalonia": {
+              "target": "Package",
+              "version": "[4.1.*, )"
+            },
+            "SkiaSharp": {
+              "target": "Package",
+              "version": "[2.88.*, )"
+            }
+          },
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "downloadDependencies": [
+            {
+              "name": "Microsoft.AspNetCore.App.Ref",
+              "version": "[6.0.36, 6.0.36]"
+            },
+            {
+              "name": "Microsoft.NETCore.App.Ref",
+              "version": "[6.0.36, 6.0.36]"
+            },
+            {
+              "name": "Microsoft.WindowsDesktop.App.Ref",
+              "version": "[6.0.36, 6.0.36]"
+            }
+          ],
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.304\\RuntimeIdentifierGraph.json"
+        }
+      }
+    }
+  }
+}

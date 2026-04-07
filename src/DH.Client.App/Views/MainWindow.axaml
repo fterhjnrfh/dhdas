@@ -193,8 +193,9 @@
 							<TextBox Grid.Column="4" Text="{Binding StorageSessionName}"/>
 						</Grid>
 
-						<!-- 压缩与预处理 -->
-						<Grid ColumnDefinitions="Auto, *, 20, Auto, *" VerticalAlignment="Center">
+						<!-- TDMS 压缩与预处理 -->
+						<Grid ColumnDefinitions="Auto, *, 20, Auto, *" VerticalAlignment="Center"
+							  IsVisible="{Binding IsTdmsCompressionConfigVisible}">
 							<TextBlock Text="压缩算法" Grid.Column="0" VerticalAlignment="Center" Width="70" Foreground="#444444"/>
 							<ComboBox Grid.Column="1" SelectedIndex="{Binding CompressionTypeIndex}" HorizontalAlignment="Stretch">
 								<ComboBoxItem Content="不压缩"/>
@@ -216,78 +217,113 @@
 							</ComboBox>
 						</Grid>
 
+						<!-- SDK HDF5 压缩配置 -->
+						<Grid ColumnDefinitions="Auto, *, 20, Auto, *" VerticalAlignment="Center"
+							  IsVisible="{Binding IsSdkHdf5CompressionConfigVisible}">
+							<TextBlock Text="HDF5压缩" Grid.Column="0" VerticalAlignment="Center" Width="70" Foreground="#444444"/>
+							<ComboBox Grid.Column="1" SelectedIndex="{Binding SdkHdf5CompressionIndex}" HorizontalAlignment="Stretch">
+								<ComboBoxItem Content="不压缩"/>
+								<ComboBoxItem Content="Zlib"/>
+							</ComboBox>
+
+							<TextBlock Text="说明" Grid.Column="3" VerticalAlignment="Center" Width="70" Foreground="#444444"/>
+							<TextBlock Grid.Column="4"
+									   Text="HDF5 当前仅支持原生 Zlib/Deflate 压缩。"
+									   VerticalAlignment="Center"
+									   Foreground="#666666"
+									   TextWrapping="Wrap"/>
+						</Grid>
+
+						<Border Background="#fff7e6" CornerRadius="4" Padding="10,6" Margin="0,2,0,0"
+								IsVisible="{Binding IsSdkHdf5CompressionNoteVisible}">
+							<TextBlock Text="当前选择的是 BIN 原始文件模式，HDF5 压缩设置不会生效。"
+									   Foreground="#8a5a00"
+									   TextWrapping="Wrap"/>
+						</Border>
+
 						<!-- 压缩算法参数配置 -->
-						<!-- LZ4 参数：压缩等级 0~12 -->
-						<Border Background="#eef2ff" CornerRadius="4" Padding="10,6" Margin="0,2,0,0"
-								IsVisible="{Binding CompressionTypeIndex, Converter={x:Static converters:CompressionParamVisibilityConverter.Instance}, ConverterParameter=1}">
-							<Grid ColumnDefinitions="Auto, *, Auto" VerticalAlignment="Center">
-								<TextBlock Text="LZ4 压缩等级" VerticalAlignment="Center" Width="100" Foreground="#555" FontSize="12"/>
-								<Slider Grid.Column="1" Minimum="0" Maximum="12" Value="{Binding Lz4Level}" TickFrequency="1" IsSnapToTickEnabled="True" Margin="5,0"/>
-								<TextBlock Grid.Column="2" Text="{Binding Lz4Level, StringFormat='{}{0}'}" Width="30" TextAlignment="Center" FontFamily="Consolas" FontWeight="Bold" Foreground="#1a73e8"/>
-							</Grid>
-						</Border>
-
-						<!-- LZ4_HC 参数：压缩等级 3~12 -->
-						<Border Background="#eef2ff" CornerRadius="4" Padding="10,6" Margin="0,2,0,0"
-								IsVisible="{Binding CompressionTypeIndex, Converter={x:Static converters:CompressionParamVisibilityConverter.Instance}, ConverterParameter=6}">
-							<Grid ColumnDefinitions="Auto, *, Auto" VerticalAlignment="Center">
-								<TextBlock Text="LZ4_HC 压缩等级" VerticalAlignment="Center" Width="100" Foreground="#555" FontSize="12"/>
-								<Slider Grid.Column="1" Minimum="3" Maximum="12" Value="{Binding Lz4hcLevel}" TickFrequency="1" IsSnapToTickEnabled="True" Margin="5,0"/>
-								<TextBlock Grid.Column="2" Text="{Binding Lz4hcLevel, StringFormat='{}{0}'}" Width="30" TextAlignment="Center" FontFamily="Consolas" FontWeight="Bold" Foreground="#1a73e8"/>
-							</Grid>
-						</Border>
-
-						<!-- Zstd 参数：压缩等级 1~22 -->
-						<Border Background="#eef2ff" CornerRadius="4" Padding="10,6" Margin="0,2,0,0"
-								IsVisible="{Binding CompressionTypeIndex, Converter={x:Static converters:CompressionParamVisibilityConverter.Instance}, ConverterParameter=2}">
-							<StackPanel Spacing="4">
+						<StackPanel Spacing="0" IsVisible="{Binding IsTdmsCompressionConfigVisible}">
+							<!-- LZ4 参数：压缩等级 0~12 -->
+							<Border Background="#eef2ff" CornerRadius="4" Padding="10,6" Margin="0,2,0,0"
+									IsVisible="{Binding CompressionTypeIndex, Converter={x:Static converters:CompressionParamVisibilityConverter.Instance}, ConverterParameter=1}">
 								<Grid ColumnDefinitions="Auto, *, Auto" VerticalAlignment="Center">
-									<TextBlock Text="Zstd 压缩等级" VerticalAlignment="Center" Width="100" Foreground="#555" FontSize="12"/>
-									<Slider Grid.Column="1" Minimum="1" Maximum="22" Value="{Binding ZstdLevel}" TickFrequency="1" IsSnapToTickEnabled="True" Margin="5,0"/>
-									<TextBlock Grid.Column="2" Text="{Binding ZstdLevel, StringFormat='{}{0}'}" Width="30" TextAlignment="Center" FontFamily="Consolas" FontWeight="Bold" Foreground="#1a73e8"/>
+									<TextBlock Text="LZ4 压缩等级" VerticalAlignment="Center" Width="100" Foreground="#555" FontSize="12"/>
+									<Slider Grid.Column="1" Minimum="0" Maximum="12" Value="{Binding Lz4Level}" TickFrequency="1" IsSnapToTickEnabled="True" Margin="5,0"/>
+									<TextBlock Grid.Column="2" Text="{Binding Lz4Level, StringFormat='{}{0}'}" Width="30" TextAlignment="Center" FontFamily="Consolas" FontWeight="Bold" Foreground="#1a73e8"/>
 								</Grid>
-								<Grid ColumnDefinitions="Auto, *, Auto" VerticalAlignment="Center">
-									<TextBlock Text="窗口大小(log2)" VerticalAlignment="Center" Width="100" Foreground="#555" FontSize="12"/>
-									<Slider Grid.Column="1" Minimum="10" Maximum="31" Value="{Binding ZstdWindowLog}" TickFrequency="1" IsSnapToTickEnabled="True" Margin="5,0"/>
-									<TextBlock Grid.Column="2" Text="{Binding ZstdWindowLog, StringFormat='{}{0}'}" Width="30" TextAlignment="Center" FontFamily="Consolas" FontWeight="Bold" Foreground="#1a73e8"/>
-								</Grid>
-							</StackPanel>
-						</Border>
+							</Border>
 
-						<!-- Brotli 参数：质量 0~11, 窗口位数 10~24 -->
-						<Border Background="#eef2ff" CornerRadius="4" Padding="10,6" Margin="0,2,0,0"
-								IsVisible="{Binding CompressionTypeIndex, Converter={x:Static converters:CompressionParamVisibilityConverter.Instance}, ConverterParameter=3}">
-							<StackPanel Spacing="4">
+							<!-- LZ4_HC 参数：压缩等级 3~12 -->
+							<Border Background="#eef2ff" CornerRadius="4" Padding="10,6" Margin="0,2,0,0"
+									IsVisible="{Binding CompressionTypeIndex, Converter={x:Static converters:CompressionParamVisibilityConverter.Instance}, ConverterParameter=6}">
 								<Grid ColumnDefinitions="Auto, *, Auto" VerticalAlignment="Center">
-									<TextBlock Text="Brotli 质量" VerticalAlignment="Center" Width="100" Foreground="#555" FontSize="12"/>
-									<Slider Grid.Column="1" Minimum="0" Maximum="11" Value="{Binding BrotliQuality}" TickFrequency="1" IsSnapToTickEnabled="True" Margin="5,0"/>
-									<TextBlock Grid.Column="2" Text="{Binding BrotliQuality, StringFormat='{}{0}'}" Width="30" TextAlignment="Center" FontFamily="Consolas" FontWeight="Bold" Foreground="#1a73e8"/>
+									<TextBlock Text="LZ4_HC 压缩等级" VerticalAlignment="Center" Width="100" Foreground="#555" FontSize="12"/>
+									<Slider Grid.Column="1" Minimum="3" Maximum="12" Value="{Binding Lz4hcLevel}" TickFrequency="1" IsSnapToTickEnabled="True" Margin="5,0"/>
+									<TextBlock Grid.Column="2" Text="{Binding Lz4hcLevel, StringFormat='{}{0}'}" Width="30" TextAlignment="Center" FontFamily="Consolas" FontWeight="Bold" Foreground="#1a73e8"/>
 								</Grid>
-								<Grid ColumnDefinitions="Auto, *, Auto" VerticalAlignment="Center">
-									<TextBlock Text="窗口位数" VerticalAlignment="Center" Width="100" Foreground="#555" FontSize="12"/>
-									<Slider Grid.Column="1" Minimum="10" Maximum="24" Value="{Binding BrotliWindowBits}" TickFrequency="1" IsSnapToTickEnabled="True" Margin="5,0"/>
-									<TextBlock Grid.Column="2" Text="{Binding BrotliWindowBits, StringFormat='{}{0}'}" Width="30" TextAlignment="Center" FontFamily="Consolas" FontWeight="Bold" Foreground="#1a73e8"/>
-								</Grid>
-							</StackPanel>
-						</Border>
+							</Border>
 
-						<!-- Zlib 参数：压缩等级 0~9 -->
+							<!-- Zstd 参数：压缩等级 1~22 -->
+							<Border Background="#eef2ff" CornerRadius="4" Padding="10,6" Margin="0,2,0,0"
+									IsVisible="{Binding CompressionTypeIndex, Converter={x:Static converters:CompressionParamVisibilityConverter.Instance}, ConverterParameter=2}">
+								<StackPanel Spacing="4">
+									<Grid ColumnDefinitions="Auto, *, Auto" VerticalAlignment="Center">
+										<TextBlock Text="Zstd 压缩等级" VerticalAlignment="Center" Width="100" Foreground="#555" FontSize="12"/>
+										<Slider Grid.Column="1" Minimum="1" Maximum="22" Value="{Binding ZstdLevel}" TickFrequency="1" IsSnapToTickEnabled="True" Margin="5,0"/>
+										<TextBlock Grid.Column="2" Text="{Binding ZstdLevel, StringFormat='{}{0}'}" Width="30" TextAlignment="Center" FontFamily="Consolas" FontWeight="Bold" Foreground="#1a73e8"/>
+									</Grid>
+									<Grid ColumnDefinitions="Auto, *, Auto" VerticalAlignment="Center">
+										<TextBlock Text="窗口大小(log2)" VerticalAlignment="Center" Width="100" Foreground="#555" FontSize="12"/>
+										<Slider Grid.Column="1" Minimum="10" Maximum="31" Value="{Binding ZstdWindowLog}" TickFrequency="1" IsSnapToTickEnabled="True" Margin="5,0"/>
+										<TextBlock Grid.Column="2" Text="{Binding ZstdWindowLog, StringFormat='{}{0}'}" Width="30" TextAlignment="Center" FontFamily="Consolas" FontWeight="Bold" Foreground="#1a73e8"/>
+									</Grid>
+								</StackPanel>
+							</Border>
+
+							<!-- Brotli 参数：质量 0~11, 窗口位数 10~24 -->
+							<Border Background="#eef2ff" CornerRadius="4" Padding="10,6" Margin="0,2,0,0"
+									IsVisible="{Binding CompressionTypeIndex, Converter={x:Static converters:CompressionParamVisibilityConverter.Instance}, ConverterParameter=3}">
+								<StackPanel Spacing="4">
+									<Grid ColumnDefinitions="Auto, *, Auto" VerticalAlignment="Center">
+										<TextBlock Text="Brotli 质量" VerticalAlignment="Center" Width="100" Foreground="#555" FontSize="12"/>
+										<Slider Grid.Column="1" Minimum="0" Maximum="11" Value="{Binding BrotliQuality}" TickFrequency="1" IsSnapToTickEnabled="True" Margin="5,0"/>
+										<TextBlock Grid.Column="2" Text="{Binding BrotliQuality, StringFormat='{}{0}'}" Width="30" TextAlignment="Center" FontFamily="Consolas" FontWeight="Bold" Foreground="#1a73e8"/>
+									</Grid>
+									<Grid ColumnDefinitions="Auto, *, Auto" VerticalAlignment="Center">
+										<TextBlock Text="窗口位数" VerticalAlignment="Center" Width="100" Foreground="#555" FontSize="12"/>
+										<Slider Grid.Column="1" Minimum="10" Maximum="24" Value="{Binding BrotliWindowBits}" TickFrequency="1" IsSnapToTickEnabled="True" Margin="5,0"/>
+										<TextBlock Grid.Column="2" Text="{Binding BrotliWindowBits, StringFormat='{}{0}'}" Width="30" TextAlignment="Center" FontFamily="Consolas" FontWeight="Bold" Foreground="#1a73e8"/>
+									</Grid>
+								</StackPanel>
+							</Border>
+
+							<!-- Zlib 参数：压缩等级 0~9 -->
+							<Border Background="#eef2ff" CornerRadius="4" Padding="10,6" Margin="0,2,0,0"
+									IsVisible="{Binding CompressionTypeIndex, Converter={x:Static converters:CompressionParamVisibilityConverter.Instance}, ConverterParameter=5}">
+								<Grid ColumnDefinitions="Auto, *, Auto" VerticalAlignment="Center">
+									<TextBlock Text="Zlib 压缩等级" VerticalAlignment="Center" Width="100" Foreground="#555" FontSize="12"/>
+									<Slider Grid.Column="1" Minimum="0" Maximum="9" Value="{Binding ZlibLevel}" TickFrequency="1" IsSnapToTickEnabled="True" Margin="5,0"/>
+									<TextBlock Grid.Column="2" Text="{Binding ZlibLevel, StringFormat='{}{0}'}" Width="30" TextAlignment="Center" FontFamily="Consolas" FontWeight="Bold" Foreground="#1a73e8"/>
+								</Grid>
+							</Border>
+
+							<!-- BZip2 参数：块大小 1~9 -->
+							<Border Background="#eef2ff" CornerRadius="4" Padding="10,6" Margin="0,2,0,0"
+									IsVisible="{Binding CompressionTypeIndex, Converter={x:Static converters:CompressionParamVisibilityConverter.Instance}, ConverterParameter=7}">
+								<Grid ColumnDefinitions="Auto, *, Auto" VerticalAlignment="Center">
+									<TextBlock Text="BZip2 块大小" VerticalAlignment="Center" Width="100" Foreground="#555" FontSize="12"/>
+									<Slider Grid.Column="1" Minimum="1" Maximum="9" Value="{Binding Bzip2BlockSize}" TickFrequency="1" IsSnapToTickEnabled="True" Margin="5,0"/>
+									<TextBlock Grid.Column="2" Text="{Binding Bzip2BlockSize, StringFormat='{}{0} × 100K'}" Width="80" TextAlignment="Center" FontFamily="Consolas" FontWeight="Bold" Foreground="#1a73e8"/>
+								</Grid>
+							</Border>
+						</StackPanel>
+
 						<Border Background="#eef2ff" CornerRadius="4" Padding="10,6" Margin="0,2,0,0"
-								IsVisible="{Binding CompressionTypeIndex, Converter={x:Static converters:CompressionParamVisibilityConverter.Instance}, ConverterParameter=5}">
+								IsVisible="{Binding IsSdkHdf5ZlibLevelVisible}">
 							<Grid ColumnDefinitions="Auto, *, Auto" VerticalAlignment="Center">
-								<TextBlock Text="Zlib 压缩等级" VerticalAlignment="Center" Width="100" Foreground="#555" FontSize="12"/>
-								<Slider Grid.Column="1" Minimum="0" Maximum="9" Value="{Binding ZlibLevel}" TickFrequency="1" IsSnapToTickEnabled="True" Margin="5,0"/>
-								<TextBlock Grid.Column="2" Text="{Binding ZlibLevel, StringFormat='{}{0}'}" Width="30" TextAlignment="Center" FontFamily="Consolas" FontWeight="Bold" Foreground="#1a73e8"/>
-							</Grid>
-						</Border>
-
-						<!-- BZip2 参数：块大小 1~9 -->
-						<Border Background="#eef2ff" CornerRadius="4" Padding="10,6" Margin="0,2,0,0"
-								IsVisible="{Binding CompressionTypeIndex, Converter={x:Static converters:CompressionParamVisibilityConverter.Instance}, ConverterParameter=7}">
-							<Grid ColumnDefinitions="Auto, *, Auto" VerticalAlignment="Center">
-								<TextBlock Text="BZip2 块大小" VerticalAlignment="Center" Width="100" Foreground="#555" FontSize="12"/>
-								<Slider Grid.Column="1" Minimum="1" Maximum="9" Value="{Binding Bzip2BlockSize}" TickFrequency="1" IsSnapToTickEnabled="True" Margin="5,0"/>
-								<TextBlock Grid.Column="2" Text="{Binding Bzip2BlockSize, StringFormat='{}{0} × 100K'}" Width="80" TextAlignment="Center" FontFamily="Consolas" FontWeight="Bold" Foreground="#1a73e8"/>
+								<TextBlock Text="HDF5 Zlib 等级" VerticalAlignment="Center" Width="100" Foreground="#555" FontSize="12"/>
+								<Slider Grid.Column="1" Minimum="0" Maximum="9" Value="{Binding SdkHdf5ZlibLevel}" TickFrequency="1" IsSnapToTickEnabled="True" Margin="5,0"/>
+								<TextBlock Grid.Column="2" Text="{Binding SdkHdf5ZlibLevel, StringFormat='{}{0}'}" Width="30" TextAlignment="Center" FontFamily="Consolas" FontWeight="Bold" Foreground="#1a73e8"/>
 							</Grid>
 						</Border>
 					</StackPanel>
@@ -313,7 +349,8 @@
 								<Button Content="查看性能报告" Command="{Binding ViewCompressionReportCommand}" IsEnabled="{Binding CanViewCompressionReport}" Padding="16,6"/>
 								<TextBlock Text="{Binding CompressionReportStatusMessage}" VerticalAlignment="Center" Foreground="#555555"/>
 							</StackPanel>
-							<WrapPanel Orientation="Horizontal">
+							<!--
+							<WrapPanel Orientation="Horizontal" IsVisible="False">
 								<TextBlock Text="算法对比模式" VerticalAlignment="Center" Foreground="#555555"/>
 								<ComboBox SelectedIndex="{Binding CompressionBenchmarkReplayModeIndex}" Width="220">
 									<ComboBoxItem Content="自动（大文件快速）"/>
@@ -326,6 +363,7 @@
 								           Foreground="#777777"
 								           TextWrapping="Wrap"/>
 							</WrapPanel>
+							-->
 						</StackPanel>
 						
 						<TextBlock Grid.Column="2" Text="{Binding StorageStatusMessage}" VerticalAlignment="Center" 
@@ -524,6 +562,7 @@
             <ScrollViewer VerticalScrollBarVisibility="Auto">
                 <StackPanel Margin="10" Spacing="12">
                     <Border Background="#f5f6f8" CornerRadius="6" Padding="15" BorderBrush="#e0e0e0" BorderThickness="1">
+                        <StackPanel Spacing="8">
                         <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="*,Auto">
                             <StackPanel Spacing="4" Margin="0,0,10,8">
                                 <TextBlock Text="压缩性能报告" FontSize="16" FontWeight="Bold" Foreground="#333333"/>
@@ -540,15 +579,109 @@
                                            TextWrapping="Wrap"/>
                             </StackPanel>
                         </Grid>
+                        <!--
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="压缩性能测试已改为手动模式。" FontSize="15" FontWeight="SemiBold" Foreground="#333333"/>
+                            <TextBlock Text="请先在本页选择测试文件，再手动开始测试。结果展示的是将现有压缩算法作用于所选测试文件后的数据。"
+                                       Foreground="#666666"
+                                       TextWrapping="Wrap"/>
+                        </StackPanel>
+                        -->
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="压缩性能测试已改为手动模式。" FontSize="15" FontWeight="SemiBold" Foreground="#333333"/>
+                            <TextBlock Text="请先在本页选择测试文件，再手动开始测试。结果展示的是将现有压缩算法作用于所选源数据后的结果。"
+                                       Foreground="#666666"
+                                       TextWrapping="Wrap"/>
+                        </StackPanel>
+                        </StackPanel>
                     </Border>
 
+                    <!--
+                    <Border Background="#ffffff" CornerRadius="6" Padding="15" BorderBrush="#e0e0e0" BorderThickness="1">
+                        <StackPanel Spacing="10">
+                            <TextBlock Text="测试文件与对比模式" FontSize="14" FontWeight="Bold" Foreground="#333333"/>
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBox Width="540"
+                                         Text="{Binding CompressionBenchmarkInputPath}"
+                                         Watermark="请选择未压缩、未预处理的 .sdkraw.bin、.tdms、.tdm、.h5 或 .hdf5 文件"/>
+                                <Button Content="使用当前选中文件"
+                                        Command="{Binding UseSelectedStoredFileForCompressionBenchmarkCommand}"
+                                        Padding="14,6"/>
+                                <Button Content="浏览..."
+                                        Command="{Binding BrowseCompressionBenchmarkFileCommand}"
+                                        Padding="14,6"/>
+                                <Button Content="开始测试"
+                                        Command="{Binding RunCompressionBenchmarkFromFileCommand}"
+                                        Padding="14,6"
+                                        Background="#0d6efd"
+                                        Foreground="White"
+                                        FontWeight="Bold"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Spacing="10">
+                                <TextBlock Text="算法对比模式" VerticalAlignment="Center" Foreground="#555555"/>
+                                <ComboBox SelectedIndex="{Binding CompressionBenchmarkReplayModeIndex}" Width="220">
+                                    <ComboBoxItem Content="自动（大文件快进）"/>
+                                    <ComboBoxItem Content="快速（部分通道+部分批次）"/>
+                                    <ComboBoxItem Content="全量（完整测试文件）"/>
+                                </ComboBox>
+                                <TextBlock Text="{Binding CompressionBenchmarkInputSummaryText}"
+                                           VerticalAlignment="Center"
+                                           Foreground="#666666"
+                                           TextWrapping="Wrap"/>
+                            </StackPanel>
+                            <TextBlock Text="测试结果会显示将现有压缩算法作用于所选测试文件后的数据，不再在每次保存完成后自动触发。"
+                                       Foreground="#777777"
+                                       TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Border>
+                    -->
+                    <Border Background="#ffffff" CornerRadius="6" Padding="15" BorderBrush="#e0e0e0" BorderThickness="1">
+                        <StackPanel Spacing="10">
+                            <TextBlock Text="测试文件与模式" FontSize="14" FontWeight="Bold" Foreground="#333333"/>
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBox Width="540"
+                                         Text="{Binding CompressionBenchmarkInputPath}"
+                                         Watermark="请选择未压缩、未处理的 .sdkraw.bin、.tdms、.tdm、.h5 或 .hdf5 文件"/>
+                                <Button Content="使用当前选中文件"
+                                        Command="{Binding UseSelectedStoredFileForCompressionBenchmarkCommand}"
+                                        Padding="14,6"/>
+                                <Button Content="浏览..."
+                                        Command="{Binding BrowseCompressionBenchmarkFileCommand}"
+                                        Padding="14,6"/>
+                                <Button Content="开始测试"
+                                        Command="{Binding RunCompressionBenchmarkFromFileCommand}"
+                                        Padding="14,6"
+                                        Background="#0d6efd"
+                                        Foreground="White"
+                                        FontWeight="Bold"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Spacing="10">
+                                <TextBlock Text="对比模式" VerticalAlignment="Center" Foreground="#555555"/>
+                                <ComboBox SelectedIndex="{Binding CompressionBenchmarkReplayModeIndex}" Width="220">
+                                    <ComboBoxItem Content="自动（大文件优先快速模式）"/>
+                                    <ComboBoxItem Content="快速（部分通道与批次）"/>
+                                    <ComboBoxItem Content="全量（完整源文件）"/>
+                                </ComboBox>
+                                <TextBlock Text="{Binding CompressionBenchmarkInputSummaryText}"
+                                           VerticalAlignment="Center"
+                                           Foreground="#666666"
+                                           TextWrapping="Wrap"/>
+                            </StackPanel>
+                            <TextBlock Text="现在不会在保存后自动执行测试。下表展示的是各压缩算法作用于当前测试文件数据后的结果。"
+                                       Foreground="#777777"
+                                       TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!--
                     <Border Background="#ffffff" CornerRadius="6" Padding="20" BorderBrush="#e0e0e0" BorderThickness="1"
-                            IsVisible="{Binding ShowCompressionReportPlaceholder}">
-                        <StackPanel Spacing="8">
+                            IsVisible="False">
+                        <StackPanel Spacing="8" IsVisible="False">
                             <TextBlock Text="停止写入后会自动生成压缩性能报告。" FontSize="15" FontWeight="SemiBold" Foreground="#333333"/>
                             <TextBlock Text="报告会包含本次真实写入的压缩比、压缩带宽、写盘带宽，以及基于已保存原始数据或采样批次的多算法对比结果。" Foreground="#666666" TextWrapping="Wrap"/>
                         </StackPanel>
                     </Border>
+                    -->
 
                     <StackPanel Spacing="12" IsVisible="{Binding HasCompressionReport}">
                         <Border Background="#fdfdfd" CornerRadius="6" Padding="15" BorderBrush="#e0e0e0" BorderThickness="1">
@@ -608,7 +741,7 @@
                         <Border Background="#fdfdfd" CornerRadius="6" Padding="15" BorderBrush="#e0e0e0" BorderThickness="1">
                             <StackPanel Spacing="8">
                                 <TextBlock Text="算法对比" FontSize="14" FontWeight="Bold"/>
-                                <TextBlock Text="{Binding CompressionBenchmarkStatusText}" Foreground="#666666" TextWrapping="Wrap"/>
+                                <TextBlock Text="{Binding CompressionBenchmarkPageStatusText}" Foreground="#666666" TextWrapping="Wrap"/>
                                 <Border Background="#f3f5f7" Padding="8" CornerRadius="4">
                                     <Grid ColumnDefinitions="80,180,80,80,110,90,120,50">
                                         <TextBlock Text="算法" FontWeight="Bold"/>

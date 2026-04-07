@@ -1,0 +1,13 @@
+D:\GIT-PROJECT\dhdas\.artifacts\run\20260405_124146_382\obj\DH.Client.App\debug\DH.Client.App.csproj.AssemblyReference.cache
+D:\GIT-PROJECT\dhdas\.artifacts\run\20260405_124146_382\obj\DH.Client.App\debug\Avalonia\Resources.Inputs.cache
+D:\GIT-PROJECT\dhdas\.artifacts\run\20260405_124146_382\obj\DH.Client.App\debug\Avalonia\resources
+D:\GIT-PROJECT\dhdas\.artifacts\run\20260405_124146_382\obj\DH.Client.App\debug\DH.Client.App.GeneratedMSBuildEditorConfig.editorconfig
+D:\GIT-PROJECT\dhdas\.artifacts\run\20260405_124146_382\obj\DH.Client.App\debug\DH.Client.App.AssemblyInfoInputs.cache
+D:\GIT-PROJECT\dhdas\.artifacts\run\20260405_124146_382\obj\DH.Client.App\debug\DH.Client.App.AssemblyInfo.cs
+D:\GIT-PROJECT\dhdas\.artifacts\run\20260405_124146_382\obj\DH.Client.App\debug\DH.Client.App.csproj.CoreCompileInputs.cache
+D:\GIT-PROJECT\dhdas\.artifacts\run\20260405_124146_382\obj\DH.Client.App\debug\DH.Client.App.sourcelink.json
+D:\GIT-PROJECT\dhdas\.artifacts\run\20260405_124146_382\obj\DH.Client.App\debug\Avalonia\references
+D:\GIT-PROJECT\dhdas\.artifacts\run\20260405_124146_382\obj\DH.Client.App\debug\Avalonia\original.dll
+D:\GIT-PROJECT\dhdas\.artifacts\run\20260405_124146_382\obj\DH.Client.App\debug\Avalonia\original.pdb
+D:\GIT-PROJECT\dhdas\.artifacts\run\20260405_124146_382\obj\DH.Client.App\debug\Avalonia\original.ref.dll
+D:\GIT-PROJECT\dhdas\.artifacts\run\20260405_124146_382\obj\DH.Client.App\debug\refint\DH.Client.App.dll

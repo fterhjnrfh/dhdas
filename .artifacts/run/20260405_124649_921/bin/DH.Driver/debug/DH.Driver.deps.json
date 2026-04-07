@@ -1,0 +1,73 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v6.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v6.0": {
+      "DH.Driver/1.0.0": {
+        "dependencies": {
+          "DH.Configmanage": "1.0.0",
+          "DH.Contracts": "1.0.0",
+          "DH.Datamanage": "1.0.0"
+        },
+        "runtime": {
+          "DH.Driver.dll": {}
+        }
+      },
+      "DH.Configmanage/1.0.0": {
+        "dependencies": {
+          "DH.Contracts": "1.0.0"
+        },
+        "runtime": {
+          "DH.Configmanage.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
+      "DH.Contracts/1.0.0": {
+        "runtime": {
+          "DH.Contracts.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
+      "DH.Datamanage/1.0.0": {
+        "dependencies": {
+          "DH.Contracts": "1.0.0"
+        },
+        "runtime": {
+          "DH.Datamanage.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      }
+    }
+  },
+  "libraries": {
+    "DH.Driver/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "DH.Configmanage/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "DH.Contracts/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "DH.Datamanage/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    }
+  }
+}

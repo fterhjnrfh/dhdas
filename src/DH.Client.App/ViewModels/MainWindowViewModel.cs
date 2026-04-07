@@ -103,23 +103,31 @@ public partial class MainWindowViewModel : ObservableObject
     // 在线通道统计
     public string OnlineChannelStatus => $"在线通道: {Channels.Count(c => c.Online)}/{Channels.Count}";
     private const int StorageConfigTabIndex = 1;
-    private const int CompressionReportTabIndex = 6;
+    private const int CompressionReportTabIndex = 7;
+    private const int MaxRecentStoredFileCount = 100;
     [ObservableProperty] private int _selectedTab = 3;
     [ObservableProperty] private string _storagePath = "./data";
     // 新增：存储控制与模式
     public enum StorageModeOption { SingleFile, PerChannel }
     public enum SdkCaptureOutputModeOption { RawBinOnly, Hdf5Only, RawBinAndHdf5 }
+    public enum SdkHdf5CompressionOption { None, Zlib }
     private enum StorageRuntimeKind { Tdms, SdkRawCapture }
     [ObservableProperty] private StorageModeOption _storageMode = StorageModeOption.SingleFile;
     [ObservableProperty] private SdkCaptureOutputModeOption _sdkCaptureOutputMode = SdkCaptureOutputModeOption.RawBinOnly;
+    [ObservableProperty] private SdkHdf5CompressionOption _sdkHdf5Compression = SdkHdf5CompressionOption.None;
     [ObservableProperty] private bool _storageEnabled;
     [ObservableProperty] private string _storageSessionName = "session";
     [ObservableProperty] private int _storageModeIndex = 0; // 0: 单文件, 1: 多文件
     [ObservableProperty] private int _sdkCaptureOutputModeIndex = 0; // 0: BIN 1: HDF5 2: BIN+HDF5
+    [ObservableProperty] private int _sdkHdf5CompressionIndex = 0; // 0: None 1: Zlib
     [ObservableProperty] private int _compressionTypeIndex = 0; // 0: 不压缩, 1: LZ4, 2: Zstd, 3: Brotli, 4: Snappy, 5: Zlib, 6: LZ4_HC, 7: BZip2
     [ObservableProperty] private int _preprocessTypeIndex = 0; // 0: 不预处理, 1: 一阶差分, 2: 二阶差分, 3: 线性预测
     public bool IsTdmsStorageModeVisible => DataSourceMode != 1;
     public bool IsSdkCaptureOutputModeVisible => DataSourceMode == 1;
+    public bool IsTdmsCompressionConfigVisible => DataSourceMode != 1;
+    public bool IsSdkHdf5CompressionConfigVisible => DataSourceMode == 1 && SdkCaptureOutputMode != SdkCaptureOutputModeOption.RawBinOnly;
+    public bool IsSdkHdf5CompressionNoteVisible => DataSourceMode == 1 && SdkCaptureOutputMode == SdkCaptureOutputModeOption.RawBinOnly;
+    public bool IsSdkHdf5ZlibLevelVisible => IsSdkHdf5CompressionConfigVisible && SdkHdf5Compression == SdkHdf5CompressionOption.Zlib;
     
     // 压缩参数配置
     private CompressionOptions _compressionOptions = new();
@@ -129,11 +137,15 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty] private int _brotliQuality = 4;
     [ObservableProperty] private int _brotliWindowBits = 22;
     [ObservableProperty] private int _zlibLevel = 6;
+    [ObservableProperty] private int _sdkHdf5ZlibLevel = 6;
     [ObservableProperty] private int _bzip2BlockSize = 9;
     [ObservableProperty] private int _lz4hcLevel = 12;
     
     // 压缩算法选项转换
     public CompressionType SelectedCompressionType => (CompressionType)CompressionTypeIndex;
+    public CompressionType SelectedSdkHdf5CompressionType => SdkHdf5Compression == SdkHdf5CompressionOption.Zlib
+        ? CompressionType.Zlib
+        : CompressionType.None;
     // 预处理技术选项转换
     public PreprocessType SelectedPreprocessType => (PreprocessType)PreprocessTypeIndex;
     // 文件无损验证结果
@@ -163,6 +175,7 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty] private bool _isCompressionReportGenerating;
     [ObservableProperty] private string _compressionReportStatusMessage = "尚未生成压缩性能报告";
     [ObservableProperty] private int _compressionBenchmarkReplayModeIndex = 0;
+    [ObservableProperty] private string _compressionBenchmarkInputPath = "";
     [ObservableProperty] private double _compressionBenchmarkProgressPercent;
     [ObservableProperty] private bool _compressionBenchmarkProgressIsIndeterminate = true;
     [ObservableProperty] private string _compressionBenchmarkProgressText = "";
@@ -185,6 +198,9 @@ public partial class MainWindowViewModel : ObservableObject
     public IRelayCommand ClearRawTdmsChannelsCommand { get; }
     public IRelayCommand ViewCompressionReportCommand { get; }
     public IRelayCommand BackToStorageConfigCommand { get; }
+    public IAsyncRelayCommand BrowseCompressionBenchmarkFileCommand { get; }
+    public IRelayCommand UseSelectedStoredFileForCompressionBenchmarkCommand { get; }
+    public IAsyncRelayCommand RunCompressionBenchmarkFromFileCommand { get; }
     private ITdmsStorage? _storage;
     private SdkRawCaptureWriter? _sdkRawCaptureWriter;
     private Action<SdkRawBlock>? _sdkRawBlockHandler;
@@ -339,15 +355,32 @@ public partial class MainWindowViewModel : ObservableObject
         }
     }
 
-    public bool CanViewCompressionReport => HasCompressionReport || IsCompressionReportGenerating;
+    public bool CanViewCompressionReport => true;
     public bool ShowCompressionReportPlaceholder => !HasCompressionReport && !IsCompressionReportGenerating;
+    public bool HasCompressionBenchmarkInputFile
+        => CompressionBenchmarkInputBuilder.IsSupportedFile(CompressionBenchmarkInputPath)
+        && File.Exists(CompressionBenchmarkInputPath);
+    public bool CanRunCompressionBenchmarkFromFile => HasCompressionBenchmarkInputFile && !IsCompressionReportGenerating;
+    public bool CanUseSelectedStoredFileForCompressionBenchmark
+        => CompressionBenchmarkInputBuilder.IsSupportedFile(SelectedStoredFilePath)
+        && !IsCompressionReportGenerating;
     public CompressionBenchmarkReplayMode SelectedCompressionBenchmarkReplayMode => CompressionBenchmarkReplayModeIndex switch
     {
         1 => CompressionBenchmarkReplayMode.Fast,
         2 => CompressionBenchmarkReplayMode.Full,
         _ => CompressionBenchmarkReplayMode.Auto
     };
-    public string CompressionBenchmarkStatusText
+/*    public string CompressionBenchmarkInputSummaryText
+        => HasCompressionBenchmarkInputFile
+            ? $"当前测试文件: {Path.GetFileName(CompressionBenchmarkInputPath)}"
+            : "建议选择未压缩、未预处理的 .sdkraw.bin、.tdms、.tdm、.h5 或 .hdf5 文件。";
+*/
+    public string CompressionBenchmarkInputSummaryText
+        => HasCompressionBenchmarkInputFile
+            ? $"当前测试文件: {Path.GetFileName(CompressionBenchmarkInputPath)}"
+            : "请选择未压缩、未处理的 .sdkraw.bin、.tdms、.tdm、.h5 或 .hdf5 文件。";
+
+/*    public string CompressionBenchmarkStatusText
     {
         get
         {
@@ -371,6 +404,87 @@ public partial class MainWindowViewModel : ObservableObject
             }
 
             return $"对比基准：{CurrentCompressionReport.BenchmarkSampleSummaryText}。";
+        }
+    }
+
+*/
+    public string CompressionBenchmarkStatusText
+    {
+        get
+        {
+            if (!HasCompressionReport && !IsCompressionReportGenerating)
+            {
+                return "请选择测试文件，然后手动开始压缩性能测试。";
+            }
+
+            if (IsCompressionReportGenerating)
+            {
+                return "压缩性能测试进行中...";
+            }
+
+            if (CompressionBenchmarkRows.Count == 0)
+            {
+                return "测试文件已加载，但暂时还没有生成算法对比结果。";
+            }
+
+            return $"对比基准: {CurrentCompressionReport.BenchmarkSampleSummaryText}";
+        }
+    }
+
+/*    public string CompressionBenchmarkPageStatusText
+    {
+        get
+        {
+            if (!HasCompressionReport && !IsCompressionReportGenerating)
+            {
+                return HasCompressionBenchmarkInputFile
+                    ? "测试文件已选定。点击“开始测试”后，会显示将当前压缩算法和对比算法作用于该文件数据后的结果。"
+                    : "请选择未压缩、未预处理的测试文件，然后在本页手动开始压缩性能测试。";
+            }
+
+            if (IsCompressionReportGenerating)
+            {
+                string fileName = Path.GetFileName(CurrentCompressionReport.BenchmarkSourcePath);
+                return string.IsNullOrWhiteSpace(fileName)
+                    ? "正在评估测试文件的压缩性能..."
+                    : $"正在基于测试文件 {fileName} 评估各压缩算法...";
+            }
+
+            if (CompressionBenchmarkRows.Count == 0)
+            {
+                return "测试文件已加载，但尚未生成可用的算法对比结果。";
+            }
+
+            return $"对比基准: {CurrentCompressionReport.BenchmarkSampleSummaryText}";
+        }
+    }
+
+*/
+    public string CompressionBenchmarkPageStatusText
+    {
+        get
+        {
+            if (!HasCompressionReport && !IsCompressionReportGenerating)
+            {
+                return HasCompressionBenchmarkInputFile
+                    ? "测试文件已选定。点击“开始测试”后，会基于该文件评估当前可用的压缩算法。"
+                    : "请选择未压缩、未处理的测试文件，然后在本页启动压缩性能测试。";
+            }
+
+            if (IsCompressionReportGenerating)
+            {
+                string fileName = Path.GetFileName(CurrentCompressionReport.BenchmarkSourcePath);
+                return string.IsNullOrWhiteSpace(fileName)
+                    ? "正在对所选文件执行压缩性能测试..."
+                    : $"正在基于 {fileName} 测试当前可用的压缩算法...";
+            }
+
+            if (CompressionBenchmarkRows.Count == 0)
+            {
+                return "选中的测试文件已加载，但结果还未准备好。";
+            }
+
+            return $"对比基准: {CurrentCompressionReport.BenchmarkSampleSummaryText}";
         }
     }
 
@@ -516,8 +630,11 @@ public partial class MainWindowViewModel : ObservableObject
         ClearRawTdmsDevicesCommand = new RelayCommand(ClearRawTdmsDevices, () => RawTdmsExportDevices.Any(option => option.IsSelected));
         SelectAllRawTdmsChannelsCommand = new RelayCommand(SelectAllRawTdmsChannels, () => RawTdmsExportChannels.Count > 0);
         ClearRawTdmsChannelsCommand = new RelayCommand(ClearRawTdmsChannels, () => RawTdmsExportChannels.Any(option => option.IsSelected));
-        ViewCompressionReportCommand = new RelayCommand(ViewCompressionReport, () => CanViewCompressionReport);
+        ViewCompressionReportCommand = new RelayCommand(ViewCompressionReport);
         BackToStorageConfigCommand = new RelayCommand(() => SelectedTab = StorageConfigTabIndex);
+        BrowseCompressionBenchmarkFileCommand = new AsyncRelayCommand(BrowseCompressionBenchmarkFileAsync, () => !IsCompressionReportGenerating);
+        UseSelectedStoredFileForCompressionBenchmarkCommand = new RelayCommand(UseSelectedStoredFileForCompressionBenchmark, () => CanUseSelectedStoredFileForCompressionBenchmark);
+        RunCompressionBenchmarkFromFileCommand = new AsyncRelayCommand(RunCompressionBenchmarkFromFileAsync, () => CanRunCompressionBenchmarkFromFile);
 
         RawTdmsExportDevices.CollectionChanged += (_, _) =>
         {
@@ -1536,6 +1653,16 @@ public partial class MainWindowViewModel : ObservableObject
     private bool ShouldKeepSdkRawCaptureFile()
         => SdkCaptureOutputMode is not SdkCaptureOutputModeOption.Hdf5Only;
 
+    private CompressionOptions ResolveSdkHdf5CompressionOptions()
+    {
+        var options = _compressionOptions.Clone();
+        options.ZlibLevel = SdkHdf5ZlibLevel;
+        return options;
+    }
+
+    private Hdf5CompressionSettings ResolveSdkHdf5CompressionSettings()
+        => Hdf5CompressionSettings.From(SelectedSdkHdf5CompressionType, ResolveSdkHdf5CompressionOptions());
+
     private string DescribeSdkCaptureOutputMode()
         => SdkCaptureOutputMode switch
         {
@@ -1568,6 +1695,11 @@ public partial class MainWindowViewModel : ObservableObject
         string peakBytes = FormatStorageSize(stats.PeakPendingPayloadBytes);
         string limitBytes = FormatStorageSize(stats.PendingPayloadByteLimit);
         string modeSummary = $"SDK {DescribeSdkCaptureOutputMode()} 写入中，已写 {stats.WrittenBlockCount:N0} 块，待写 {stats.PendingBlockCount:N0}/{stats.PendingBlockLimit:N0} 块，队列 {queueBytes}/{limitBytes}，峰值 {stats.PeakPendingBlockCount:N0} 块/{peakBytes}";
+        if (ShouldExportSdkCaptureToHdf5())
+        {
+            modeSummary += $"，{ResolveSdkHdf5CompressionSettings().Summary}";
+        }
+
         if (stats.HasTimingAnalysis && stats.ConfiguredSampleRateHz > 0d)
         {
             string effectiveRateText = FormatTimingRange(stats.MinEffectiveSampleRateHz, stats.MaxEffectiveSampleRateHz, "N0");
@@ -1753,7 +1885,7 @@ public partial class MainWindowViewModel : ObservableObject
 
             string formatText = DescribeSdkCaptureOutputMode();
             string hdf5Suffix = hdf5ExportResult != null
-                ? $"，HDF5 已输出到 {hdf5ExportResult.OutputRootPath}"
+                ? $"，HDF5 已输出到 {hdf5ExportResult.OutputRootPath}（{hdf5ExportResult.CompressionSummary}）"
                 : !string.IsNullOrWhiteSpace(hdf5ExportFailure)
                     ? $"，HDF5 导出失败: {hdf5ExportFailure}"
                     : string.Empty;
@@ -1811,18 +1943,17 @@ public partial class MainWindowViewModel : ObservableObject
         (StartStorageCommand as AsyncRelayCommand)?.NotifyCanExecuteChanged();
         (StopStorageCommand as RelayCommand)?.NotifyCanExecuteChanged();
 
-        if (compressionSnapshot != null)
-        {
-            BeginCompressionReportGeneration(compressionSnapshot);
-        }
-
         _ = AutoVerifyAfterStopAsync();
     }
 
-    private static SdkRawCaptureHdf5ExportResult ExportSdkRawCaptureToHdf5(string capturePath, string basePath)
+    private SdkRawCaptureHdf5ExportResult ExportSdkRawCaptureToHdf5(string capturePath, string basePath)
     {
         var exporter = new SdkRawCaptureHdf5Exporter();
-        return exporter.Export(capturePath, basePath);
+        return exporter.Export(
+            capturePath,
+            basePath,
+            compressionType: SelectedSdkHdf5CompressionType,
+            compressionOptions: ResolveSdkHdf5CompressionOptions());
     }
 
     private static void DeleteSdkRawCaptureArtifacts(string capturePath)
@@ -1992,10 +2123,6 @@ public partial class MainWindowViewModel : ObservableObject
         RefreshRecentFiles();
         (StartStorageCommand as AsyncRelayCommand)?.NotifyCanExecuteChanged();
         (StopStorageCommand as RelayCommand)?.NotifyCanExecuteChanged();
-        if (compressionSnapshot != null)
-        {
-            BeginCompressionReportGeneration(compressionSnapshot);
-        }
 
         // 自动执行文件无损验证
         _ = AutoVerifyAfterStopAsync();
@@ -2795,6 +2922,120 @@ public partial class MainWindowViewModel : ObservableObject
         }
     }
 
+    private async Task BrowseCompressionBenchmarkFileAsync()
+    {
+        try
+        {
+            var topLevel = Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop
+                ? desktop.MainWindow
+                : null;
+            if (topLevel == null)
+            {
+                return;
+            }
+
+            var files = await topLevel.StorageProvider.OpenFilePickerAsync(new Avalonia.Platform.Storage.FilePickerOpenOptions
+            {
+                Title = "选择压缩性能测试文件",
+                AllowMultiple = false,
+/*                FileTypeFilter = new[]
+                {
+                    new Avalonia.Platform.Storage.FilePickerFileType("支持的测试文件")
+                    {
+                        Patterns = new[] { "*.sdkraw.bin", "*.tdms", "*.tdm", "*.h5", "*.hdf5" }
+                    }
+                }
+*/
+                FileTypeFilter = new[]
+                {
+                    new Avalonia.Platform.Storage.FilePickerFileType("支持的测试文件")
+                    {
+                        Patterns = new[] { "*.sdkraw.bin", "*.tdms", "*.tdm", "*.h5", "*.hdf5" }
+                    }
+                }
+            });
+
+            if (files.Count > 0)
+            {
+                CompressionBenchmarkInputPath = files[0].Path.LocalPath;
+            }
+        }
+        catch (Exception ex)
+        {
+            CompressionReportStatusMessage = $"选择测试文件失败: {ex.Message}";
+            OnPropertyChanged(nameof(CompressionBenchmarkPageStatusText));
+        }
+    }
+
+    private void UseSelectedStoredFileForCompressionBenchmark()
+    {
+        string? selectedPath = SelectedStoredFilePath;
+        if (!CompressionBenchmarkInputBuilder.IsSupportedFile(selectedPath))
+        {
+            return;
+        }
+
+        CompressionBenchmarkInputPath = Path.GetFullPath(selectedPath!);
+    }
+
+    private async Task RunCompressionBenchmarkFromFileAsync()
+    {
+        string filePath = (CompressionBenchmarkInputPath ?? string.Empty).Trim();
+/*        if (!CompressionBenchmarkInputBuilder.IsSupportedFile(filePath) || !File.Exists(filePath))
+        {
+            CompressionReportStatusMessage = "请选择可用于压缩性能测试的文件。";
+            OnPropertyChanged(nameof(CompressionBenchmarkPageStatusText));
+            return;
+        }
+
+*/
+        if (!CompressionBenchmarkInputBuilder.IsSupportedFile(filePath) || !File.Exists(filePath))
+        {
+            CompressionReportStatusMessage = "请选择受支持的测试输入文件。";
+            OnPropertyChanged(nameof(CompressionBenchmarkPageStatusText));
+            return;
+        }
+
+        filePath = Path.GetFullPath(filePath);
+        CompressionBenchmarkInputPath = filePath;
+        ResetCompressionReportState($"正在加载测试文件: {Path.GetFileName(filePath)}...");
+        CurrentCompressionReport = new CompressionSessionSnapshot
+        {
+            SessionName = Path.GetFileName(filePath),
+            CompressionType = SelectedCompressionType,
+            PreprocessType = SelectedPreprocessType,
+            CompressionOptions = _compressionOptions.Clone(),
+            BenchmarkSourcePath = filePath
+        };
+        IsCompressionReportGenerating = true;
+        CompressionBenchmarkProgressPercent = 0d;
+        CompressionBenchmarkProgressIsIndeterminate = true;
+        CompressionBenchmarkProgressText = $"正在读取测试文件 {Path.GetFileName(filePath)}...";
+        SelectedTab = CompressionReportTabIndex;
+        OnPropertyChanged(nameof(CompressionBenchmarkPageStatusText));
+
+        try
+        {
+            var builder = new CompressionBenchmarkInputBuilder();
+            var snapshot = await Task.Run(() => builder.BuildSnapshot(
+                filePath,
+                SelectedCompressionBenchmarkReplayMode,
+                SelectedCompressionType,
+                SelectedPreprocessType,
+                _compressionOptions.Clone()));
+            BeginCompressionReportGeneration(snapshot);
+        }
+        catch (Exception ex)
+        {
+            IsCompressionReportGenerating = false;
+            CompressionBenchmarkProgressPercent = 0d;
+            CompressionBenchmarkProgressIsIndeterminate = true;
+            CompressionBenchmarkProgressText = "";
+            CompressionReportStatusMessage = $"加载测试文件失败: {ex.Message}";
+            OnPropertyChanged(nameof(CompressionBenchmarkPageStatusText));
+        }
+    }
+
     private void ViewCompressionReport()
     {
         if (!CanViewCompressionReport)
@@ -2821,6 +3062,7 @@ public partial class MainWindowViewModel : ObservableObject
         CompressionBenchmarkRows.Clear();
         CompressionChannelRows.Clear();
         OnPropertyChanged(nameof(CompressionBenchmarkStatusText));
+        OnPropertyChanged(nameof(CompressionBenchmarkPageStatusText));
     }
 
     private void BeginCompressionReportGeneration(CompressionSessionSnapshot snapshot)
@@ -2853,6 +3095,7 @@ public partial class MainWindowViewModel : ObservableObject
             CompressionReportStatusMessage = "压缩性能报告已生成，仅包含真实写入指标，未获得可用于算法对比的基准数据。";
             CompressionReportStatusMessage = "压缩性能报告已生成，仅包含真实写入指标，未获得可用于算法对比的基准数据。";
             OnPropertyChanged(nameof(CompressionBenchmarkStatusText));
+            OnPropertyChanged(nameof(CompressionBenchmarkPageStatusText));
             return;
         }
 
@@ -2890,6 +3133,7 @@ public partial class MainWindowViewModel : ObservableObject
                     : $"压缩性能报告已生成（对比基准：{DescribeCompressionBenchmarkSource(snapshot)}）。";
                 CompressionReportStatusMessage = update.StatusText;
                 OnPropertyChanged(nameof(CompressionBenchmarkStatusText));
+                OnPropertyChanged(nameof(CompressionBenchmarkPageStatusText));
             });
 
             var rows = await Task.Run(
@@ -2913,6 +3157,9 @@ public partial class MainWindowViewModel : ObservableObject
                     CompressionBenchmarkRows.Add(row);
                 }
 
+                ApplyCurrentBenchmarkRowToSnapshot(snapshot, rows);
+                RefreshCompressionMetricCards();
+                OnPropertyChanged(nameof(CurrentCompressionReport));
                 IsCompressionReportGenerating = false;
                 CompressionBenchmarkProgressPercent = 100d;
                 CompressionBenchmarkProgressIsIndeterminate = false;
@@ -2921,6 +3168,7 @@ public partial class MainWindowViewModel : ObservableObject
                     : "已完成基于采样批次的算法对比。";
                 CompressionReportStatusMessage = $"压缩性能报告已生成（对比基准：{DescribeCompressionBenchmarkSource(snapshot)}）。";
                 OnPropertyChanged(nameof(CompressionBenchmarkStatusText));
+                OnPropertyChanged(nameof(CompressionBenchmarkPageStatusText));
             });
         }
         catch (OperationCanceledException)
@@ -2938,8 +3186,35 @@ public partial class MainWindowViewModel : ObservableObject
                 IsCompressionReportGenerating = false;
                 CompressionReportStatusMessage = $"压缩性能报告生成失败（对比基准：{DescribeCompressionBenchmarkSource(snapshot)}）: {ex.Message}";
                 OnPropertyChanged(nameof(CompressionBenchmarkStatusText));
+                OnPropertyChanged(nameof(CompressionBenchmarkPageStatusText));
             });
         }
+    }
+
+    private static void ApplyCurrentBenchmarkRowToSnapshot(
+        CompressionSessionSnapshot snapshot,
+        IReadOnlyList<CompressionBenchmarkRow> rows)
+    {
+        var currentRow = rows.FirstOrDefault(row => row.IsCurrentAlgorithm)
+            ?? rows.FirstOrDefault(row => row.CompressionType == snapshot.CompressionType);
+        if (currentRow == null)
+        {
+            return;
+        }
+
+        snapshot.BatchCount = currentRow.BatchCount;
+        snapshot.TotalSamples = currentRow.SampleCount;
+        snapshot.RawBytes = currentRow.RawBytes;
+        snapshot.CodecBytes = currentRow.CodecBytes;
+        snapshot.TdmsPayloadBytes = currentRow.TdmsPayloadBytes;
+        snapshot.StoredBytes = currentRow.EstimatedStoredBytes;
+        snapshot.EncodeSeconds = currentRow.EncodeSeconds;
+        snapshot.WriteSeconds = 0d;
+        snapshot.Elapsed = currentRow.EncodeSeconds > 0d
+            ? TimeSpan.FromSeconds(currentRow.EncodeSeconds)
+            : snapshot.Elapsed;
+        snapshot.EncodeLatencyMsSamples = currentRow.EncodeLatencyMsSamples;
+        snapshot.WriteLatencyMsSamples = Array.Empty<double>();
     }
 
     private static string DescribeCompressionBenchmarkSource(CompressionSessionSnapshot snapshot)
@@ -3032,6 +3307,13 @@ public partial class MainWindowViewModel : ObservableObject
         return totalBytes;
     }
 
+    private void NotifyCompressionBenchmarkCommandStates()
+    {
+        (BrowseCompressionBenchmarkFileCommand as AsyncRelayCommand)?.NotifyCanExecuteChanged();
+        (UseSelectedStoredFileForCompressionBenchmarkCommand as RelayCommand)?.NotifyCanExecuteChanged();
+        (RunCompressionBenchmarkFromFileCommand as AsyncRelayCommand)?.NotifyCanExecuteChanged();
+    }
+
     partial void OnStorageModeIndexChanged(int value)
     {
         StorageMode = value == 0 ? StorageModeOption.SingleFile : StorageModeOption.PerChannel;
@@ -3060,12 +3342,32 @@ public partial class MainWindowViewModel : ObservableObject
             SdkCaptureOutputModeOption.RawBinAndHdf5 => 2,
             _ => 0
         };
+        OnPropertyChanged(nameof(IsSdkHdf5CompressionConfigVisible));
+        OnPropertyChanged(nameof(IsSdkHdf5CompressionNoteVisible));
+        OnPropertyChanged(nameof(IsSdkHdf5ZlibLevelVisible));
+    }
+
+    partial void OnSdkHdf5CompressionIndexChanged(int value)
+    {
+        SdkHdf5Compression = value == 1
+            ? SdkHdf5CompressionOption.Zlib
+            : SdkHdf5CompressionOption.None;
+    }
+
+    partial void OnSdkHdf5CompressionChanged(SdkHdf5CompressionOption value)
+    {
+        SdkHdf5CompressionIndex = value == SdkHdf5CompressionOption.Zlib ? 1 : 0;
+        OnPropertyChanged(nameof(IsSdkHdf5ZlibLevelVisible));
     }
 
     partial void OnDataSourceModeChanged(int value)
     {
         OnPropertyChanged(nameof(IsTdmsStorageModeVisible));
         OnPropertyChanged(nameof(IsSdkCaptureOutputModeVisible));
+        OnPropertyChanged(nameof(IsTdmsCompressionConfigVisible));
+        OnPropertyChanged(nameof(IsSdkHdf5CompressionConfigVisible));
+        OnPropertyChanged(nameof(IsSdkHdf5CompressionNoteVisible));
+        OnPropertyChanged(nameof(IsSdkHdf5ZlibLevelVisible));
     }
     
     partial void OnStorageEnabledChanged(bool value)
@@ -3082,6 +3384,7 @@ public partial class MainWindowViewModel : ObservableObject
         OnPropertyChanged(nameof(CanViewCompressionReport));
         OnPropertyChanged(nameof(ShowCompressionReportPlaceholder));
         OnPropertyChanged(nameof(CompressionBenchmarkStatusText));
+        OnPropertyChanged(nameof(CompressionBenchmarkPageStatusText));
         (ViewCompressionReportCommand as RelayCommand)?.NotifyCanExecuteChanged();
     }
 
@@ -3090,13 +3393,27 @@ public partial class MainWindowViewModel : ObservableObject
         OnPropertyChanged(nameof(CanViewCompressionReport));
         OnPropertyChanged(nameof(ShowCompressionReportPlaceholder));
         OnPropertyChanged(nameof(CompressionBenchmarkStatusText));
+        OnPropertyChanged(nameof(CompressionBenchmarkPageStatusText));
+        OnPropertyChanged(nameof(CanRunCompressionBenchmarkFromFile));
+        OnPropertyChanged(nameof(CanUseSelectedStoredFileForCompressionBenchmark));
         (ViewCompressionReportCommand as RelayCommand)?.NotifyCanExecuteChanged();
+        NotifyCompressionBenchmarkCommandStates();
     }
 
     partial void OnCurrentCompressionReportChanged(CompressionSessionSnapshot value)
     {
         RefreshCompressionMetricCards();
         OnPropertyChanged(nameof(CompressionBenchmarkStatusText));
+        OnPropertyChanged(nameof(CompressionBenchmarkPageStatusText));
+    }
+
+    partial void OnCompressionBenchmarkInputPathChanged(string value)
+    {
+        OnPropertyChanged(nameof(HasCompressionBenchmarkInputFile));
+        OnPropertyChanged(nameof(CanRunCompressionBenchmarkFromFile));
+        OnPropertyChanged(nameof(CompressionBenchmarkInputSummaryText));
+        OnPropertyChanged(nameof(CompressionBenchmarkPageStatusText));
+        NotifyCompressionBenchmarkCommandStates();
     }
 
     partial void OnLz4LevelChanged(int value) => _compressionOptions.LZ4Level = value;
@@ -3105,6 +3422,7 @@ public partial class MainWindowViewModel : ObservableObject
     partial void OnBrotliQualityChanged(int value) => _compressionOptions.BrotliQuality = value;
     partial void OnBrotliWindowBitsChanged(int value) => _compressionOptions.BrotliWindowBits = value;
     partial void OnZlibLevelChanged(int value) => _compressionOptions.ZlibLevel = value;
+    partial void OnSdkHdf5ZlibLevelChanged(int value) { }
     partial void OnBzip2BlockSizeChanged(int value) => _compressionOptions.BZip2BlockSize = value;
     partial void OnLz4hcLevelChanged(int value) => _compressionOptions.LZ4HCLevel = value;
 
@@ -3171,9 +3489,11 @@ public partial class MainWindowViewModel : ObservableObject
     partial void OnSelectedTdmsFileChanged(TdmsFileItem? value)
     {
         OnPropertyChanged(nameof(SelectedStoredFilePath));
+        OnPropertyChanged(nameof(CanUseSelectedStoredFileForCompressionBenchmark));
         (TestReadSelectedFileCommand as RelayCommand)?.NotifyCanExecuteChanged();
         (VerifyStoredFileCommand as AsyncRelayCommand)?.NotifyCanExecuteChanged();
         (ConvertSelectedToTdmsCommand as AsyncRelayCommand)?.NotifyCanExecuteChanged();
+        NotifyCompressionBenchmarkCommandStates();
         RefreshRawTdmsExportOptions(value?.FullPath);
     }
 
@@ -3373,8 +3693,9 @@ public partial class MainWindowViewModel : ObservableObject
             var files = tdmsFiles.Concat(tdmFiles).Concat(rawCaptureFiles).Concat(hdf5Files).Concat(altTdmsFiles).Concat(altTdmFiles)
                 .Select(fp => new FileInfo(fp))
                 .Where(fi => fi.Exists)
-                .OrderByDescending(fi => fi.LastWriteTimeUtc)
-                .Take(20)
+                .OrderBy(fi => GetRecentStoredFilePriority(fi))
+                .ThenByDescending(fi => fi.LastWriteTimeUtc)
+                .Take(MaxRecentStoredFileCount)
                 .Select(fi => new TdmsFileItem(fi))
                 .ToArray();
             Avalonia.Threading.Dispatcher.UIThread.Post(() =>
@@ -3387,6 +3708,30 @@ public partial class MainWindowViewModel : ObservableObject
         {
             StorageStatusMessage = $"刷新列表失败: {ex.Message}";
         }
+    }
+
+    private static int GetRecentStoredFilePriority(FileInfo fileInfo)
+    {
+        string fullPath = fileInfo.FullName;
+        if (SdkRawCaptureFormat.IsRawCaptureFile(fullPath))
+        {
+            return 0;
+        }
+
+        string extension = fileInfo.Extension;
+        if (string.Equals(extension, ".tdms", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(extension, ".tdm", StringComparison.OrdinalIgnoreCase))
+        {
+            return 1;
+        }
+
+        if (string.Equals(extension, ".h5", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(extension, ".hdf5", StringComparison.OrdinalIgnoreCase))
+        {
+            return 2;
+        }
+
+        return 3;
     }
 
     private void OpenOutputFolder()
@@ -3471,10 +3816,6 @@ public partial class MainWindowViewModel : ObservableObject
             FileVerifyResult = result.Summary;
             RefreshRecentFiles();
 
-            if (result.Snapshot != null)
-            {
-                BeginCompressionReportGeneration(result.Snapshot);
-            }
         }
         catch (Exception ex)
         {

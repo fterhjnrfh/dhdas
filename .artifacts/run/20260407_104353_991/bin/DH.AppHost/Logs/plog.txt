@@ -1,1 +1,0 @@
-﻿2026-04-07 10:44:34.583 INFO  [131944] [LogCollection@136] HardWareConfig.cpp[1273]: Init plog success log level 4 log_size 5242880 log_number 10 log path D:\GIT-PROJECT\dhdas\.artifacts\run\20260407_104353_991\bin\DH.AppHost\Logs\plog.txt

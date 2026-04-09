@@ -1,0 +1,14 @@
+D:\GIT-PROJECT\dhdas\.artifacts\run\20260409_133857_087\bin\DH.Algorithms\debug\DH.Algorithms.deps.json
+D:\GIT-PROJECT\dhdas\.artifacts\run\20260409_133857_087\bin\DH.Algorithms\debug\DH.Algorithms.dll
+D:\GIT-PROJECT\dhdas\.artifacts\run\20260409_133857_087\bin\DH.Algorithms\debug\DH.Algorithms.pdb
+D:\GIT-PROJECT\dhdas\.artifacts\run\20260409_133857_087\obj\DH.Algorithms\debug\DH.Algorithms.csproj.AssemblyReference.cache
+D:\GIT-PROJECT\dhdas\.artifacts\run\20260409_133857_087\obj\DH.Algorithms\debug\DH.Algorithms.GeneratedMSBuildEditorConfig.editorconfig
+D:\GIT-PROJECT\dhdas\.artifacts\run\20260409_133857_087\obj\DH.Algorithms\debug\DH.Algorithms.AssemblyInfoInputs.cache
+D:\GIT-PROJECT\dhdas\.artifacts\run\20260409_133857_087\obj\DH.Algorithms\debug\DH.Algorithms.AssemblyInfo.cs
+D:\GIT-PROJECT\dhdas\.artifacts\run\20260409_133857_087\obj\DH.Algorithms\debug\DH.Algorithms.csproj.CoreCompileInputs.cache
+D:\GIT-PROJECT\dhdas\.artifacts\run\20260409_133857_087\obj\DH.Algorithms\debug\DH.Algorithms.sourcelink.json
+D:\GIT-PROJECT\dhdas\.artifacts\run\20260409_133857_087\obj\DH.Algorithms\debug\DH.Algor.4B7F03C3.Up2Date
+D:\GIT-PROJECT\dhdas\.artifacts\run\20260409_133857_087\obj\DH.Algorithms\debug\DH.Algorithms.dll
+D:\GIT-PROJECT\dhdas\.artifacts\run\20260409_133857_087\obj\DH.Algorithms\debug\refint\DH.Algorithms.dll
+D:\GIT-PROJECT\dhdas\.artifacts\run\20260409_133857_087\obj\DH.Algorithms\debug\DH.Algorithms.pdb
+D:\GIT-PROJECT\dhdas\.artifacts\run\20260409_133857_087\obj\DH.Algorithms\debug\ref\DH.Algorithms.dll

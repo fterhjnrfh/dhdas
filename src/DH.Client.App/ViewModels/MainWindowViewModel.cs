@@ -124,9 +124,11 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty] private int _preprocessTypeIndex = 0; // 0: 不预处理, 1: 一阶差分, 2: 二阶差分, 3: 线性预测
     public bool IsTdmsStorageModeVisible => DataSourceMode != 1;
     public bool IsSdkCaptureOutputModeVisible => DataSourceMode == 1;
-    public bool IsTdmsCompressionConfigVisible => DataSourceMode != 1;
+    public bool IsTdmsCompressionConfigVisible
+        => DataSourceMode != 1 || SdkCaptureOutputMode == SdkCaptureOutputModeOption.RawBinOnly;
     public bool IsSdkHdf5CompressionConfigVisible => DataSourceMode == 1 && SdkCaptureOutputMode != SdkCaptureOutputModeOption.RawBinOnly;
     public bool IsSdkHdf5CompressionNoteVisible => DataSourceMode == 1 && SdkCaptureOutputMode == SdkCaptureOutputModeOption.RawBinOnly;
+    public bool IsSdkRawBinCompressionNoteVisible => DataSourceMode == 1 && SdkCaptureOutputMode == SdkCaptureOutputModeOption.RawBinOnly;
     public bool IsSdkHdf5ZlibLevelVisible => IsSdkHdf5CompressionConfigVisible && SdkHdf5Compression == SdkHdf5CompressionOption.Zlib;
     
     // 压缩参数配置
@@ -3342,8 +3344,10 @@ public partial class MainWindowViewModel : ObservableObject
             SdkCaptureOutputModeOption.RawBinAndHdf5 => 2,
             _ => 0
         };
+        OnPropertyChanged(nameof(IsTdmsCompressionConfigVisible));
         OnPropertyChanged(nameof(IsSdkHdf5CompressionConfigVisible));
         OnPropertyChanged(nameof(IsSdkHdf5CompressionNoteVisible));
+        OnPropertyChanged(nameof(IsSdkRawBinCompressionNoteVisible));
         OnPropertyChanged(nameof(IsSdkHdf5ZlibLevelVisible));
     }
 
@@ -3367,6 +3371,7 @@ public partial class MainWindowViewModel : ObservableObject
         OnPropertyChanged(nameof(IsTdmsCompressionConfigVisible));
         OnPropertyChanged(nameof(IsSdkHdf5CompressionConfigVisible));
         OnPropertyChanged(nameof(IsSdkHdf5CompressionNoteVisible));
+        OnPropertyChanged(nameof(IsSdkRawBinCompressionNoteVisible));
         OnPropertyChanged(nameof(IsSdkHdf5ZlibLevelVisible));
     }
     

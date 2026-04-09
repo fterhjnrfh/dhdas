@@ -217,6 +217,13 @@
 							</ComboBox>
 						</Grid>
 
+						<Border Background="#eef7ff" CornerRadius="4" Padding="10,6" Margin="0,2,0,0"
+								IsVisible="{Binding IsSdkRawBinCompressionNoteVisible}">
+							<TextBlock Text="当前选择的是 BIN 原始文件模式：以下压缩算法和预处理参数不会作用于 .sdkraw.bin 本体，仅用于后续转 TDMS 或压缩性能测试。"
+									   Foreground="#24558a"
+									   TextWrapping="Wrap"/>
+						</Border>
+
 						<!-- SDK HDF5 压缩配置 -->
 						<Grid ColumnDefinitions="Auto, *, 20, Auto, *" VerticalAlignment="Center"
 							  IsVisible="{Binding IsSdkHdf5CompressionConfigVisible}">

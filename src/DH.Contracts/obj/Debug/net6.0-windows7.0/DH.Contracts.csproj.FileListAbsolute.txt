@@ -46,15 +46,3 @@ C:\GIt\dhdas\src\DH.Contracts\obj\Debug\net6.0-windows7.0\DH.Contracts.dll
 C:\GIt\dhdas\src\DH.Contracts\obj\Debug\net6.0-windows7.0\refint\DH.Contracts.dll
 C:\GIt\dhdas\src\DH.Contracts\obj\Debug\net6.0-windows7.0\DH.Contracts.pdb
 C:\GIt\dhdas\src\DH.Contracts\obj\Debug\net6.0-windows7.0\ref\DH.Contracts.dll
-D:\GIT-PROJECT\dhdas\src\DH.Contracts\bin\Debug\net6.0-windows7.0\DH.Contracts.deps.json
-D:\GIT-PROJECT\dhdas\src\DH.Contracts\bin\Debug\net6.0-windows7.0\DH.Contracts.dll
-D:\GIT-PROJECT\dhdas\src\DH.Contracts\bin\Debug\net6.0-windows7.0\DH.Contracts.pdb
-D:\GIT-PROJECT\dhdas\src\DH.Contracts\obj\Debug\net6.0-windows7.0\DH.Contracts.GeneratedMSBuildEditorConfig.editorconfig
-D:\GIT-PROJECT\dhdas\src\DH.Contracts\obj\Debug\net6.0-windows7.0\DH.Contracts.AssemblyInfoInputs.cache
-D:\GIT-PROJECT\dhdas\src\DH.Contracts\obj\Debug\net6.0-windows7.0\DH.Contracts.AssemblyInfo.cs
-D:\GIT-PROJECT\dhdas\src\DH.Contracts\obj\Debug\net6.0-windows7.0\DH.Contracts.csproj.CoreCompileInputs.cache
-D:\GIT-PROJECT\dhdas\src\DH.Contracts\obj\Debug\net6.0-windows7.0\DH.Contracts.sourcelink.json
-D:\GIT-PROJECT\dhdas\src\DH.Contracts\obj\Debug\net6.0-windows7.0\DH.Contracts.dll
-D:\GIT-PROJECT\dhdas\src\DH.Contracts\obj\Debug\net6.0-windows7.0\refint\DH.Contracts.dll
-D:\GIT-PROJECT\dhdas\src\DH.Contracts\obj\Debug\net6.0-windows7.0\DH.Contracts.pdb
-D:\GIT-PROJECT\dhdas\src\DH.Contracts\obj\Debug\net6.0-windows7.0\ref\DH.Contracts.dll

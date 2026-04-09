@@ -46,15 +46,3 @@ C:\GIt\dhdas\src\DH.UI\AlgorithmModule\obj\Debug\net6.0-windows7.0\AlgorithmModu
 C:\GIt\dhdas\src\DH.UI\AlgorithmModule\obj\Debug\net6.0-windows7.0\refint\AlgorithmModule.dll
 C:\GIt\dhdas\src\DH.UI\AlgorithmModule\obj\Debug\net6.0-windows7.0\AlgorithmModule.pdb
 C:\GIt\dhdas\src\DH.UI\AlgorithmModule\obj\Debug\net6.0-windows7.0\ref\AlgorithmModule.dll
-D:\GIT-PROJECT\dhdas\src\DH.UI\AlgorithmModule\bin\Debug\net6.0-windows7.0\AlgorithmModule.deps.json
-D:\GIT-PROJECT\dhdas\src\DH.UI\AlgorithmModule\bin\Debug\net6.0-windows7.0\AlgorithmModule.dll
-D:\GIT-PROJECT\dhdas\src\DH.UI\AlgorithmModule\bin\Debug\net6.0-windows7.0\AlgorithmModule.pdb
-D:\GIT-PROJECT\dhdas\src\DH.UI\AlgorithmModule\obj\Debug\net6.0-windows7.0\AlgorithmModule.GeneratedMSBuildEditorConfig.editorconfig
-D:\GIT-PROJECT\dhdas\src\DH.UI\AlgorithmModule\obj\Debug\net6.0-windows7.0\AlgorithmModule.AssemblyInfoInputs.cache
-D:\GIT-PROJECT\dhdas\src\DH.UI\AlgorithmModule\obj\Debug\net6.0-windows7.0\AlgorithmModule.AssemblyInfo.cs
-D:\GIT-PROJECT\dhdas\src\DH.UI\AlgorithmModule\obj\Debug\net6.0-windows7.0\AlgorithmModule.csproj.CoreCompileInputs.cache
-D:\GIT-PROJECT\dhdas\src\DH.UI\AlgorithmModule\obj\Debug\net6.0-windows7.0\AlgorithmModule.sourcelink.json
-D:\GIT-PROJECT\dhdas\src\DH.UI\AlgorithmModule\obj\Debug\net6.0-windows7.0\AlgorithmModule.dll
-D:\GIT-PROJECT\dhdas\src\DH.UI\AlgorithmModule\obj\Debug\net6.0-windows7.0\refint\AlgorithmModule.dll
-D:\GIT-PROJECT\dhdas\src\DH.UI\AlgorithmModule\obj\Debug\net6.0-windows7.0\AlgorithmModule.pdb
-D:\GIT-PROJECT\dhdas\src\DH.UI\AlgorithmModule\obj\Debug\net6.0-windows7.0\ref\AlgorithmModule.dll

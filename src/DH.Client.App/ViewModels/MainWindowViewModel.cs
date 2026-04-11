@@ -103,7 +103,7 @@ public partial class MainWindowViewModel : ObservableObject
     // 在线通道统计
     public string OnlineChannelStatus => $"在线通道: {Channels.Count(c => c.Online)}/{Channels.Count}";
     private const int StorageConfigTabIndex = 1;
-    private const int CompressionReportTabIndex = 7;
+    private const int CompressionReportTabIndex = 8;
     private const int MaxRecentStoredFileCount = 100;
     [ObservableProperty] private int _selectedTab = 3;
     [ObservableProperty] private string _storagePath = "./data";
@@ -1966,6 +1966,7 @@ public partial class MainWindowViewModel : ObservableObject
         }
 
         string manifestPath = SdkRawCaptureFormat.GetManifestPath(capturePath);
+        string indexPath = SdkRawCaptureIndexFormat.GetIndexPath(capturePath);
 
         try
         {
@@ -1983,6 +1984,17 @@ public partial class MainWindowViewModel : ObservableObject
             if (File.Exists(manifestPath))
             {
                 File.Delete(manifestPath);
+            }
+        }
+        catch
+        {
+        }
+
+        try
+        {
+            if (File.Exists(indexPath))
+            {
+                File.Delete(indexPath);
             }
         }
         catch

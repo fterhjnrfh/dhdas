@@ -556,6 +556,9 @@
                 </ScrollViewer>
             </Grid>
         </TabItem>
+        <TabItem Header="BIN查看">
+            <views:BinViewerView SelectedFile="{Binding SelectedStoredFilePath}" SelectedDeviceId="{Binding SelectedDeviceId}"/>
+        </TabItem>
         <TabItem Header="TDMS查看">
             <views:TdmsViewerView SelectedFile="{Binding SelectedStoredFilePath}" SelectedDeviceId="{Binding SelectedDeviceId}" OnlineChannelManager="{Binding OnlineChannelManager}"/>
         </TabItem>

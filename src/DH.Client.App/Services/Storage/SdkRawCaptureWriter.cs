@@ -375,6 +375,8 @@ internal sealed class SdkRawCaptureWriter : IDisposable
     private readonly ConcurrentDictionary<int, long> _channelSampleCounts = new();
     private readonly ConcurrentDictionary<int, long> _channelBatchCounts = new();
     private readonly Dictionary<int, SdkRawCaptureDeviceIntegrityState> _deviceIntegrityStates = new();
+    private readonly Dictionary<int, long> _deviceIndexSampleStarts = new();
+    private readonly List<SdkRawCaptureBlockIndexEntry> _blockIndexEntries = new();
     private readonly object _liveTimingLock = new();
     private readonly Dictionary<int, SdkRawCaptureLiveTimingState> _liveTimingStates = new();
 
@@ -384,6 +386,7 @@ internal sealed class SdkRawCaptureWriter : IDisposable
     private SdkRawCaptureHdf5MirrorWriter? _hdf5MirrorWriter;
     private string? _capturePath;
     private string? _manifestPath;
+    private string? _indexPath;
     private string _sessionName = "session";
     private double _sampleRateHz;
     private int _expectedChannelCount;
@@ -438,6 +441,7 @@ internal sealed class SdkRawCaptureWriter : IDisposable
         _startedAtUtc = DateTime.UtcNow;
         _capturePath = Path.Combine(sessionFolder, $"{safeName}{SdkRawCaptureFormat.FileSuffix}");
         _manifestPath = SdkRawCaptureFormat.GetManifestPath(_capturePath);
+        _indexPath = SdkRawCaptureIndexFormat.GetIndexPath(_capturePath);
         _stream = new FileStream(
             _capturePath,
             FileMode.Create,
@@ -576,6 +580,7 @@ internal sealed class SdkRawCaptureWriter : IDisposable
         string capturePath = _capturePath ?? string.Empty;
         var manifest = BuildManifest(hdf5MirrorResult);
         PersistManifest(manifest);
+        PersistIndex(manifest);
         var sampleCounts = manifest.ChannelSampleCounts
             .ToDictionary(kvp => kvp.Key, kvp => kvp.Value, StringComparer.OrdinalIgnoreCase);
 
@@ -614,6 +619,8 @@ internal sealed class SdkRawCaptureWriter : IDisposable
         _channelSampleCounts.Clear();
         _channelBatchCounts.Clear();
         _deviceIntegrityStates.Clear();
+        _deviceIndexSampleStarts.Clear();
+        _blockIndexEntries.Clear();
         lock (_liveTimingLock)
         {
             _liveTimingStates.Clear();
@@ -621,6 +628,7 @@ internal sealed class SdkRawCaptureWriter : IDisposable
         _hdf5MirrorWriter = null;
         _capturePath = null;
         _manifestPath = null;
+        _indexPath = null;
         _stoppedAtUtc = default;
         _blockCount = 0;
         _totalSamples = 0;
@@ -713,6 +721,9 @@ internal sealed class SdkRawCaptureWriter : IDisposable
 
         try
         {
+            long blockOffset = _stream?.Position ?? 0L;
+            int deviceId = ResolveChannelDeviceId(rawBlock.GroupId, rawBlock.MachineId);
+            _deviceIndexSampleStarts.TryGetValue(deviceId, out long sampleStartPerChannel);
             _writer.Write(SdkRawCaptureFormat.BlockMagic);
             _writer.Write(SdkRawCaptureFormat.FormatVersion);
             _writer.Write(rawBlock.SampleTime);
@@ -728,6 +739,7 @@ internal sealed class SdkRawCaptureWriter : IDisposable
             _writer.Write(rawBlock.ReceivedAtUtc.Ticks);
             _writer.Write(rawBlock.PayloadFloatCount);
             _writer.Write(rawBlock.PayloadBytes);
+            long payloadOffset = _stream?.Position ?? blockOffset;
             _writer.Write(payload);
 
             writeStopwatch.Stop();
@@ -736,7 +748,24 @@ internal sealed class SdkRawCaptureWriter : IDisposable
             _totalSamples += (long)rawBlock.ChannelCount * rawBlock.DataCountPerChannel;
             _rawPayloadBytes += rawBlock.PayloadBytes;
             Interlocked.Increment(ref _writtenBlockCount);
-            int deviceId = ResolveChannelDeviceId(rawBlock.GroupId, rawBlock.MachineId);
+            _blockIndexEntries.Add(new SdkRawCaptureBlockIndexEntry
+            {
+                Offset = blockOffset,
+                PayloadOffset = payloadOffset,
+                DeviceId = deviceId,
+                GroupId = rawBlock.GroupId,
+                MachineId = rawBlock.MachineId,
+                BlockIndex = rawBlock.BlockIndex,
+                ChannelCount = rawBlock.ChannelCount,
+                DataCountPerChannel = rawBlock.DataCountPerChannel,
+                SampleStartPerChannel = sampleStartPerChannel,
+                PayloadBytes = rawBlock.PayloadBytes,
+                PayloadFloatCount = rawBlock.PayloadFloatCount,
+                SampleRateHz = rawBlock.SampleRateHz,
+                SampleTime = rawBlock.SampleTime,
+                ReceivedAtUtcTicks = rawBlock.ReceivedAtUtc.Ticks
+            });
+            _deviceIndexSampleStarts[deviceId] = sampleStartPerChannel + rawBlock.DataCountPerChannel;
             TrackDeviceIntegrity(rawBlock, deviceId);
             for (int ch = 0; ch < rawBlock.ChannelCount; ch++)
             {
@@ -1369,6 +1398,63 @@ internal sealed class SdkRawCaptureWriter : IDisposable
             WriteIndented = true
         });
         File.WriteAllText(_manifestPath, json);
+    }
+
+    private void PersistIndex(SdkRawCaptureManifest manifest)
+    {
+        if (string.IsNullOrEmpty(_capturePath) || string.IsNullOrEmpty(_indexPath))
+        {
+            return;
+        }
+
+        long captureBytes = File.Exists(_capturePath)
+            ? new FileInfo(_capturePath).Length
+            : manifest.CaptureFileBytes;
+
+        var devices = manifest.DeviceIntegrity
+            .OrderBy(device => device.DeviceId)
+            .Select(device => new SdkRawCaptureDeviceIndexSummary
+            {
+                DeviceId = device.DeviceId,
+                ChannelCount = device.ChannelCount,
+                SamplesPerChannel = device.SamplesPerChannel,
+                BlockCount = (int)Math.Max(0L, device.BlockCount)
+            })
+            .ToList();
+
+        var index = new SdkRawCaptureIndex
+        {
+            Version = SdkRawCaptureIndexFormat.IndexVersion,
+            SessionName = manifest.SessionName,
+            CaptureFileName = manifest.CaptureFileName,
+            CaptureFileBytes = captureBytes,
+            SampleRateHz = manifest.SampleRateHz,
+            CreatedAtUtc = DateTime.UtcNow,
+            Devices = devices,
+            Blocks = _blockIndexEntries
+                .OrderBy(entry => entry.Offset)
+                .Select(entry => new SdkRawCaptureBlockIndexEntry
+                {
+                    Offset = entry.Offset,
+                    PayloadOffset = entry.PayloadOffset,
+                    DeviceId = entry.DeviceId,
+                    GroupId = entry.GroupId,
+                    MachineId = entry.MachineId,
+                    BlockIndex = entry.BlockIndex,
+                    ChannelCount = entry.ChannelCount,
+                    DataCountPerChannel = entry.DataCountPerChannel,
+                    SampleStartPerChannel = entry.SampleStartPerChannel,
+                    PayloadBytes = entry.PayloadBytes,
+                    PayloadFloatCount = entry.PayloadFloatCount,
+                    SampleRateHz = entry.SampleRateHz,
+                    SampleTime = entry.SampleTime,
+                    ReceivedAtUtcTicks = entry.ReceivedAtUtcTicks
+                })
+                .ToList(),
+            ChannelSampleCounts = new Dictionary<string, long>(manifest.ChannelSampleCounts, StringComparer.OrdinalIgnoreCase)
+        };
+
+        SdkRawCaptureIndexFormat.TryPersistIndex(_capturePath, index);
     }
 
     private SdkRawCaptureHdf5MirrorResult CompleteHdf5MirrorWriter()

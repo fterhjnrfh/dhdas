@@ -28,7 +28,7 @@
 				<!-- 数据源模式选择 -->
 				<Border BorderBrush="#007ACC" BorderThickness="2" Background="#F0F8FF" CornerRadius="4" Padding="15">
 					<StackPanel Spacing="10">
-						<TextBlock Text="📡 数据源模式选择" FontWeight="Bold" FontSize="14" Foreground="#007ACC"/>
+						<TextBlock Text="馃摗 数据源模式选择" FontWeight="Bold" FontSize="14" Foreground="#007ACC"/>
 						<StackPanel Orientation="Horizontal" Spacing="20">
 							<RadioButton GroupName="DataSource" Content="TCP 网络模式" IsChecked="{Binding DataSourceMode, Converter={x:Static converters:IntToBoolConverter.Instance}, ConverterParameter=0}"/>
 							<RadioButton GroupName="DataSource" Content="SDK 本地模式（对接Demo_C#模拟器）" IsChecked="{Binding DataSourceMode, Converter={x:Static converters:IntToBoolConverter.Instance}, ConverterParameter=1}"/>
@@ -37,11 +37,12 @@
 					</StackPanel>
 				</Border>
 
+				<!-- TCP 鏈嶅姟鍣ㄨ繛鎺?(DataSourceMode == 0) -->
 				<!-- TCP 服务器连接 (DataSourceMode == 0) -->
 				<Border BorderBrush="#E0E0E0" BorderThickness="1" Background="#F8F9FA" CornerRadius="4" Padding="15"
 				        IsVisible="{Binding DataSourceMode, Converter={x:Static converters:IntToBoolConverter.Instance}, ConverterParameter=0}">
 					<StackPanel Spacing="10">
-						<TextBlock Text="🌐 TCP 服务器连接" FontWeight="Bold" FontSize="14"/>
+						<TextBlock Text="TCP 服务器连接" FontWeight="Bold" FontSize="14"/>
 						<StackPanel Orientation="Horizontal" Spacing="15" VerticalAlignment="Center">
 							<TextBlock Text="TCP Server IP:" VerticalAlignment="Center" MinWidth="100"/>
 							<TextBox x:Name="TcpIpTextBox" Text="{Binding TcpServerIp}" Watermark="例如: 192.168.1.100" Width="150"/>
@@ -52,7 +53,7 @@
 						</StackPanel>
 						<!-- 连接状态显示 -->
 						<StackPanel Orientation="Horizontal" Spacing="10">
-							<TextBlock Text="状态:" FontWeight="SemiBold"/>
+							<TextBlock Text="状态" FontWeight="SemiBold"/>
 							<TextBlock Text="{Binding TcpConnectionStatus}" Foreground="{Binding TcpStatusColor}"/>
 						</StackPanel>
 					</StackPanel>
@@ -62,8 +63,8 @@
 				<Border BorderBrush="#E0E0E0" BorderThickness="1" Background="#FFF8E7" CornerRadius="4" Padding="15"
 				        IsVisible="{Binding DataSourceMode, Converter={x:Static converters:IntToBoolConverter.Instance}, ConverterParameter=1}">
 					<StackPanel Spacing="10">
-						<TextBlock Text="🔌 SDK 本地模式（对接东华模拟器）" FontWeight="Bold" FontSize="14"/>
-						<TextBlock Text="此模式用于接收Demo_C#模拟器通过SDK发送的数据，两个程序需运行在同一台电脑上。" FontSize="11" Foreground="Gray" TextWrapping="Wrap"/>
+						<TextBlock Text="SDK 本地模式（对接东华模拟器）" FontWeight="Bold" FontSize="14"/>
+						<TextBlock Text="此模式用于接收 Demo_C# 模拟器通过 SDK 发送的数据，两个程序需要运行在同一台电脑上。" FontSize="11" Foreground="Gray" TextWrapping="Wrap"/>
 						
 						<!-- 配置路径 -->
 						<StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
@@ -72,6 +73,7 @@
 							<Button Content="浏览..." Command="{Binding BrowseSdkConfigCommand}" Padding="10,5"/>
 						</StackPanel>
 						
+						
 						<!-- SDK控制按钮 -->
 						<StackPanel Orientation="Horizontal" Spacing="15" Margin="0,5,0,0">
 							<Button Content="1. 初始化SDK" Command="{Binding InitializeSdkCommand}" Padding="15,5" Background="#17a2b8" Foreground="White"/>
@@ -79,26 +81,26 @@
 							<Button Content="停止采样" Command="{Binding StopSdkSamplingCommand}" Padding="15,5" Background="#dc3545" Foreground="White"/>
 						</StackPanel>
 						
-						<!-- SDK状态显示 -->
+						<!-- SDK鐘舵€佹樉绀?-->
 						<StackPanel Orientation="Horizontal" Spacing="10">
-							<TextBlock Text="SDK状态:" FontWeight="SemiBold"/>
+							<TextBlock Text="SDK鐘舵€?" FontWeight="SemiBold"/>
 							<TextBlock Text="{Binding SdkConnectionStatus}" Foreground="{Binding SdkStatusColor}"/>
 						</StackPanel>
 
 						<!-- 使用说明 -->
 						<Border Background="#FFF3CD" CornerRadius="4" Padding="10" Margin="0,5,0,0">
 							<StackPanel Spacing="3">
-								<TextBlock Text="📋 使用步骤:" FontWeight="Bold" FontSize="12"/>
-								<TextBlock Text="1. 先启动Demo_C#程序，配置好东华软件参数" FontSize="11"/>
-								<TextBlock Text="2. 在Demo_C#中点击【启动采样】" FontSize="11"/>
-								<TextBlock Text="3. 回到本程序，设置配置路径（通常与Demo_C#的Config目录一致）" FontSize="11"/>
-								<TextBlock Text="4. 点击【初始化SDK】→【启动采样】" FontSize="11"/>
-								<TextBlock Text="5. 在【算法配置】或【结果显示】界面查看波形" FontSize="11"/>
+							<TextBlock Text="使用步骤:" FontWeight="Bold" FontSize="12"/>
+							<TextBlock Text="1. 先启动 Demo_C# 程序，并配置好东华软件参数" FontSize="11"/>
+							<TextBlock Text="2. 在 Demo_C# 中点击“启动采样”" FontSize="11"/>
+							<TextBlock Text="3. 回到本程序，设置配置路径，通常与 Demo_C# 的 Config 目录一致" FontSize="11"/>
+							<TextBlock Text="4. 点击“初始化SDK”，再点击“启动采样”" FontSize="11"/>
+							<TextBlock Text="5. 在“算法配置”或“结果显示”界面查看波形" FontSize="11"/>
 							</StackPanel>
 						</Border>
 					</StackPanel>
 				</Border>
-                <!-- 在线设备状态 -->
+                <!-- 鍦ㄧ嚎璁惧鐘舵€?-->
                 <Border BorderBrush="#E0E0E0" BorderThickness="1" Background="#F8F9FA" CornerRadius="4" Padding="15">
                     <StackPanel Spacing="10">
                         <StackPanel Orientation="Horizontal" Spacing="10">
@@ -127,7 +129,7 @@
                     </StackPanel>
                 </Border>
 
-                <!-- 通道在线状态（选中设备） -->
+                <!-- 閫氶亾鍦ㄧ嚎鐘舵€侊紙閫変腑璁惧锛?-->
                 <Border BorderBrush="#E0E0E0" BorderThickness="1" Background="#F8F9FA" CornerRadius="4" Padding="15">
                     <StackPanel Spacing="10">
                         <TextBlock Text="{Binding SelectedDeviceTitle}" FontWeight="Bold" FontSize="14"/>
@@ -152,7 +154,7 @@
                         </ScrollViewer>
                     </StackPanel>
                 </Border>
-				<!-- 控制按钮：移除 MockDriver -->
+				<!-- 鎺у埗鎸夐挳锛氱Щ闄?MockDriver -->
 			</StackPanel>
 			</ScrollViewer>
 		</TabItem>
@@ -162,7 +164,7 @@
 				<!-- 1. 写入配置区域 -->
 				<Border Grid.Row="0" Background="#f5f6f8" CornerRadius="6" Padding="15" Margin="0,0,0,10" BorderBrush="#e0e0e0" BorderThickness="1">
 					<StackPanel Spacing="12">
-						<TextBlock Text="⚙️ 写入配置" FontWeight="Bold" FontSize="14" Foreground="#333333"/>
+						<TextBlock Text="鈿欙笍 写入配置" FontWeight="Bold" FontSize="14" Foreground="#333333"/>
 						
 						<!-- 路径设置 -->
 						<Grid ColumnDefinitions="Auto, *" VerticalAlignment="Center">
@@ -172,85 +174,85 @@
 
 						<!-- 模式与会话名 -->
 						<Grid ColumnDefinitions="Auto, *, 20, Auto, *" VerticalAlignment="Center">
-							<TextBlock Text="TDMS导出" Grid.Column="0" VerticalAlignment="Center" Width="70" Foreground="#444444"
-									   IsVisible="{Binding IsTdmsStorageModeVisible}"/>
-							<ComboBox Grid.Column="1" SelectedIndex="{Binding StorageModeIndex}" HorizontalAlignment="Stretch"
-									  IsVisible="{Binding IsTdmsStorageModeVisible}">
-								<ComboBoxItem Content="单文件（会话单 .tdms）"/>
-								<ComboBoxItem Content="多文件（每通道一 .tdms）"/>
-							</ComboBox>
-							
-							<TextBlock Text="SDK格式" Grid.Column="0" VerticalAlignment="Center" Width="70" Foreground="#444444"
-									   IsVisible="{Binding IsSdkCaptureOutputModeVisible}"/>
-							<ComboBox Grid.Column="1" SelectedIndex="{Binding SdkCaptureOutputModeIndex}" HorizontalAlignment="Stretch"
-									  IsVisible="{Binding IsSdkCaptureOutputModeVisible}">
-								<ComboBoxItem Content="BIN 原始文件"/>
-								<ComboBoxItem Content="HDF5 文件"/>
-								<ComboBoxItem Content="BIN + HDF5"/>
-							</ComboBox>
+						<TextBlock Text="TDMS导出" Grid.Column="0" VerticalAlignment="Center" Width="70" Foreground="#444444"
+								   IsVisible="{Binding IsTdmsStorageModeVisible}"/>
+						<ComboBox Grid.Column="1" SelectedIndex="{Binding StorageModeIndex}" HorizontalAlignment="Stretch"
+								  IsVisible="{Binding IsTdmsStorageModeVisible}">
+							<ComboBoxItem Content="单文件（会话单个 .tdms）"/>
+							<ComboBoxItem Content="多文件（每通道一个 .tdms）"/>
+						</ComboBox>
+						
+						<TextBlock Text="SDK格式" Grid.Column="0" VerticalAlignment="Center" Width="70" Foreground="#444444"
+								   IsVisible="{Binding IsSdkCaptureOutputModeVisible}"/>
+						<ComboBox Grid.Column="1" SelectedIndex="{Binding SdkCaptureOutputModeIndex}" HorizontalAlignment="Stretch"
+								  IsVisible="{Binding IsSdkCaptureOutputModeVisible}">
+							<ComboBoxItem Content="BIN 原始文件"/>
+							<ComboBoxItem Content="HDF5 文件"/>
+							<ComboBoxItem Content="BIN + HDF5"/>
+						</ComboBox>
 
-							<TextBlock Text="导出名称" Grid.Column="3" VerticalAlignment="Center" Width="70" Foreground="#444444"/>
-							<TextBox Grid.Column="4" Text="{Binding StorageSessionName}"/>
-						</Grid>
+						<TextBlock Text="导出名称" Grid.Column="3" VerticalAlignment="Center" Width="70" Foreground="#444444"/>
+						<TextBox Grid.Column="4" Text="{Binding StorageSessionName}"/>
+					</Grid>
 
-						<!-- TDMS 压缩与预处理 -->
-						<Grid ColumnDefinitions="Auto, *, 20, Auto, *" VerticalAlignment="Center"
-							  IsVisible="{Binding IsTdmsCompressionConfigVisible}">
-							<TextBlock Text="压缩算法" Grid.Column="0" VerticalAlignment="Center" Width="70" Foreground="#444444"/>
-							<ComboBox Grid.Column="1" SelectedIndex="{Binding CompressionTypeIndex}" HorizontalAlignment="Stretch">
-								<ComboBoxItem Content="不压缩"/>
-								<ComboBoxItem Content="LZ4 (极速)"/>
-								<ComboBoxItem Content="Zstd (高维)"/>
-								<ComboBoxItem Content="Brotli (高压)"/>
-								<ComboBoxItem Content="Snappy"/>
-								<ComboBoxItem Content="Zlib"/>
-								<ComboBoxItem Content="LZ4_HC"/>
-								<ComboBoxItem Content="BZip2"/>
-							</ComboBox>
+					<!-- TDMS 压缩与预处理 -->
+					<Grid ColumnDefinitions="Auto, *, 20, Auto, *" VerticalAlignment="Center"
+						  IsVisible="{Binding IsTdmsCompressionConfigVisible}">
+						<TextBlock Text="压缩算法" Grid.Column="0" VerticalAlignment="Center" Width="70" Foreground="#444444"/>
+						<ComboBox Grid.Column="1" SelectedIndex="{Binding CompressionTypeIndex}" HorizontalAlignment="Stretch">
+							<ComboBoxItem Content="不压缩"/>
+							<ComboBoxItem Content="LZ4 (极速)"/>
+							<ComboBoxItem Content="Zstd (高维)"/>
+							<ComboBoxItem Content="Brotli (高压)"/>
+							<ComboBoxItem Content="Snappy"/>
+							<ComboBoxItem Content="Zlib"/>
+							<ComboBoxItem Content="LZ4_HC"/>
+							<ComboBoxItem Content="BZip2"/>
+						</ComboBox>
 
-							<TextBlock Text="预处理" Grid.Column="3" VerticalAlignment="Center" Width="70" Foreground="#444444"/>
-							<ComboBox Grid.Column="4" SelectedIndex="{Binding PreprocessTypeIndex}" HorizontalAlignment="Stretch">
-								<ComboBoxItem Content="不预处理"/>
-								<ComboBoxItem Content="一阶差分编码"/>
-								<ComboBoxItem Content="二阶差分编码"/>
-								<ComboBoxItem Content="线性预测编码"/>
-							</ComboBox>
-						</Grid>
+						<TextBlock Text="预处理" Grid.Column="3" VerticalAlignment="Center" Width="70" Foreground="#444444"/>
+						<ComboBox Grid.Column="4" SelectedIndex="{Binding PreprocessTypeIndex}" HorizontalAlignment="Stretch">
+							<ComboBoxItem Content="不预处理"/>
+							<ComboBoxItem Content="一阶差分编码"/>
+							<ComboBoxItem Content="二阶差分编码"/>
+							<ComboBoxItem Content="线性预测编码"/>
+						</ComboBox>
+					</Grid>
 
-						<Border Background="#eef7ff" CornerRadius="4" Padding="10,6" Margin="0,2,0,0"
-								IsVisible="{Binding IsSdkRawBinCompressionNoteVisible}">
-							<TextBlock Text="当前选择的是 BIN 原始文件模式：以下压缩算法和预处理参数不会作用于 .sdkraw.bin 本体，仅用于后续转 TDMS 或压缩性能测试。"
-									   Foreground="#24558a"
-									   TextWrapping="Wrap"/>
-						</Border>
+					<Border Background="#eef7ff" CornerRadius="4" Padding="10,6" Margin="0,2,0,0"
+							IsVisible="{Binding IsSdkRawBinCompressionNoteVisible}">
+						<TextBlock Text="当前选择的是 BIN 原始文件模式：以下压缩算法和预处理参数不会作用于 .sdkraw.bin 本体，仅用于后续转 TDMS 或压缩性能测试。"
+								   Foreground="#24558a"
+								   TextWrapping="Wrap"/>
+					</Border>
 
-						<!-- SDK HDF5 压缩配置 -->
-						<Grid ColumnDefinitions="Auto, *, 20, Auto, *" VerticalAlignment="Center"
-							  IsVisible="{Binding IsSdkHdf5CompressionConfigVisible}">
-							<TextBlock Text="HDF5压缩" Grid.Column="0" VerticalAlignment="Center" Width="70" Foreground="#444444"/>
-							<ComboBox Grid.Column="1" SelectedIndex="{Binding SdkHdf5CompressionIndex}" HorizontalAlignment="Stretch">
-								<ComboBoxItem Content="不压缩"/>
-								<ComboBoxItem Content="Zlib"/>
-							</ComboBox>
+					<!-- SDK HDF5 压缩配置 -->
+					<Grid ColumnDefinitions="Auto, *, 20, Auto, *" VerticalAlignment="Center"
+						  IsVisible="{Binding IsSdkHdf5CompressionConfigVisible}">
+						<TextBlock Text="HDF5压缩" Grid.Column="0" VerticalAlignment="Center" Width="70" Foreground="#444444"/>
+						<ComboBox Grid.Column="1" SelectedIndex="{Binding SdkHdf5CompressionIndex}" HorizontalAlignment="Stretch">
+							<ComboBoxItem Content="不压缩"/>
+							<ComboBoxItem Content="Zlib"/>
+						</ComboBox>
 
-							<TextBlock Text="说明" Grid.Column="3" VerticalAlignment="Center" Width="70" Foreground="#444444"/>
-							<TextBlock Grid.Column="4"
-									   Text="HDF5 当前仅支持原生 Zlib/Deflate 压缩。"
-									   VerticalAlignment="Center"
-									   Foreground="#666666"
-									   TextWrapping="Wrap"/>
-						</Grid>
+						<TextBlock Text="说明" Grid.Column="3" VerticalAlignment="Center" Width="70" Foreground="#444444"/>
+						<TextBlock Grid.Column="4"
+								   Text="HDF5 当前仅支持原生 Zlib/Deflate 压缩。"
+								   VerticalAlignment="Center"
+								   Foreground="#666666"
+								   TextWrapping="Wrap"/>
+					</Grid>
 
-						<Border Background="#fff7e6" CornerRadius="4" Padding="10,6" Margin="0,2,0,0"
-								IsVisible="{Binding IsSdkHdf5CompressionNoteVisible}">
-							<TextBlock Text="当前选择的是 BIN 原始文件模式，HDF5 压缩设置不会生效。"
-									   Foreground="#8a5a00"
-									   TextWrapping="Wrap"/>
-						</Border>
+					<Border Background="#fff7e6" CornerRadius="4" Padding="10,6" Margin="0,2,0,0"
+							IsVisible="{Binding IsSdkHdf5CompressionNoteVisible}">
+						<TextBlock Text="当前选择的是 BIN 原始文件模式，HDF5 压缩设置不会生效。"
+								   Foreground="#8a5a00"
+								   TextWrapping="Wrap"/>
+					</Border>
 
 						<!-- 压缩算法参数配置 -->
 						<StackPanel Spacing="0" IsVisible="{Binding IsTdmsCompressionConfigVisible}">
-							<!-- LZ4 参数：压缩等级 0~12 -->
+							<!-- LZ4 鍙傛暟锛氬帇缂╃瓑绾?0~12 -->
 							<Border Background="#eef2ff" CornerRadius="4" Padding="10,6" Margin="0,2,0,0"
 									IsVisible="{Binding CompressionTypeIndex, Converter={x:Static converters:CompressionParamVisibilityConverter.Instance}, ConverterParameter=1}">
 								<Grid ColumnDefinitions="Auto, *, Auto" VerticalAlignment="Center">
@@ -260,7 +262,7 @@
 								</Grid>
 							</Border>
 
-							<!-- LZ4_HC 参数：压缩等级 3~12 -->
+							<!-- LZ4_HC 鍙傛暟锛氬帇缂╃瓑绾?3~12 -->
 							<Border Background="#eef2ff" CornerRadius="4" Padding="10,6" Margin="0,2,0,0"
 									IsVisible="{Binding CompressionTypeIndex, Converter={x:Static converters:CompressionParamVisibilityConverter.Instance}, ConverterParameter=6}">
 								<Grid ColumnDefinitions="Auto, *, Auto" VerticalAlignment="Center">
@@ -270,7 +272,7 @@
 								</Grid>
 							</Border>
 
-							<!-- Zstd 参数：压缩等级 1~22 -->
+							<!-- Zstd 鍙傛暟锛氬帇缂╃瓑绾?1~22 -->
 							<Border Background="#eef2ff" CornerRadius="4" Padding="10,6" Margin="0,2,0,0"
 									IsVisible="{Binding CompressionTypeIndex, Converter={x:Static converters:CompressionParamVisibilityConverter.Instance}, ConverterParameter=2}">
 								<StackPanel Spacing="4">
@@ -287,7 +289,7 @@
 								</StackPanel>
 							</Border>
 
-							<!-- Brotli 参数：质量 0~11, 窗口位数 10~24 -->
+							<!-- Brotli 鍙傛暟锛氳川閲?0~11, 窗口位数 10~24 -->
 							<Border Background="#eef2ff" CornerRadius="4" Padding="10,6" Margin="0,2,0,0"
 									IsVisible="{Binding CompressionTypeIndex, Converter={x:Static converters:CompressionParamVisibilityConverter.Instance}, ConverterParameter=3}">
 								<StackPanel Spacing="4">
@@ -304,7 +306,7 @@
 								</StackPanel>
 							</Border>
 
-							<!-- Zlib 参数：压缩等级 0~9 -->
+							<!-- Zlib 鍙傛暟锛氬帇缂╃瓑绾?0~9 -->
 							<Border Background="#eef2ff" CornerRadius="4" Padding="10,6" Margin="0,2,0,0"
 									IsVisible="{Binding CompressionTypeIndex, Converter={x:Static converters:CompressionParamVisibilityConverter.Instance}, ConverterParameter=5}">
 								<Grid ColumnDefinitions="Auto, *, Auto" VerticalAlignment="Center">
@@ -314,15 +316,15 @@
 								</Grid>
 							</Border>
 
-							<!-- BZip2 参数：块大小 1~9 -->
-							<Border Background="#eef2ff" CornerRadius="4" Padding="10,6" Margin="0,2,0,0"
-									IsVisible="{Binding CompressionTypeIndex, Converter={x:Static converters:CompressionParamVisibilityConverter.Instance}, ConverterParameter=7}">
-								<Grid ColumnDefinitions="Auto, *, Auto" VerticalAlignment="Center">
-									<TextBlock Text="BZip2 块大小" VerticalAlignment="Center" Width="100" Foreground="#555" FontSize="12"/>
-									<Slider Grid.Column="1" Minimum="1" Maximum="9" Value="{Binding Bzip2BlockSize}" TickFrequency="1" IsSnapToTickEnabled="True" Margin="5,0"/>
-									<TextBlock Grid.Column="2" Text="{Binding Bzip2BlockSize, StringFormat='{}{0} × 100K'}" Width="80" TextAlignment="Center" FontFamily="Consolas" FontWeight="Bold" Foreground="#1a73e8"/>
-								</Grid>
-							</Border>
+						<!-- BZip2 参数：块大小 1~9 -->
+						<Border Background="#eef2ff" CornerRadius="4" Padding="10,6" Margin="0,2,0,0"
+								IsVisible="{Binding CompressionTypeIndex, Converter={x:Static converters:CompressionParamVisibilityConverter.Instance}, ConverterParameter=7}">
+							<Grid ColumnDefinitions="Auto, *, Auto" VerticalAlignment="Center">
+								<TextBlock Text="BZip2 块大小" VerticalAlignment="Center" Width="100" Foreground="#555" FontSize="12"/>
+								<Slider Grid.Column="1" Minimum="1" Maximum="9" Value="{Binding Bzip2BlockSize}" TickFrequency="1" IsSnapToTickEnabled="True" Margin="5,0"/>
+								<TextBlock Grid.Column="2" Text="{Binding Bzip2BlockSize, StringFormat='{}{0} x 100K'}" Width="80" TextAlignment="Center" FontFamily="Consolas" FontWeight="Bold" Foreground="#1a73e8"/>
+							</Grid>
+						</Border>
 						</StackPanel>
 
 						<Border Background="#eef2ff" CornerRadius="4" Padding="10,6" Margin="0,2,0,0"
@@ -341,16 +343,18 @@
 					<Grid ColumnDefinitions="Auto, *, Auto">
 						<StackPanel Spacing="10">
 							<StackPanel Orientation="Horizontal" Spacing="15">
-								<Button Content="▶ 开始写入" Command="{Binding StartStorageCommand}" Padding="20,8" Background="#28a745" Foreground="White" FontWeight="Bold"/>
-								<Button Content="⏹ 停止写入" Command="{Binding StopStorageCommand}" Padding="20,8" Background="#dc3545" Foreground="White" FontWeight="Bold"/>
+							<StackPanel Orientation="Horizontal" Spacing="15">
+								<Button Content="开始写入" Command="{Binding StartStorageCommand}" Padding="20,8" Background="#28a745" Foreground="White" FontWeight="Bold"/>
+								<Button Content="停止写入" Command="{Binding StopStorageCommand}" Padding="20,8" Background="#dc3545" Foreground="White" FontWeight="Bold"/>
 								
 								<Border Background="#ffffff" CornerRadius="4" Padding="12,6" VerticalAlignment="Center" BorderBrush="#d0d0d0" BorderThickness="1">
 									<StackPanel Orientation="Horizontal" Spacing="8">
-										<TextBlock Text="⏱" VerticalAlignment="Center" FontSize="14"/>
-										<TextBlock Text="{Binding StorageElapsed}" VerticalAlignment="Center" FontFamily="Consolas,Courier New,monospace" FontSize="16" FontWeight="Bold" 
+										<TextBlock Text="计时" VerticalAlignment="Center" FontSize="14"/>
+										<TextBlock Text="{Binding StorageElapsed}" VerticalAlignment="Center" FontFamily="Consolas,Courier New,monospace" FontSize="16" FontWeight="Bold"
 												   Foreground="{Binding StorageEnabled, Converter={x:Static converters:BoolToTextColorConverter.Instance}}"/>
 									</StackPanel>
 								</Border>
+							</StackPanel>
 							</StackPanel>
 							<StackPanel Orientation="Horizontal" Spacing="10">
 								<Button Content="查看性能报告" Command="{Binding ViewCompressionReportCommand}" IsEnabled="{Binding CanViewCompressionReport}" Padding="16,6"/>
@@ -361,10 +365,10 @@
 								<TextBlock Text="算法对比模式" VerticalAlignment="Center" Foreground="#555555"/>
 								<ComboBox SelectedIndex="{Binding CompressionBenchmarkReplayModeIndex}" Width="220">
 									<ComboBoxItem Content="自动（大文件快速）"/>
-									<ComboBoxItem Content="快速（部分通道+部分批次）"/>
+									<ComboBoxItem Content="快速（部分通道+閮ㄥ垎鎵规锛?/>
 									<ComboBoxItem Content="全量（完整原始数据）"/>
 								</ComboBox>
-								<TextBlock Text="仅影响压缩性能报告的算法对比，不影响实时原始写入与 TDMS 转换。"
+								<TextBlock Text="仅影响压缩性能报告的算法对比，不影响实时原始写入与 TDMS 杞崲銆?
 								           VerticalAlignment="Center"
 								           MaxWidth="420"
 								           Foreground="#777777"
@@ -381,56 +385,56 @@
 
 				<!-- 3. 文件管理区域 -->
 				<Border Grid.Row="2" Background="#f5f6f8" CornerRadius="6" Padding="15" BorderBrush="#e0e0e0" BorderThickness="1">
-					<Grid RowDefinitions="Auto, Auto, *, Auto">
+					<Grid RowDefinitions="Auto, Auto, Auto, *, Auto">
 						<Grid Grid.Row="0" RowDefinitions="Auto,Auto" Margin="0,0,0,10">
-							<TextBlock Text="📂 最近文件与验证" FontWeight="Bold" FontSize="14" VerticalAlignment="Center" Foreground="#333333"/>
+							<TextBlock Text="最近文件与验证" FontWeight="Bold" FontSize="14" VerticalAlignment="Center" Foreground="#333333"/>
 							
 							<WrapPanel Grid.Row="1" Margin="0,10,0,0" HorizontalAlignment="Stretch" Orientation="Horizontal">
-								<Button Content="📂 打开目录" Command="{Binding OpenOutputFolderCommand}"/>
-								<Button Content="🔄 刷新列表" Command="{Binding RefreshRecentFilesCommand}"/>
-								<Button Content="🔎 测试读取" Command="{Binding TestReadSelectedFileCommand}"/>
-								<Button Content="🧪 转TDMS" Command="{Binding ConvertSelectedToTdmsCommand}"/>
-								<Button Content="🛡️ 验证无损" Command="{Binding VerifyStoredFileCommand}" Background="#0d6efd" Foreground="White"/>
+								<Button Content="打开目录" Command="{Binding OpenOutputFolderCommand}"/>
+								<Button Content="刷新列表" Command="{Binding RefreshRecentFilesCommand}"/>
+								<Button Content="测试读取" Command="{Binding TestReadSelectedFileCommand}"/>
+								<Button Content="后台转TDMS" Command="{Binding ConvertSelectedToTdmsCommand}"/>
+								<Button Content="验证无损" Command="{Binding VerifyStoredFileCommand}" Background="#0d6efd" Foreground="White"/>
 							</WrapPanel>
 						</Grid>
 
 						<Border Grid.Row="1" IsVisible="{Binding HasRawTdmsExportOptions}" Background="#ffffff" BorderBrush="#d9d9d9" BorderThickness="1" CornerRadius="4" Padding="12" Margin="0,0,0,10">
-							<StackPanel Spacing="10">
-								<TextBlock Text="TDMS 转换范围：设备和通道都支持多选；如果不勾选，则默认转换全部通道。" TextWrapping="Wrap" Foreground="#555555"/>
-								<TextBlock Text="{Binding RawTdmsExportSelectionSummary}" Foreground="#1f4f82" FontWeight="SemiBold"/>
+						<StackPanel Spacing="10">
+							<TextBlock Text="TDMS 转换范围：设备和通道都支持多选；如果不勾选，则默认转换全部通道。" TextWrapping="Wrap" Foreground="#555555"/>
+							<TextBlock Text="{Binding RawTdmsExportSelectionSummary}" Foreground="#1f4f82" FontWeight="SemiBold"/>
 
-								<Grid ColumnDefinitions="1.1*,1.9*">
-									<Border Grid.Column="0" Margin="0,0,12,0" Background="#f8fafc" BorderBrush="#e5e7eb" BorderThickness="1" CornerRadius="4" Padding="10">
-										<Grid RowDefinitions="Auto,*">
-											<Grid ColumnDefinitions="*,Auto,Auto">
-												<TextBlock Text="设备多选" FontWeight="SemiBold" VerticalAlignment="Center"/>
-												<Button Grid.Column="1" Content="全选" Command="{Binding SelectAllRawTdmsDevicesCommand}" Padding="10,4" Margin="8,0,0,0"/>
-												<Button Grid.Column="2" Content="清空" Command="{Binding ClearRawTdmsDevicesCommand}" Padding="10,4" Margin="8,0,0,0"/>
-											</Grid>
-											<ScrollViewer Grid.Row="1" MaxHeight="160" Margin="0,8,0,0" VerticalScrollBarVisibility="Auto">
-												<ItemsControl ItemsSource="{Binding RawTdmsExportDevices}">
-													<ItemsControl.ItemsPanel>
-														<ItemsPanelTemplate>
-															<ap:UniformGrid Columns="2"/>
-														</ItemsPanelTemplate>
-													</ItemsControl.ItemsPanel>
-													<ItemsControl.ItemTemplate>
-														<DataTemplate x:DataType="vm:RawTdmsExportDeviceOption">
-															<CheckBox Content="{Binding DisplayText}" IsChecked="{Binding IsSelected}" Margin="0,0,8,6"/>
-														</DataTemplate>
-													</ItemsControl.ItemTemplate>
-												</ItemsControl>
-											</ScrollViewer>
+							<Grid ColumnDefinitions="1.1*,1.9*">
+								<Border Grid.Column="0" Margin="0,0,12,0" Background="#f8fafc" BorderBrush="#e5e7eb" BorderThickness="1" CornerRadius="4" Padding="10">
+									<Grid RowDefinitions="Auto,*">
+										<Grid ColumnDefinitions="*,Auto,Auto">
+											<TextBlock Text="设备多选" FontWeight="SemiBold" VerticalAlignment="Center"/>
+											<Button Grid.Column="1" Content="全选" Command="{Binding SelectAllRawTdmsDevicesCommand}" Padding="10,4" Margin="8,0,0,0"/>
+											<Button Grid.Column="2" Content="清空" Command="{Binding ClearRawTdmsDevicesCommand}" Padding="10,4" Margin="8,0,0,0"/>
 										</Grid>
-									</Border>
+										<ScrollViewer Grid.Row="1" MaxHeight="160" Margin="0,8,0,0" VerticalScrollBarVisibility="Auto">
+											<ItemsControl ItemsSource="{Binding RawTdmsExportDevices}">
+												<ItemsControl.ItemsPanel>
+													<ItemsPanelTemplate>
+														<ap:UniformGrid Columns="2"/>
+													</ItemsPanelTemplate>
+												</ItemsControl.ItemsPanel>
+												<ItemsControl.ItemTemplate>
+													<DataTemplate x:DataType="vm:RawTdmsExportDeviceOption">
+														<CheckBox Content="{Binding DisplayText}" IsChecked="{Binding IsSelected}" Margin="0,0,8,6"/>
+													</DataTemplate>
+												</ItemsControl.ItemTemplate>
+											</ItemsControl>
+										</ScrollViewer>
+									</Grid>
+								</Border>
 
-									<Border Grid.Column="1" Margin="0" Background="#f8fafc" BorderBrush="#e5e7eb" BorderThickness="1" CornerRadius="4" Padding="10">
-										<Grid RowDefinitions="Auto,*">
-											<Grid ColumnDefinitions="*,Auto,Auto">
-												<TextBlock Text="通道多选" FontWeight="SemiBold" VerticalAlignment="Center"/>
-												<Button Grid.Column="1" Content="全选" Command="{Binding SelectAllRawTdmsChannelsCommand}" Padding="10,4" Margin="8,0,0,0"/>
-												<Button Grid.Column="2" Content="清空" Command="{Binding ClearRawTdmsChannelsCommand}" Padding="10,4" Margin="8,0,0,0"/>
-											</Grid>
+								<Border Grid.Column="1" Margin="0" Background="#f8fafc" BorderBrush="#e5e7eb" BorderThickness="1" CornerRadius="4" Padding="10">
+									<Grid RowDefinitions="Auto,*">
+										<Grid ColumnDefinitions="*,Auto,Auto">
+											<TextBlock Text="通道多选" FontWeight="SemiBold" VerticalAlignment="Center"/>
+											<Button Grid.Column="1" Content="全选" Command="{Binding SelectAllRawTdmsChannelsCommand}" Padding="10,4" Margin="8,0,0,0"/>
+											<Button Grid.Column="2" Content="清空" Command="{Binding ClearRawTdmsChannelsCommand}" Padding="10,4" Margin="8,0,0,0"/>
+										</Grid>
 											<ScrollViewer Grid.Row="1" MaxHeight="160" Margin="0,8,0,0" VerticalScrollBarVisibility="Auto">
 												<ItemsControl ItemsSource="{Binding RawTdmsExportChannels}">
 													<ItemsControl.ItemsPanel>
@@ -451,8 +455,43 @@
 							</StackPanel>
 						</Border>
 
-						<!-- 最近文件列表 (Row 2, takes remaining space) -->
-						<ListBox Grid.Row="2" ItemsSource="{Binding RecentTdmsFiles}" SelectedItem="{Binding SelectedTdmsFile}" 
+						<Border Grid.Row="2" IsVisible="{Binding HasTdmsExportJobs}" Background="#ffffff" BorderBrush="#d9d9d9" BorderThickness="1" CornerRadius="4" Padding="12" Margin="0,0,0,10">
+							<Grid RowDefinitions="Auto,*">
+								<Grid ColumnDefinitions="*,Auto">
+									<StackPanel Spacing="4">
+										<TextBlock Text="后台TDMS导出任务" FontWeight="SemiBold"/>
+										<TextBlock Text="{Binding TdmsExportQueueStatusMessage}" Foreground="#555555"/>
+									</StackPanel>
+									<Button Grid.Column="1" Content="清理已完成" Command="{Binding ClearCompletedTdmsExportJobsCommand}" Padding="12,4"/>
+								</Grid>
+								<ScrollViewer Grid.Row="1" MaxHeight="200" Margin="0,10,0,0" VerticalScrollBarVisibility="Auto">
+									<ItemsControl ItemsSource="{Binding TdmsExportJobs}">
+										<ItemsControl.ItemTemplate>
+											<DataTemplate x:DataType="vm:TdmsExportJobItem">
+												<Border Margin="0,0,0,8" Padding="12,10" CornerRadius="6" Background="#f8fafc" BorderBrush="#e5e7eb" BorderThickness="1">
+													<Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto" ColumnDefinitions="*,Auto">
+														<TextBlock Text="{Binding TitleText}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+														<Border Grid.Column="1" Background="#eef2ff" Padding="8,2" CornerRadius="10">
+															<TextBlock Text="{Binding StateText}" Foreground="#1d4ed8" FontSize="11"/>
+														</Border>
+														<TextBlock Grid.Row="1" Grid.ColumnSpan="2" Margin="0,6,0,0" Text="{Binding ConfigSummaryText}" Foreground="#555555" TextWrapping="Wrap"/>
+														<ProgressBar Grid.Row="2" Grid.ColumnSpan="2" Margin="0,8,0,0" Height="8"
+																 Minimum="0" Maximum="100"
+																 Value="{Binding ProgressPercent}"
+																 IsIndeterminate="{Binding IsProgressIndeterminate}"/>
+														<TextBlock Grid.Row="3" Grid.ColumnSpan="2" Margin="0,6,0,0" Text="{Binding ProgressText}" Foreground="#666666" TextWrapping="Wrap"/>
+														<TextBlock Grid.Row="4" Grid.ColumnSpan="2" Margin="0,6,0,0" Text="{Binding SummaryText}" Foreground="#4b5563" TextWrapping="Wrap"/>
+													</Grid>
+												</Border>
+											</DataTemplate>
+										</ItemsControl.ItemTemplate>
+									</ItemsControl>
+								</ScrollViewer>
+							</Grid>
+						</Border>
+
+						<!-- 鏈€杩戞枃浠跺垪琛?(Row 3, takes remaining space) -->
+						<ListBox Grid.Row="3" ItemsSource="{Binding RecentTdmsFiles}" SelectedItem="{Binding SelectedTdmsFile}" 
 								 Background="#ffffff" BorderBrush="#d0d0d0" BorderThickness="1" CornerRadius="4" Margin="0,0,0,10" MinHeight="240">
 							<ListBox.ItemTemplate>
 								<DataTemplate x:DataType="vm:TdmsFileItem">
@@ -472,8 +511,8 @@
 							</ListBox.ItemTemplate>
 						</ListBox>
 
-						<!-- 验证结果报告 (Row 3, fixed 150px with scroll) -->
-						<Border Grid.Row="3" 
+						<!-- 验证结果报告 (Row 4, fixed 150px with scroll) -->
+						<Border Grid.Row="4" 
 								BorderBrush="{Binding FileVerifyPassed, Converter={x:Static converters:BoolToVerifyColorConverter.Instance}}"
 								BorderThickness="1" CornerRadius="4" Background="#ffffff" Padding="0">
 							<Expander IsExpanded="False">
@@ -496,16 +535,13 @@
 				
 			</Grid>
 		</TabItem>
-        <TabItem Header="算法配置">
-            <dhc:SimplifiedWaveformDisplay Margin="10"/>
-        </TabItem>
         <TabItem Header="结果显示">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
-                <!-- 顶部：左侧可视化控件组 + 右侧视图管理按钮 -->
+                <!-- 椤堕儴锛氬乏渚у彲瑙嗗寲鎺т欢缁?+ 右侧视图管理按钮 -->
                 <Grid Margin="0,0,0,0">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
@@ -540,17 +576,17 @@
                         </Button>
                     </StackPanel>
 
-                    <!-- 中间占位，保证右侧按钮靠右 -->
+                    <!-- 涓棿鍗犱綅锛屼繚璇佸彸渚ф寜閽潬鍙?-->
                     <Border Grid.Column="1"/>
 
-                    <!-- 右侧：视图管理按钮，与左侧控件水平对齐 -->
+                    <!-- 鍙充晶锛氳鍥剧鐞嗘寜閽紝涓庡乏渚ф帶浠舵按骞冲榻?-->
                     <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Spacing="8" Margin="10,10,10,20">
-                        <Button x:Name="AddViewButton" Content="＋ 添加视图" Padding="10,6"/>
-                        <Button x:Name="RemoveViewButton" Content="－ 删除视图" Padding="10,6"/>
+                        <Button x:Name="AddViewButton" Content="锛?添加视图" Padding="10,6"/>
+                        <Button x:Name="RemoveViewButton" Content="锛?删除视图" Padding="10,6"/>
                     </StackPanel>
                 </Grid>
 
-                <!-- 均分 8×8 的视图容器：UniformGrid -->
+                <!-- 均分 8脳8 的视图容器：UniformGrid -->
                 <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Disabled">
                     <ap:UniformGrid x:Name="ViewsContainer" Rows="8" Columns="8" Margin="10"/>
                 </ScrollViewer>
@@ -591,15 +627,15 @@
                         </Grid>
                         <!--
                         <StackPanel Spacing="8">
-                            <TextBlock Text="压缩性能测试已改为手动模式。" FontSize="15" FontWeight="SemiBold" Foreground="#333333"/>
-                            <TextBlock Text="请先在本页选择测试文件，再手动开始测试。结果展示的是将现有压缩算法作用于所选测试文件后的数据。"
+                            <TextBlock Text="鍘嬬缉鎬ц兘娴嬭瘯宸叉敼涓烘墜鍔ㄦā寮忋€? FontSize="15" FontWeight="SemiBold" Foreground="#333333"/>
+                            <TextBlock Text="璇峰厛鍦ㄦ湰椤甸€夋嫨娴嬭瘯鏂囦欢锛屽啀鎵嬪姩寮€濮嬫祴璇曘€傜粨鏋滃睍绀虹殑鏄皢鐜版湁鍘嬬缉绠楁硶浣滅敤浜庢墍閫夋祴璇曟枃浠跺悗鐨勬暟鎹€?
                                        Foreground="#666666"
                                        TextWrapping="Wrap"/>
                         </StackPanel>
                         -->
                         <StackPanel Spacing="8">
                             <TextBlock Text="压缩性能测试已改为手动模式。" FontSize="15" FontWeight="SemiBold" Foreground="#333333"/>
-                            <TextBlock Text="请先在本页选择测试文件，再手动开始测试。结果展示的是将现有压缩算法作用于所选源数据后的结果。"
+                            <TextBlock Text="请选择测试文件后再手动开始测试。结果显示的是现有压缩算法作用于所选源数据后的表现。"
                                        Foreground="#666666"
                                        TextWrapping="Wrap"/>
                         </StackPanel>
@@ -609,18 +645,18 @@
                     <!--
                     <Border Background="#ffffff" CornerRadius="6" Padding="15" BorderBrush="#e0e0e0" BorderThickness="1">
                         <StackPanel Spacing="10">
-                            <TextBlock Text="测试文件与对比模式" FontSize="14" FontWeight="Bold" Foreground="#333333"/>
+                            <TextBlock Text="娴嬭瘯鏂囦欢涓庡姣旀ā寮? FontSize="14" FontWeight="Bold" Foreground="#333333"/>
                             <StackPanel Orientation="Horizontal" Spacing="8">
                                 <TextBox Width="540"
                                          Text="{Binding CompressionBenchmarkInputPath}"
-                                         Watermark="请选择未压缩、未预处理的 .sdkraw.bin、.tdms、.tdm、.h5 或 .hdf5 文件"/>
+                                         Watermark="请选择未压缩、未预处理的 .sdkraw.bin銆?tdms銆?tdm銆?h5 鎴?.hdf5 文件"/>
                                 <Button Content="使用当前选中文件"
                                         Command="{Binding UseSelectedStoredFileForCompressionBenchmarkCommand}"
                                         Padding="14,6"/>
                                 <Button Content="浏览..."
                                         Command="{Binding BrowseCompressionBenchmarkFileCommand}"
                                         Padding="14,6"/>
-                                <Button Content="开始测试"
+                                <Button Content="寮€濮嬫祴璇?
                                         Command="{Binding RunCompressionBenchmarkFromFileCommand}"
                                         Padding="14,6"
                                         Background="#0d6efd"
@@ -630,8 +666,8 @@
                             <StackPanel Orientation="Horizontal" Spacing="10">
                                 <TextBlock Text="算法对比模式" VerticalAlignment="Center" Foreground="#555555"/>
                                 <ComboBox SelectedIndex="{Binding CompressionBenchmarkReplayModeIndex}" Width="220">
-                                    <ComboBoxItem Content="自动（大文件快进）"/>
-                                    <ComboBoxItem Content="快速（部分通道+部分批次）"/>
+                                    <ComboBoxItem Content="鑷姩锛堝ぇ鏂囦欢蹇繘锛?/>
+                                    <ComboBoxItem Content="快速（部分通道+閮ㄥ垎鎵规锛?/>
                                     <ComboBoxItem Content="全量（完整测试文件）"/>
                                 </ComboBox>
                                 <TextBlock Text="{Binding CompressionBenchmarkInputSummaryText}"
@@ -639,7 +675,7 @@
                                            Foreground="#666666"
                                            TextWrapping="Wrap"/>
                             </StackPanel>
-                            <TextBlock Text="测试结果会显示将现有压缩算法作用于所选测试文件后的数据，不再在每次保存完成后自动触发。"
+                            <TextBlock Text="娴嬭瘯缁撴灉浼氭樉绀哄皢鐜版湁鍘嬬缉绠楁硶浣滅敤浜庢墍閫夋祴璇曟枃浠跺悗鐨勬暟鎹紝涓嶅啀鍦ㄦ瘡娆′繚瀛樺畬鎴愬悗鑷姩瑙﹀彂銆?
                                        Foreground="#777777"
                                        TextWrapping="Wrap"/>
                         </StackPanel>
@@ -687,8 +723,8 @@
                     <Border Background="#ffffff" CornerRadius="6" Padding="20" BorderBrush="#e0e0e0" BorderThickness="1"
                             IsVisible="False">
                         <StackPanel Spacing="8" IsVisible="False">
-                            <TextBlock Text="停止写入后会自动生成压缩性能报告。" FontSize="15" FontWeight="SemiBold" Foreground="#333333"/>
-                            <TextBlock Text="报告会包含本次真实写入的压缩比、压缩带宽、写盘带宽，以及基于已保存原始数据或采样批次的多算法对比结果。" Foreground="#666666" TextWrapping="Wrap"/>
+                            <TextBlock Text="鍋滄鍐欏叆鍚庝細鑷姩鐢熸垚鍘嬬缉鎬ц兘鎶ュ憡銆? FontSize="15" FontWeight="SemiBold" Foreground="#333333"/>
+                            <TextBlock Text="鎶ュ憡浼氬寘鍚湰娆＄湡瀹炲啓鍏ョ殑鍘嬬缉姣斻€佸帇缂╁甫瀹姐€佸啓鐩樺甫瀹斤紝浠ュ強鍩轰簬宸蹭繚瀛樺師濮嬫暟鎹垨閲囨牱鎵规鐨勫绠楁硶瀵规瘮缁撴灉銆? Foreground="#666666" TextWrapping="Wrap"/>
                         </StackPanel>
                     </Border>
                     -->
@@ -700,8 +736,8 @@
                                 <TextBlock Grid.Row="1" Margin="0,6,20,0" Text="{Binding CurrentCompressionReport.SessionName, StringFormat='会话: {0}'}"/>
                                 <TextBlock Grid.Row="1" Grid.Column="1" Margin="0,6,0,0" Text="{Binding CurrentCompressionReport.StorageModeText, StringFormat='模式: {0}'}"/>
                                 <TextBlock Grid.Row="2" Margin="0,6,20,0" Text="{Binding CurrentCompressionReport.CompressionTypeText, StringFormat='算法: {0}'}"/>
-                                <TextBlock Grid.Row="2" Grid.Column="1" Margin="0,6,0,0" Text="{Binding CurrentCompressionReport.PreprocessTypeText, StringFormat='预处理: {0}'}"/>
-                                <TextBlock Grid.Row="3" Margin="0,6,20,0" Text="{Binding CurrentCompressionReport.SampleRateText, StringFormat='采样率: {0}'}"/>
+                                <TextBlock Grid.Row="2" Grid.Column="1" Margin="0,6,0,0" Text="{Binding CurrentCompressionReport.PreprocessTypeText, StringFormat='棰勫鐞? {0}'}"/>
+                                <TextBlock Grid.Row="3" Margin="0,6,20,0" Text="{Binding CurrentCompressionReport.SampleRateText, StringFormat='閲囨牱鐜? {0}'}"/>
                                 <TextBlock Grid.Row="3" Grid.Column="1" Margin="0,6,0,0" Text="{Binding CurrentCompressionReport.ParameterSummary, StringFormat='参数: {0}'}" TextWrapping="Wrap"/>
                             </Grid>
                         </Border>
@@ -737,12 +773,12 @@
                                     <TextBlock Margin="0,0,20,0" Text="{Binding CurrentCompressionReport.RawBytesText, StringFormat='原始数据: {0}'}"/>
                                     <TextBlock Grid.Column="1" Text="{Binding CurrentCompressionReport.CodecBytesText, StringFormat='压缩载荷: {0}'}"/>
                                     <TextBlock Grid.Row="1" Margin="0,6,20,0" Text="{Binding CurrentCompressionReport.TdmsPayloadBytesText, StringFormat='TDMS载荷: {0}'}"/>
-                                    <TextBlock Grid.Row="1" Grid.Column="1" Margin="0,6,0,0" Text="{Binding CurrentCompressionReport.StoredBytesText, StringFormat='最终文件: {0}'}"/>
-                                    <TextBlock Grid.Row="2" Margin="0,6,20,0" Text="{Binding CurrentCompressionReport.PayloadCompressionRatioText, StringFormat='落盘压缩比: {0}'}"/>
-                                    <TextBlock Grid.Row="2" Grid.Column="1" Margin="0,6,0,0" Text="{Binding CurrentCompressionReport.SpaceSavingText, StringFormat='空间节省率: {0}'}"/>
+                                    <TextBlock Grid.Row="1" Grid.Column="1" Margin="0,6,0,0" Text="{Binding CurrentCompressionReport.StoredBytesText, StringFormat='鏈€缁堟枃浠? {0}'}"/>
+                                    <TextBlock Grid.Row="2" Margin="0,6,20,0" Text="{Binding CurrentCompressionReport.PayloadCompressionRatioText, StringFormat='钀界洏鍘嬬缉姣? {0}'}"/>
+                                    <TextBlock Grid.Row="2" Grid.Column="1" Margin="0,6,0,0" Text="{Binding CurrentCompressionReport.SpaceSavingText, StringFormat='绌洪棿鑺傜渷鐜? {0}'}"/>
                                     <TextBlock Grid.Row="3" Margin="0,6,20,0" Text="{Binding CurrentCompressionReport.P50EncodeText, StringFormat='P50压缩耗时: {0}'}"/>
                                     <TextBlock Grid.Row="3" Grid.Column="1" Margin="0,6,0,0" Text="{Binding CurrentCompressionReport.P95EncodeText, StringFormat='P95压缩耗时: {0}'}"/>
-                                    <TextBlock Grid.Row="4" Margin="0,6,20,0" Text="{Binding CurrentCompressionReport.WorstEncodeText, StringFormat='最慢压缩批次: {0}'}"/>
+                                    <TextBlock Grid.Row="4" Margin="0,6,20,0" Text="{Binding CurrentCompressionReport.WorstEncodeText, StringFormat='鏈€鎱㈠帇缂╂壒娆? {0}'}"/>
                                     <TextBlock Grid.Row="4" Grid.Column="1" Margin="0,6,0,0" Text="{Binding CurrentCompressionReport.SessionTimeText, StringFormat='起止时间: {0}'}"/>
                                 </Grid>
                             </StackPanel>

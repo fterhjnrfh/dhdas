@@ -208,17 +208,35 @@ public static class SdkRawCaptureReaderUtil
         SdkRawCaptureIndex index,
         SdkRawCaptureManifest? manifest)
     {
-        if (manifest?.ChannelSampleCounts != null && manifest.ChannelSampleCounts.Count > 0)
-        {
-            return manifest.ChannelSampleCounts;
-        }
-
+        var fallback = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
         if (index.ChannelSampleCounts.Count > 0)
         {
-            return index.ChannelSampleCounts;
+            foreach (var kvp in index.ChannelSampleCounts)
+            {
+                fallback[kvp.Key] = kvp.Value;
+            }
         }
 
-        var fallback = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
+        if (manifest?.ChannelSampleCounts != null && manifest.ChannelSampleCounts.Count > 0)
+        {
+            foreach (var kvp in manifest.ChannelSampleCounts)
+            {
+                if (fallback.TryGetValue(kvp.Key, out long existing))
+                {
+                    fallback[kvp.Key] = Math.Max(existing, kvp.Value);
+                }
+                else
+                {
+                    fallback[kvp.Key] = kvp.Value;
+                }
+            }
+        }
+
+        if (fallback.Count > 0)
+        {
+            return fallback;
+        }
+
         foreach (var device in index.Devices)
         {
             for (int channelNumber = 1; channelNumber <= Math.Max(0, device.ChannelCount); channelNumber++)

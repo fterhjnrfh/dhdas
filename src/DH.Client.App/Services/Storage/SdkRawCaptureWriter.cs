@@ -74,6 +74,8 @@ internal sealed class SdkRawCaptureManifest
 
     public DateTime StoppedAtUtc { get; set; }
 
+    public bool IsFinalized { get; set; } = true;
+
     public double SampleRateHz { get; set; }
 
     public int ExpectedChannelCount { get; set; }
@@ -363,6 +365,9 @@ internal sealed class SdkRawCaptureWriter : IDisposable
     private const int TargetBufferedBatchesPerDevice = 32;
     private const double TargetBufferedSeconds = 3.0d;
     private const int RawCaptureFileBufferSize = 8 * 1024 * 1024;
+    private const int LiveSnapshotBlockStride = 1024;
+    private const double LiveSnapshotMaxPendingUsageRatio = 0.20d;
+    private static readonly TimeSpan LiveSnapshotInterval = TimeSpan.FromSeconds(10.0d);
 
     private readonly Channel<SdkRawBlock> _queue = Channel.CreateUnbounded<SdkRawBlock>(
         new UnboundedChannelOptions
@@ -392,6 +397,7 @@ internal sealed class SdkRawCaptureWriter : IDisposable
     private int _expectedChannelCount;
     private DateTime _startedAtUtc;
     private DateTime _stoppedAtUtc;
+    private DateTime _lastSnapshotPersistedAtUtc;
     private bool _started;
     private long _blockCount;
     private long _totalSamples;
@@ -407,6 +413,7 @@ internal sealed class SdkRawCaptureWriter : IDisposable
     private long _peakPendingPayloadBytes;
     private long _pendingBlockLimit = DefaultPendingBlockLimit;
     private long _pendingPayloadByteLimit = DefaultPendingPayloadByteLimit;
+    private long _lastSnapshotPersistedBlockCount;
     private int _protectionTriggered;
     private string _protectionReason = "";
     private Exception? _writerFault;
@@ -439,6 +446,7 @@ internal sealed class SdkRawCaptureWriter : IDisposable
         _pendingBlockLimit = ResolvePendingBlockLimit(expectedChannelIds);
         _pendingPayloadByteLimit = ResolvePendingPayloadByteLimit(sampleRateHz, _expectedChannelCount);
         _startedAtUtc = DateTime.UtcNow;
+        _lastSnapshotPersistedAtUtc = _startedAtUtc;
         _capturePath = Path.Combine(sessionFolder, $"{safeName}{SdkRawCaptureFormat.FileSuffix}");
         _manifestPath = SdkRawCaptureFormat.GetManifestPath(_capturePath);
         _indexPath = SdkRawCaptureIndexFormat.GetIndexPath(_capturePath);
@@ -463,7 +471,7 @@ internal sealed class SdkRawCaptureWriter : IDisposable
             {
                 _hdf5MirrorWriter?.Dispose();
                 _hdf5MirrorWriter = null;
-                Console.WriteLine($"[SdkRawCapture][HDF5] 鍚姩 HDF5 鏀嚎澶辫触: {ex.Message}");
+                Console.WriteLine($"[SdkRawCapture][HDF5] 启动 HDF5 支线失败: {ex.Message}");
             }
         }
 
@@ -578,9 +586,9 @@ internal sealed class SdkRawCaptureWriter : IDisposable
 
         var hdf5MirrorResult = CompleteHdf5MirrorWriter();
         string capturePath = _capturePath ?? string.Empty;
-        var manifest = BuildManifest(hdf5MirrorResult);
+        var manifest = BuildManifest(hdf5MirrorResult, isFinalized: true, snapshotAtUtc: _stoppedAtUtc);
         PersistManifest(manifest);
-        PersistIndex(manifest);
+        PersistIndex(manifest, isFinalized: true, snapshotAtUtc: _stoppedAtUtc);
         var sampleCounts = manifest.ChannelSampleCounts
             .ToDictionary(kvp => kvp.Key, kvp => kvp.Value, StringComparer.OrdinalIgnoreCase);
 
@@ -644,6 +652,8 @@ internal sealed class SdkRawCaptureWriter : IDisposable
         _peakPendingPayloadBytes = 0;
         _pendingBlockLimit = DefaultPendingBlockLimit;
         _pendingPayloadByteLimit = DefaultPendingPayloadByteLimit;
+        _lastSnapshotPersistedAtUtc = default;
+        _lastSnapshotPersistedBlockCount = 0L;
         _protectionTriggered = 0;
         _protectionReason = "";
         _writerFault = null;
@@ -785,10 +795,61 @@ internal sealed class SdkRawCaptureWriter : IDisposable
                 {
                 }
             }
+
+            TryPersistLiveArtifactsIfDue();
         }
         finally
         {
             rawBlock.ReleasePayload();
+        }
+    }
+
+    private void TryPersistLiveArtifactsIfDue(bool force = false)
+    {
+        if (string.IsNullOrEmpty(_capturePath) || string.IsNullOrEmpty(_manifestPath) || string.IsNullOrEmpty(_indexPath))
+        {
+            return;
+        }
+
+        if (_blockCount <= 0)
+        {
+            return;
+        }
+
+        if (!force)
+        {
+            long pendingBlockCount = Interlocked.Read(ref _pendingBlockCount);
+            long pendingPayloadBytes = Interlocked.Read(ref _pendingPayloadBytes);
+            bool queueUnderPressure =
+                pendingBlockCount > Math.Ceiling(_pendingBlockLimit * LiveSnapshotMaxPendingUsageRatio)
+                || pendingPayloadBytes > Math.Ceiling(_pendingPayloadByteLimit * LiveSnapshotMaxPendingUsageRatio);
+
+            if (queueUnderPressure)
+            {
+                return;
+            }
+        }
+
+        DateTime snapshotAtUtc = DateTime.UtcNow;
+        long blocksSinceLastPersist = _blockCount - _lastSnapshotPersistedBlockCount;
+        if (!force
+            && blocksSinceLastPersist < LiveSnapshotBlockStride
+            && (snapshotAtUtc - _lastSnapshotPersistedAtUtc) < LiveSnapshotInterval)
+        {
+            return;
+        }
+
+        try
+        {
+            var manifest = BuildManifest(isFinalized: false, snapshotAtUtc: snapshotAtUtc);
+            PersistManifest(manifest);
+            PersistIndex(manifest, isFinalized: false, snapshotAtUtc: snapshotAtUtc);
+            _lastSnapshotPersistedAtUtc = snapshotAtUtc;
+            _lastSnapshotPersistedBlockCount = _blockCount;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[SdkRawCapture] Failed to persist live snapshot: {ex.Message}");
         }
     }
 
@@ -1036,12 +1097,19 @@ internal sealed class SdkRawCaptureWriter : IDisposable
         state.IssueExamples.Add(message);
     }
 
-    private SdkRawCaptureManifest BuildManifest(SdkRawCaptureHdf5MirrorResult? hdf5MirrorResult = null)
+    private SdkRawCaptureManifest BuildManifest(
+        SdkRawCaptureHdf5MirrorResult? hdf5MirrorResult = null,
+        bool isFinalized = true,
+        DateTime? snapshotAtUtc = null)
     {
         string capturePath = _capturePath ?? string.Empty;
         long captureBytes = !string.IsNullOrEmpty(capturePath) && File.Exists(capturePath)
             ? new FileInfo(capturePath).Length
             : 0L;
+        DateTime effectiveSnapshotAtUtc = snapshotAtUtc ?? DateTime.UtcNow;
+        DateTime effectiveStoppedAtUtc = _stoppedAtUtc != default
+            ? _stoppedAtUtc
+            : effectiveSnapshotAtUtc;
 
         var sampleCounts = _channelSampleCounts
             .OrderBy(kvp => kvp.Key)
@@ -1111,7 +1179,7 @@ internal sealed class SdkRawCaptureWriter : IDisposable
             minDeviceSamplesPerChannel,
             maxDeviceSamplesPerChannel);
         DateTime observedStartAtUtc = _startedAtUtc;
-        DateTime observedStopAtUtc = _stoppedAtUtc;
+        DateTime observedStopAtUtc = effectiveStoppedAtUtc;
         if (TryGetObservedCaptureWindow(out var firstReceivedAtUtc, out var lastReceivedAtUtc))
         {
             observedStartAtUtc = firstReceivedAtUtc;
@@ -1131,7 +1199,8 @@ internal sealed class SdkRawCaptureWriter : IDisposable
             SessionName = _sessionName,
             CaptureFileName = Path.GetFileName(capturePath),
             StartedAtUtc = _startedAtUtc,
-            StoppedAtUtc = _stoppedAtUtc,
+            StoppedAtUtc = effectiveStoppedAtUtc,
+            IsFinalized = isFinalized,
             SampleRateHz = _sampleRateHz,
             ExpectedChannelCount = _expectedChannelCount,
             ObservedChannelCount = _channelSampleCounts.Count,
@@ -1397,10 +1466,13 @@ internal sealed class SdkRawCaptureWriter : IDisposable
         {
             WriteIndented = true
         });
-        File.WriteAllText(_manifestPath, json);
+        SdkRawCapturePersistenceUtil.WriteAllTextAtomically(_manifestPath, json);
     }
 
-    private void PersistIndex(SdkRawCaptureManifest manifest)
+    private void PersistIndex(
+        SdkRawCaptureManifest manifest,
+        bool isFinalized = true,
+        DateTime? snapshotAtUtc = null)
     {
         if (string.IsNullOrEmpty(_capturePath) || string.IsNullOrEmpty(_indexPath))
         {
@@ -1428,11 +1500,14 @@ internal sealed class SdkRawCaptureWriter : IDisposable
             SessionName = manifest.SessionName,
             CaptureFileName = manifest.CaptureFileName,
             CaptureFileBytes = captureBytes,
+            IndexedCaptureFileBytes = captureBytes,
             SampleRateHz = manifest.SampleRateHz,
-            CreatedAtUtc = DateTime.UtcNow,
+            CreatedAtUtc = _startedAtUtc == default ? DateTime.UtcNow : _startedAtUtc,
+            LastUpdatedAtUtc = snapshotAtUtc ?? DateTime.UtcNow,
+            IndexedBlockCount = _blockIndexEntries.Count,
+            IsFinalized = isFinalized,
             Devices = devices,
             Blocks = _blockIndexEntries
-                .OrderBy(entry => entry.Offset)
                 .Select(entry => new SdkRawCaptureBlockIndexEntry
                 {
                     Offset = entry.Offset,
@@ -1470,7 +1545,7 @@ internal sealed class SdkRawCaptureWriter : IDisposable
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[SdkRawCapture][HDF5] 鍋滄 HDF5 鏀嚎鏃跺嚭閿? {ex.Message}");
+            Console.WriteLine($"[SdkRawCapture][HDF5] 停止 HDF5 鏀嚎鏃跺嚭閿? {ex.Message}");
             return new SdkRawCaptureHdf5MirrorResult
             {
                 OutputRootPath = _hdf5MirrorWriter.OutputRootPath,

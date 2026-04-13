@@ -38,7 +38,7 @@ public sealed class TdmsFileItem
     public TdmsFileItem(FileInfo fi)
     {
         FullPath = fi.FullName;
-        // 显示所在文件夹名（时间命名子文件夹）+ 文件名 + 大小
+        // 鏄剧ず鎵€鍦ㄦ枃浠跺す鍚嶏紙鏃堕棿鍛藉悕瀛愭枃浠跺す锛? 鏂囦欢鍚?+ 大小
         var folderName = fi.Directory?.Name ?? "";
         FolderText = !string.IsNullOrEmpty(folderName) && folderName != "data"
             ? $"[{folderName}]"
@@ -102,10 +102,10 @@ public partial class MainWindowViewModel : ObservableObject
     
     // 在线通道统计
     public string OnlineChannelStatus => $"在线通道: {Channels.Count(c => c.Online)}/{Channels.Count}";
-    private const int StorageConfigTabIndex = 1;
-    private const int CompressionReportTabIndex = 8;
+private const int StorageConfigTabIndex = 1;
+private const int CompressionReportTabIndex = 7;
     private const int MaxRecentStoredFileCount = 100;
-    [ObservableProperty] private int _selectedTab = 3;
+[ObservableProperty] private int _selectedTab = 2;
     [ObservableProperty] private string _storagePath = "./data";
     // 新增：存储控制与模式
     public enum StorageModeOption { SingleFile, PerChannel }
@@ -153,19 +153,25 @@ public partial class MainWindowViewModel : ObservableObject
     // 文件无损验证结果
     [ObservableProperty] private string _fileVerifyResult = "";
     [ObservableProperty] private bool _fileVerifyPassed;
-    // 写入哈希缓存：文件路径 → {通道名 → hash/sampleCount}（支持跨文件手动验证）
+    // 鍐欏叆鍝堝笇缂撳瓨锛氭枃浠惰矾寰?鈫?{閫氶亾鍚?鈫?hash/sampleCount}锛堟敮鎸佽法鏂囦欢鎵嬪姩楠岃瘉锛?
     private readonly Dictionary<string, IReadOnlyDictionary<string, string>> _writeHashesByFile = new();
     private readonly Dictionary<string, IReadOnlyDictionary<string, long>> _writeSampleCountsByFile = new();
     private IReadOnlyList<string>? _lastWrittenFiles;
     private StorageRuntimeKind? _activeStorageRuntime;
-    // 新增：存储状态与最近文件列表
+    private readonly ConcurrentQueue<TdmsExportJobItem> _tdmsExportJobQueue = new();
+    private readonly SemaphoreSlim _tdmsExportJobSignal = new(0);
+    private readonly CancellationTokenSource _tdmsExportJobCts = new();
+    private Task? _tdmsExportWorkerTask;
+    // 鏂板锛氬瓨鍌ㄧ姸鎬佷笌鏈€杩戞枃浠跺垪琛?
     [ObservableProperty] private string _storageStatusMessage = "未开始写入";
-    // 写入计时器
+    // 鍐欏叆璁℃椂鍣?
     [ObservableProperty] private string _storageElapsed = "00:00:00";
     private DateTime _storageStartTime;
     private Avalonia.Threading.DispatcherTimer? _storageTimer;
     public ObservableCollection<TdmsFileItem> RecentTdmsFiles { get; } = new();
+    public ObservableCollection<TdmsExportJobItem> TdmsExportJobs { get; } = new();
     [ObservableProperty] private TdmsFileItem? _selectedTdmsFile;
+    [ObservableProperty] private string _tdmsExportQueueStatusMessage = "暂无后台TDMS导出任务";
     public string? SelectedStoredFilePath => SelectedTdmsFile?.FullPath;
     public ObservableCollection<RawTdmsExportDeviceOption> RawTdmsExportDevices { get; } = new();
     public ObservableCollection<RawTdmsExportChannelOption> RawTdmsExportChannels { get; } = new();
@@ -185,7 +191,7 @@ public partial class MainWindowViewModel : ObservableObject
     private CancellationTokenSource? _compressionReportCts;
     private List<int> _rawTdmsAvailableChannelIds = new();
 
-    // 命令：存储控制
+    // 鍛戒护锛氬瓨鍌ㄦ帶鍒?
     public IRelayCommand StartStorageCommand { get; }
     public IRelayCommand StopStorageCommand { get; }
     // 新增：最近文件与读取相关命令
@@ -194,6 +200,7 @@ public partial class MainWindowViewModel : ObservableObject
     public IRelayCommand TestReadSelectedFileCommand { get; }
     public IRelayCommand VerifyStoredFileCommand { get; }
     public IRelayCommand ConvertSelectedToTdmsCommand { get; }
+    public IRelayCommand ClearCompletedTdmsExportJobsCommand { get; }
     public IRelayCommand SelectAllRawTdmsDevicesCommand { get; }
     public IRelayCommand ClearRawTdmsDevicesCommand { get; }
     public IRelayCommand SelectAllRawTdmsChannelsCommand { get; }
@@ -224,7 +231,7 @@ public partial class MainWindowViewModel : ObservableObject
 
     private const int DefaultOnlineChannelCount = 8;
 
-    // 计算属性：根据连接状态返回颜色
+    // 璁＄畻灞炴€э細鏍规嵁杩炴帴鐘舵€佽繑鍥為鑹?
     public IBrush TcpStatusColor => IsTcpConnected ? Brushes.Green : Brushes.Red;
 
     private Task? _consumerTask;
@@ -237,15 +244,15 @@ public partial class MainWindowViewModel : ObservableObject
     private MovingAverageAlgorithm _algo;
     private OnlineChannelManager _onlineChannelManager;
     private LocalTestServer? _localServer;
-    private System.Timers.Timer? _channelTimeUpdateTimer; // 通道计时器
+    private System.Timers.Timer? _channelTimeUpdateTimer; // 閫氶亾璁℃椂鍣?
 
-    // ==================== SDK模式相关属性 ====================
+    // ==================== SDK妯″紡鐩稿叧灞炴€?====================
     private readonly ConcurrentDictionary<int, byte> _pendingOnlineChannelIds = new();
     private Avalonia.Threading.DispatcherTimer? _onlineStatusFlushTimer;
     private SdkDriverManager? _sdkDriverManager;
     
     /// <summary>
-    /// 数据源模式: 0=TCP, 1=SDK
+    /// 鏁版嵁婧愭ā寮? 0=TCP, 1=SDK
     /// </summary>
     [ObservableProperty] private int _dataSourceMode = 0;
     
@@ -255,7 +262,7 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty] private string _sdkConfigPath = "";
     
     /// <summary>
-    /// SDK连接状态
+    /// SDK杩炴帴鐘舵€?
     /// </summary>
     [ObservableProperty] private string _sdkConnectionStatus = "SDK未初始化";
     
@@ -274,29 +281,31 @@ public partial class MainWindowViewModel : ObservableObject
     /// </summary>
     [ObservableProperty] private bool _isSdkDataActive;
     
-    // SDK模式计算属性
+    // SDK妯″紡璁＄畻灞炴€?
     public IBrush SdkStatusColor => IsSdkInitialized ? (IsSdkSampling ? Brushes.Green : Brushes.Orange) : Brushes.Red;
     
     /// <summary>
-    /// 设备统计摘要（显示在通道管理界面）
+    /// 璁惧缁熻鎽樿锛堟樉绀哄湪閫氶亾绠＄悊鐣岄潰锛?
     /// </summary>
     public string DeviceSummary
     {
         get
         {
-            if (DataSourceMode == 1 && IsSdkInitialized && _sdkDriverManager != null) // SDK模式
+            if (DataSourceMode == 1 && IsSdkInitialized && _sdkDriverManager != null)
             {
                 int deviceCount = _sdkDriverManager.OnlineDeviceCount;
                 int channelCount = _sdkDriverManager.TotalChannelCount;
-                return $"📊 在线设备: {deviceCount} 台 | 总通道数: {channelCount} 个 | 采样率: {SampleRate}Hz";
+                return $"在线设备: {deviceCount} 台 | 总通道数: {channelCount} | 采样率: {SampleRate} Hz";
             }
-            else if (DataSourceMode == 0 && IsTcpConnected) // TCP模式
+
+            if (DataSourceMode == 0 && IsTcpConnected)
             {
                 int onlineDevices = Devices.Count(d => d.Online);
                 int onlineChannels = Channels.Count(c => c.Online);
-                return $"📊 在线设备: {onlineDevices} 台 | 在线通道: {onlineChannels} 个";
+                return $"在线设备: {onlineDevices} 台 | 在线通道: {onlineChannels} 个";
             }
-            return "📊 未连接数据源";
+
+            return "未连接数据源";
         }
     }
     
@@ -305,7 +314,7 @@ public partial class MainWindowViewModel : ObservableObject
     public IRelayCommand StartSdkSamplingCommand { get; private set; } = null!;
     public IRelayCommand StopSdkSamplingCommand { get; private set; } = null!;
     public IRelayCommand BrowseSdkConfigCommand { get; private set; } = null!;
-    // ==================== SDK模式相关属性结束 ====================
+    // ==================== SDK妯″紡鐩稿叧灞炴€х粨鏉?====================
 
 
     
@@ -326,11 +335,13 @@ public partial class MainWindowViewModel : ObservableObject
     // 采样频率调节命令
     public IRelayCommand SampleRateChangedCommand { get; }
     public DataBus Bus => _bus;
-    // 默认选中设备0（支持SDK的nGroupID从0开始）
+    // 默认选中设备0（支持SDK的nGroupID浠?开始）
     [ObservableProperty] private int _selectedDeviceId = 0;
     public DeviceInfo? SelectedDevice => Devices.FirstOrDefault(d => d.DeviceId == SelectedDeviceId);
-    public string SelectedDeviceTitle => $"通道在线状态 - AI{SelectedDeviceId}";
+    public string SelectedDeviceTitle => $"閫氶亾鍦ㄧ嚎鐘舵€?- AI{SelectedDeviceId}";
     public bool HasRawTdmsExportOptions => RawTdmsExportDevices.Count > 0;
+    public bool HasTdmsExportJobs => TdmsExportJobs.Count > 0;
+    public bool HasCompletedTdmsExportJobs => TdmsExportJobs.Any(job => job.IsCompleted || job.IsFailed);
     public string RawTdmsExportSelectionSummary
     {
         get
@@ -372,44 +383,11 @@ public partial class MainWindowViewModel : ObservableObject
         2 => CompressionBenchmarkReplayMode.Full,
         _ => CompressionBenchmarkReplayMode.Auto
     };
-/*    public string CompressionBenchmarkInputSummaryText
-        => HasCompressionBenchmarkInputFile
-            ? $"当前测试文件: {Path.GetFileName(CompressionBenchmarkInputPath)}"
-            : "建议选择未压缩、未预处理的 .sdkraw.bin、.tdms、.tdm、.h5 或 .hdf5 文件。";
-*/
     public string CompressionBenchmarkInputSummaryText
         => HasCompressionBenchmarkInputFile
             ? $"当前测试文件: {Path.GetFileName(CompressionBenchmarkInputPath)}"
             : "请选择未压缩、未处理的 .sdkraw.bin、.tdms、.tdm、.h5 或 .hdf5 文件。";
 
-/*    public string CompressionBenchmarkStatusText
-    {
-        get
-        {
-            if (!HasCompressionReport && !IsCompressionReportGenerating)
-            {
-                return "停止写入后会自动生成压缩性能报告。";
-            }
-
-            if (IsCompressionReportGenerating)
-            {
-                return CurrentCompressionReport.BenchmarkSource == CompressionBenchmarkSource.RawCaptureReplay
-                    ? "正在基于已保存原始数据评估各压缩算法性能..."
-                    : "正在基于采样批次评估各压缩算法性能...";
-            }
-
-            if (CompressionBenchmarkRows.Count == 0)
-            {
-                return CurrentCompressionReport.BenchmarkSource == CompressionBenchmarkSource.RawCaptureReplay
-                    ? "当前会话仅生成了真实写入指标，未能从已保存原始数据生成算法对比结果。"
-                    : "当前会话仅生成了真实写入指标，未采集到可用于对比的 benchmark 样本。";
-            }
-
-            return $"对比基准：{CurrentCompressionReport.BenchmarkSampleSummaryText}。";
-        }
-    }
-
-*/
     public string CompressionBenchmarkStatusText
     {
         get
@@ -432,36 +410,6 @@ public partial class MainWindowViewModel : ObservableObject
             return $"对比基准: {CurrentCompressionReport.BenchmarkSampleSummaryText}";
         }
     }
-
-/*    public string CompressionBenchmarkPageStatusText
-    {
-        get
-        {
-            if (!HasCompressionReport && !IsCompressionReportGenerating)
-            {
-                return HasCompressionBenchmarkInputFile
-                    ? "测试文件已选定。点击“开始测试”后，会显示将当前压缩算法和对比算法作用于该文件数据后的结果。"
-                    : "请选择未压缩、未预处理的测试文件，然后在本页手动开始压缩性能测试。";
-            }
-
-            if (IsCompressionReportGenerating)
-            {
-                string fileName = Path.GetFileName(CurrentCompressionReport.BenchmarkSourcePath);
-                return string.IsNullOrWhiteSpace(fileName)
-                    ? "正在评估测试文件的压缩性能..."
-                    : $"正在基于测试文件 {fileName} 评估各压缩算法...";
-            }
-
-            if (CompressionBenchmarkRows.Count == 0)
-            {
-                return "测试文件已加载，但尚未生成可用的算法对比结果。";
-            }
-
-            return $"对比基准: {CurrentCompressionReport.BenchmarkSampleSummaryText}";
-        }
-    }
-
-*/
     public string CompressionBenchmarkPageStatusText
     {
         get
@@ -469,7 +417,7 @@ public partial class MainWindowViewModel : ObservableObject
             if (!HasCompressionReport && !IsCompressionReportGenerating)
             {
                 return HasCompressionBenchmarkInputFile
-                    ? "测试文件已选定。点击“开始测试”后，会基于该文件评估当前可用的压缩算法。"
+                    ? "测试文件已选定。点击“开始测试”后，将基于该文件评估当前可用的压缩算法。"
                     : "请选择未压缩、未处理的测试文件，然后在本页启动压缩性能测试。";
             }
 
@@ -500,7 +448,7 @@ public partial class MainWindowViewModel : ObservableObject
         SkiaMultiChannelView.SetGlobalMovingAverage(true, _maWindow);
         _onlineChannelManager = new OnlineChannelManager();
 
-        // 预创建通道，支持设备ID从0开始（SDK的nGroupID可能从0开始）
+        // 预创建通道，支持设备ID浠?开始（SDK的nGroupID鍙兘浠?开始）
         // 设备0的通道ID: 1-64, 设备1的通道ID: 101-164, ...
         for (int d = 0; d < 64; d++)
         {
@@ -525,8 +473,8 @@ public partial class MainWindowViewModel : ObservableObject
         // 监听在线通道变化事件
         _onlineChannelManager.OnlineChannelsChanged += OnOnlineChannelsChanged;
         
-        // 启动通道计时器，每秒更新一次在线时长
-        _channelTimeUpdateTimer = new System.Timers.Timer(1000); // 1秒
+        // 鍚姩閫氶亾璁℃椂鍣紝姣忕鏇存柊涓€娆″湪绾挎椂闀?
+        _channelTimeUpdateTimer = new System.Timers.Timer(1000); // 1绉?
         _channelTimeUpdateTimer.Elapsed += (s, e) =>
         {
             Avalonia.Threading.Dispatcher.UIThread.Post(() =>
@@ -546,7 +494,7 @@ public partial class MainWindowViewModel : ObservableObject
         _onlineStatusFlushTimer.Tick += (_, _) => FlushPendingOnlineChannelUpdates();
         _onlineStatusFlushTimer.Start();
 
-        // 创建TCP驱动管理器，传入数据总线和流表       
+        // 创建TCP椹卞姩绠＄悊鍣紝浼犲叆鏁版嵁鎬荤嚎鍜屾祦琛?      
         _tcpDriverManager = new TcpDriverManager(_bus, _table, OnTcpStatusChanged);
         _tcpDriverManager.VerifiedChanged += v => Avalonia.Threading.Dispatcher.UIThread.Post(() =>
         {
@@ -594,7 +542,7 @@ public partial class MainWindowViewModel : ObservableObject
             }
         };
 
-        //命令初始化
+        //鍛戒护鍒濆鍖?
         ApplyAlgoCommand = new RelayCommand(ApplyAlgo);
         ConnectTcpCommand = new RelayCommand(ConnectTcp, () => !IsTcpConnected);
         DisconnectTcpCommand = new RelayCommand(DisconnectTcp, () => IsTcpConnected);
@@ -607,11 +555,11 @@ public partial class MainWindowViewModel : ObservableObject
         SetCh1To32OnlineCommand = new RelayCommand(SetCh1To32Online);
         SetCh33To64OnlineCommand = new RelayCommand(SetCh33To64Online);
 
-        // 采样频率调节命令初始化
+        // 閲囨牱棰戠巼璋冭妭鍛戒护鍒濆鍖?
         SampleRateChangedCommand = new RelayCommand<int>(OnSampleRateChangedCommand);
         SetSelectedDeviceCommand = new RelayCommand<int>(id =>
         {
-            // 支持设备ID从0开始（SDK的nGroupID可能从0开始）
+            // 支持设备ID浠?开始（SDK的nGroupID鍙兘浠?开始）
             SelectedDeviceId = Math.Clamp(id, 0, 63);
             EnsureDeviceChannelStatuses($"AI{SelectedDeviceId:D2}");
             UpdateDeviceChannels();
@@ -619,15 +567,16 @@ public partial class MainWindowViewModel : ObservableObject
             OnPropertyChanged(nameof(SelectedDeviceTitle));
         });
 
-        // 存储命令初始化
+        // 瀛樺偍鍛戒护鍒濆鍖?
         StartStorageCommand = new AsyncRelayCommand(StartStorageAsync, () => !StorageEnabled);
         StopStorageCommand = new RelayCommand(StopStorage, () => StorageEnabled);
-        // 新增命令初始化
+        // 鏂板鍛戒护鍒濆鍖?
         RefreshRecentFilesCommand = new RelayCommand(RefreshRecentFiles);
         OpenOutputFolderCommand = new RelayCommand(OpenOutputFolder);
         TestReadSelectedFileCommand = new RelayCommand(TestReadSelectedFile, () => !string.IsNullOrEmpty(SelectedTdmsFile?.FullPath));
         VerifyStoredFileCommand = new AsyncRelayCommand(VerifyStoredFileAsync, () => !string.IsNullOrEmpty(SelectedTdmsFile?.FullPath));
         ConvertSelectedToTdmsCommand = new AsyncRelayCommand(ConvertSelectedRawCaptureToTdmsAsync, CanConvertSelectedRawCapture);
+        ClearCompletedTdmsExportJobsCommand = new RelayCommand(ClearCompletedTdmsExportJobs, () => HasCompletedTdmsExportJobs);
         SelectAllRawTdmsDevicesCommand = new RelayCommand(SelectAllRawTdmsDevices, () => RawTdmsExportDevices.Count > 0);
         ClearRawTdmsDevicesCommand = new RelayCommand(ClearRawTdmsDevices, () => RawTdmsExportDevices.Any(option => option.IsSelected));
         SelectAllRawTdmsChannelsCommand = new RelayCommand(SelectAllRawTdmsChannels, () => RawTdmsExportChannels.Count > 0);
@@ -649,24 +598,31 @@ public partial class MainWindowViewModel : ObservableObject
             OnPropertyChanged(nameof(RawTdmsExportSelectionSummary));
             NotifyRawTdmsSelectionCommandStates();
         };
+        TdmsExportJobs.CollectionChanged += (_, _) =>
+        {
+            OnPropertyChanged(nameof(HasTdmsExportJobs));
+            OnPropertyChanged(nameof(HasCompletedTdmsExportJobs));
+            UpdateTdmsExportQueueStatus();
+            (ClearCompletedTdmsExportJobsCommand as RelayCommand)?.NotifyCanExecuteChanged();
+        };
 
-        // 运行时诊断：输出 TDMS 原生库可用性
+        // 运行时诊断：输出 TDMS 鍘熺敓搴撳彲鐢ㄦ€?
         try
         {
             var tdmsAvail = DH.Client.App.Services.Storage.TdmsNative.IsAvailable;
             Console.WriteLine($"[TDMS] nilibddc.dll available: {tdmsAvail}");
             if (!tdmsAvail)
             {
-                StorageStatusMessage = "TDMS库未检测到，存储不可用（请放置 nilibddc.dll 到应用目录或配置 PATH）";
+                StorageStatusMessage = "未检测到 TDMS 库，存储不可用。请将 nilibddc.dll 放到应用目录或加入 PATH。";
             }
             else
             {
-                StorageStatusMessage = "TDMS库已检测到（SDK写入可保存为 .sdkraw.bin，并可在停止后导出为 HDF5 / TDMS）";
+                StorageStatusMessage = "已检测到 TDMS 库。SDK 写入可先保存为 .sdkraw.bin，停止后再导出为 HDF5 或 TDMS。";
             }
         }
         catch { /* ignore */ }
 
-        // ==================== SDK模式初始化 ====================
+        // ==================== SDK妯″紡鍒濆鍖?====================
         InitializeSdkSupport();
     }
 
@@ -687,7 +643,7 @@ public partial class MainWindowViewModel : ObservableObject
             SdkConfigPath = basePath;
         }
 
-        // 创建SDK驱动管理器
+        // 创建SDK椹卞姩绠＄悊鍣?
         _sdkDriverManager = new SdkDriverManager(_bus, _table, OnSdkStatusChanged);
         _sdkDriverManager.DataActivityChanged += active => Avalonia.Threading.Dispatcher.UIThread.Post(() =>
         {
@@ -696,7 +652,7 @@ public partial class MainWindowViewModel : ObservableObject
                 IsSdkDataActive = active;
                 OnPropertyChanged(nameof(SdkStatusColor));
                 
-                // SDK数据到达时更新通道状态
+                // SDK鏁版嵁鍒拌揪鏃舵洿鏂伴€氶亾鐘舵€?
                 if (active && DataSourceMode == 1 && Devices != null) // SDK模式
                 {
                     UpdateDevicesFromSdk();
@@ -728,7 +684,7 @@ public partial class MainWindowViewModel : ObservableObject
             }
         };
 
-        // SDK命令初始化
+        // SDK鍛戒护鍒濆鍖?
         InitializeSdkCommand = new RelayCommand(InitializeSdk, () => !IsSdkInitialized);
         StartSdkSamplingCommand = new RelayCommand(StartSdkSampling, () => IsSdkInitialized && !IsSdkSampling);
         StopSdkSamplingCommand = new RelayCommand(StopSdkSampling, () => IsSdkSampling);
@@ -736,17 +692,17 @@ public partial class MainWindowViewModel : ObservableObject
     }
 
     /// <summary>
-    /// SDK状态变更回调
+    /// SDK鐘舵€佸彉鏇村洖璋?
     /// </summary>
     private void OnSdkStatusChanged(bool isConnected, string status)
     {
-        Console.WriteLine($"[SDK] 状态更新: {status}, 已连接: {isConnected}");
+        Console.WriteLine($"[SDK] 鐘舵€佹洿鏂? {status}, 宸茶繛鎺? {isConnected}");
         Avalonia.Threading.Dispatcher.UIThread.Post(() =>
         {
             SdkConnectionStatus = status;
             OnPropertyChanged(nameof(SdkStatusColor));
             
-            // 更新命令可用性
+            // 鏇存柊鍛戒护鍙敤鎬?
             (InitializeSdkCommand as RelayCommand)?.NotifyCanExecuteChanged();
             (StartSdkSamplingCommand as RelayCommand)?.NotifyCanExecuteChanged();
             (StopSdkSamplingCommand as RelayCommand)?.NotifyCanExecuteChanged();
@@ -769,7 +725,7 @@ public partial class MainWindowViewModel : ObservableObject
         
         if (!Directory.Exists(configPath))
         {
-            SdkConnectionStatus = $"配置路径不存在: {configPath}";
+            SdkConnectionStatus = $"閰嶇疆璺緞涓嶅瓨鍦? {configPath}";
             return;
         }
         
@@ -781,7 +737,7 @@ public partial class MainWindowViewModel : ObservableObject
             // 根据SDK返回的设备信息更新UI
             UpdateDevicesFromSdk();
             
-            // 更新采样率
+            // 鏇存柊閲囨牱鐜?
             SampleRate = (int)_sdkDriverManager.SampleRate;
         }
         
@@ -801,7 +757,7 @@ public partial class MainWindowViewModel : ObservableObject
         int onlineDeviceCount = _sdkDriverManager.OnlineDeviceCount;
         int totalChannelCount = _sdkDriverManager.TotalChannelCount;
         
-        Console.WriteLine($"[SDK] 更新设备信息: 在线设备={onlineDeviceCount}, 总通道数={totalChannelCount}");
+        Console.WriteLine($"[SDK] 更新设备信息: 在线设备={onlineDeviceCount}, 鎬婚€氶亾鏁?{totalChannelCount}");
         
         // 清空现有设备
         Devices.Clear();
@@ -810,7 +766,7 @@ public partial class MainWindowViewModel : ObservableObject
         // 收集所有在线通道ID
         var onlineChannelIds = new List<int>();
         
-        // 只添加在线且有通道的设备
+        // 鍙坊鍔犲湪绾夸笖鏈夐€氶亾鐨勮澶?
         foreach (var sdkDev in sdkDevices.Where(d => d.IsOnline && d.ChannelCount > 0))
         {
             int deviceId = ResolveSdkChannelDeviceId(sdkDev);
@@ -840,12 +796,12 @@ public partial class MainWindowViewModel : ObservableObject
             }
             
             Devices.Add(dev);
-            Console.WriteLine($"[SDK] 添加设备: DeviceId={dev.DeviceId}, MachineId={sdkDev.MachineId}, ChannelDeviceId={sdkDev.ChannelDeviceId}, 通道数={sdkDev.ChannelCount}, 在线={sdkDev.IsOnline}");
+            Console.WriteLine($"[SDK] 添加设备: DeviceId={dev.DeviceId}, MachineId={sdkDev.MachineId}, ChannelDeviceId={sdkDev.ChannelDeviceId}, 閫氶亾鏁?{sdkDev.ChannelCount}, 在线={sdkDev.IsOnline}");
         }
         
-        // 同步在线通道到OnlineChannelManager（供结果显示页面使用）
+        // 同步在线通道到OnlineChannelManager锛堜緵缁撴灉鏄剧ず椤甸潰浣跨敤锛?
         _onlineChannelManager.SetOnlineChannels(onlineChannelIds.ToArray());
-        Console.WriteLine($"[SDK] 已同步 {onlineChannelIds.Count} 个在线通道到OnlineChannelManager");
+        Console.WriteLine($"[SDK] 宸插悓姝?{onlineChannelIds.Count} 个在线通道到OnlineChannelManager");
         
         // 更新选中设备
         if (Devices.Count > 0 && Devices.All(d => d.DeviceId != SelectedDeviceId))
@@ -978,7 +934,7 @@ public partial class MainWindowViewModel : ObservableObject
         IsSdkSampling = false;
         IsSdkDataActive = false;
         
-        // 清除在线状态
+        // 娓呴櫎鍦ㄧ嚎鐘舵€?
         foreach (var c in Channels) c.Online = false;
         foreach (var dev in Devices)
         {
@@ -993,7 +949,7 @@ public partial class MainWindowViewModel : ObservableObject
     }
 
     /// <summary>
-    /// 浏览SDK配置文件夹
+    /// 浏览SDK閰嶇疆鏂囦欢澶?
     /// </summary>
     private async Task BrowseSdkConfigAsync()
     {
@@ -1019,16 +975,16 @@ public partial class MainWindowViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[SDK] 浏览文件夹异常: {ex.Message}");
+            Console.WriteLine($"[SDK] 娴忚鏂囦欢澶瑰紓甯? {ex.Message}");
         }
     }
 
     private void BuildDevices()
     {
         Devices.Clear();
-        int deviceCount = 64;  // 支持0-63共64台设备
+        int deviceCount = 64;  // 支持0-63鍏?4鍙拌澶?
         int channelsPerDevice = 64;
-        // 从设备0开始，支持SDK的nGroupID从0开始的情况
+        // 浠庤澶?开始，支持SDK的nGroupID浠?开始的情况
         for (int d = 0; d < deviceCount; d++)
         {
             var dev = new DeviceInfo { DeviceId = d };
@@ -1058,8 +1014,8 @@ public partial class MainWindowViewModel : ObservableObject
 
     private void OnTcpStatusChanged(bool isConnected, string status)
     {
-        Console.WriteLine($"TCP状态更新: {status}, 连接: {isConnected}");
-        // 确保在UI线程上更新属性
+        Console.WriteLine($"TCP鐘舵€佹洿鏂? {status}, 连接: {isConnected}");
+        // 确保在UI绾跨▼涓婃洿鏂板睘鎬?
         Avalonia.Threading.Dispatcher.UIThread.Post(() =>
         {
             IsTcpConnected = isConnected;
@@ -1071,17 +1027,17 @@ public partial class MainWindowViewModel : ObservableObject
                 IsDataActive = false;
             }
 
-            // 断开连接时清空在线通道，避免离线显示曲线
+            // 鏂紑杩炴帴鏃舵竻绌哄湪绾块€氶亾锛岄伩鍏嶇绾挎樉绀烘洸绾?
             if (!isConnected)
             {
                 _onlineChannelManager.SetOnlineChannels(Array.Empty<int>());
             }
 
-            // 通知命令的可执行状态变化
+            // 閫氱煡鍛戒护鐨勫彲鎵ц鐘舵€佸彉鍖?
             (ConnectTcpCommand as RelayCommand)?.NotifyCanExecuteChanged();
             (DisconnectTcpCommand as RelayCommand)?.NotifyCanExecuteChanged();
 
-            Console.WriteLine($"TCP状态更新: {status}, 连接: {isConnected}");
+            Console.WriteLine($"TCP鐘舵€佹洿鏂? {status}, 连接: {isConnected}");
         });
     }
 
@@ -1136,7 +1092,7 @@ public partial class MainWindowViewModel : ObservableObject
     private void ApplyAlgo()
     {
         _algo = new MovingAverageAlgorithm(MaWindow);
-        // 同步到曲线视图的全局可视化移动平均设置
+        // 鍚屾鍒版洸绾胯鍥剧殑鍏ㄥ眬鍙鍖栫Щ鍔ㄥ钩鍧囪缃?
         SkiaMultiChannelView.SetGlobalMovingAverage(true, MaWindow);
         Console.WriteLine($"[MainWindowViewModel] Algorithm applied with window size: {MaWindow}");
     }
@@ -1187,7 +1143,7 @@ public partial class MainWindowViewModel : ObservableObject
                 {
                     if (value && !_onlineStartTime.HasValue)
                     {
-                        // 变为在线状态，开始计时
+                        // 鍙樹负鍦ㄧ嚎鐘舵€侊紝寮€濮嬭鏃?
                         _onlineStartTime = DateTimeOffset.UtcNow;
                         OnPropertyChanged(nameof(OnlineTimeText));
                     }
@@ -1203,10 +1159,10 @@ public partial class MainWindowViewModel : ObservableObject
         private DateTimeOffset _lastActiveTime;
         public DateTimeOffset LastActiveTime { get => _lastActiveTime; set => SetProperty(ref _lastActiveTime, value); }
         
-        // 在线开始时间
+        // 鍦ㄧ嚎寮€濮嬫椂闂?
         private DateTimeOffset? _onlineStartTime;
         
-        // 计算在线时长文本（格式：HH:MM:SS）
+        // 计算在线时长文本（格式：HH:MM:SS锛?
         public string OnlineTimeText
         {
             get
@@ -1300,7 +1256,7 @@ public partial class MainWindowViewModel : ObservableObject
                 var devInfo = Devices.FirstOrDefault(d => d.DeviceId == devNum);
                 if (devInfo != null)
                 {
-                    // 在线判断：5秒内活跃计数
+                    // 鍦ㄧ嚎鍒ゆ柇锛?秒内活跃计数
                     int cnt = g.Count(x => (now - access[$"{GetEndpointText()}/{g.Key}/CH{x.ChannelNumber:D2}"]).TotalSeconds < 5);
                     devInfo.OnlineChannelCount = cnt;
                     devInfo.Online = cnt > 0;
@@ -1311,7 +1267,7 @@ public partial class MainWindowViewModel : ObservableObject
     }
     
     /// <summary>
-    /// SDK模式下更新设备通道状态
+    /// SDK妯″紡涓嬫洿鏂拌澶囬€氶亾鐘舵€?
     /// </summary>
     private void UpdateDeviceChannelsForSdk()
     {
@@ -1325,11 +1281,11 @@ public partial class MainWindowViewModel : ObservableObject
                 return;
             }
             
-            // 找到当前选中的设备
+            // 鎵惧埌褰撳墠閫変腑鐨勮澶?
             var selectedDevice = Devices.FirstOrDefault(d => d.DeviceId == SelectedDeviceId);
             if (selectedDevice == null)
             {
-                // 如果找不到选中的设备，选择第一个
+                // 濡傛灉鎵句笉鍒伴€変腑鐨勮澶囷紝閫夋嫨绗竴涓?
                 selectedDevice = Devices.FirstOrDefault();
                 if (selectedDevice != null)
                 {
@@ -1346,7 +1302,7 @@ public partial class MainWindowViewModel : ObservableObject
             
             var devIdText = $"AI{SelectedDeviceId:D2}";
             
-            // 快照设备通道列表，避免并发修改
+            // 蹇収璁惧閫氶亾鍒楄〃锛岄伩鍏嶅苟鍙戜慨鏀?
             var deviceChannelSnapshot = selectedDevice.Channels?.ToList();
             
             // 获取该设备的通道数量
@@ -1366,7 +1322,7 @@ public partial class MainWindowViewModel : ObservableObject
                 DeviceChannels.Clear();
                 for (int i = 1; i <= channelCount; i++)
                 {
-                    // 检查该通道在Channels集合中的在线状态
+                    // 检查该通道在Channels闆嗗悎涓殑鍦ㄧ嚎鐘舵€?
                     var channelInfo = deviceChannelSnapshot?.FirstOrDefault(c => c.ChannelId % 100 == i);
                     bool isOnline = channelInfo?.Online ?? selectedDevice.Online;
                     
@@ -1381,8 +1337,8 @@ public partial class MainWindowViewModel : ObservableObject
             }
             else
             {
-                // 更新现有通道的在线状态
-                foreach (var ch in DeviceChannels.ToList()) // 使用ToList()避免枚举时修改
+                // 鏇存柊鐜版湁閫氶亾鐨勫湪绾跨姸鎬?
+                foreach (var ch in DeviceChannels.ToList()) // 使用ToList()閬垮厤鏋氫妇鏃朵慨鏀?
                 {
                     var channelInfo = deviceChannelSnapshot?.FirstOrDefault(c => c.ChannelId % 100 == ch.ChannelNumber);
                     ch.IsOnline = channelInfo?.Online ?? selectedDevice.Online;
@@ -1393,7 +1349,7 @@ public partial class MainWindowViewModel : ObservableObject
                 }
             }
             
-            // 更新在线通道列表：先收集再批量更新，减少UI中间状态
+            // 更新在线通道列表：先收集再批量更新，减少UI涓棿鐘舵€?
             var onlineList = DeviceChannels.Where(c => c.IsOnline).ToList();
             OnlineChannels.Clear();
             foreach (var ch in onlineList)
@@ -1506,7 +1462,7 @@ public partial class MainWindowViewModel : ObservableObject
     public event EventHandler<int>? SampleRateChanged;
 
     // 存储控制方法
-    // 解析存储路径：绝对路径直接返回；相对路径相对于仓库根（包含 DH.sln）
+    // 瑙ｆ瀽瀛樺偍璺緞锛氱粷瀵硅矾寰勭洿鎺ヨ繑鍥烇紱鐩稿璺緞鐩稿浜庝粨搴撴牴锛堝寘鍚?DH.sln锛?
     private static string ResolveStoragePath(string path)
     {
         try
@@ -1583,18 +1539,18 @@ public partial class MainWindowViewModel : ObservableObject
                     ? new TdmsSingleFileStorage() as ITdmsStorage
                     : new TdmsPerChannelStorage() as ITdmsStorage;
 
-                // 启动前检查上次是否异常退出
+                // 鍚姩鍓嶆鏌ヤ笂娆℃槸鍚﹀紓甯搁€€鍑?
                 var recovery = StorageGuard.CheckRecovery(basePath);
                 if (recovery != null)
                 {
-                    Console.WriteLine($"[StorageGuard] 检测到上次异常退出: {recovery.ToUserMessage()}");
+                    Console.WriteLine($"[StorageGuard] 妫€娴嬪埌涓婃寮傚父閫€鍑? {recovery.ToUserMessage()}");
                     StorageGuard.ClearRecovery(basePath);
                 }
 
                 _storage!.Start(basePath, channelIds, StorageSessionName, SampleRate, SelectedCompressionType, SelectedPreprocessType, _compressionOptions.Clone());
                 _activeStorageRuntime = StorageRuntimeKind.Tdms;
                 
-                // 激活断电保护：周期性刷盘 + 进程退出钩子
+                // 婵€娲绘柇鐢典繚鎶わ細鍛ㄦ湡鎬у埛鐩?+ 杩涚▼閫€鍑洪挬瀛?
                 StorageGuard.Activate(_storage, basePath, StorageSessionName);
                 
                 Avalonia.Threading.Dispatcher.UIThread.Post(() =>
@@ -1604,7 +1560,7 @@ public partial class MainWindowViewModel : ObservableObject
                     _storagePumpTasks = channelIds
                         .Select(channelId => Task.Run(() => PumpStorageChannelAsync(channelId, _storagePumpCts.Token)))
                         .ToList();
-                    // 启动写入计时器
+                    // 鍚姩鍐欏叆璁℃椂鍣?
                     _storageStartTime = DateTime.Now;
                     StorageElapsed = "00:00:00";
                     _storageTimer = new Avalonia.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
@@ -1614,14 +1570,14 @@ public partial class MainWindowViewModel : ObservableObject
                         StorageElapsed = elapsed.ToString(@"hh\:mm\:ss");
                     };
                     _storageTimer.Start();
-                    var compressionStatus = SelectedCompressionType != CompressionType.None 
-                        ? $"，{SelectedCompressionType}压缩已启用" 
+                    var compressionStatus = SelectedCompressionType != CompressionType.None
+                        ? $"，{SelectedCompressionType} 压缩已启用"
                         : "";
                     var preprocessStatus = SelectedPreprocessType != PreprocessType.None
-                        ? $"，{SelectedPreprocessType}预处理已启用"
+                        ? $"，{SelectedPreprocessType} 预处理已启用"
                         : "";
-                    var recoveryHint = recovery != null ? " ⚠️ 已恢复上次异常中断的数据" : "";
-                    StorageStatusMessage = $"写入已开始（{(StorageMode == StorageModeOption.SingleFile ? "单文件" : "多文件/每通道")}{compressionStatus}{preprocessStatus}），目录：{basePath}{recoveryHint}";
+                    var recoveryHint = recovery != null ? " 已恢复上次异常中断的数据" : "";
+                    StorageStatusMessage = $"写入已开始（{(StorageMode == StorageModeOption.SingleFile ? "单文件" : "多文件-每通道")}{compressionStatus}{preprocessStatus}），目录：{basePath}{recoveryHint}";
                     (StartStorageCommand as AsyncRelayCommand)?.NotifyCanExecuteChanged();
                     (StopStorageCommand as RelayCommand)?.NotifyCanExecuteChanged();
                 });
@@ -1696,7 +1652,7 @@ public partial class MainWindowViewModel : ObservableObject
         string queueBytes = FormatStorageSize(stats.PendingPayloadBytes);
         string peakBytes = FormatStorageSize(stats.PeakPendingPayloadBytes);
         string limitBytes = FormatStorageSize(stats.PendingPayloadByteLimit);
-        string modeSummary = $"SDK {DescribeSdkCaptureOutputMode()} 写入中，已写 {stats.WrittenBlockCount:N0} 块，待写 {stats.PendingBlockCount:N0}/{stats.PendingBlockLimit:N0} 块，队列 {queueBytes}/{limitBytes}，峰值 {stats.PeakPendingBlockCount:N0} 块/{peakBytes}";
+        string modeSummary = $"SDK {DescribeSdkCaptureOutputMode()} 写入中，已写 {stats.WrittenBlockCount:N0} 块，待写 {stats.PendingBlockCount:N0}/{stats.PendingBlockLimit:N0} 块，队列 {queueBytes}/{limitBytes}，峰值 {stats.PeakPendingBlockCount:N0} 块 {peakBytes}";
         if (ShouldExportSdkCaptureToHdf5())
         {
             modeSummary += $"，{ResolveSdkHdf5CompressionSettings().Summary}";
@@ -1858,7 +1814,7 @@ public partial class MainWindowViewModel : ObservableObject
                 try
                 {
                     string capturePath = result.WrittenFiles[0];
-                    StorageStatusMessage = $"正在将 {Path.GetFileName(capturePath)} 导出为 HDF5…";
+                    StorageStatusMessage = $"正在将 {Path.GetFileName(capturePath)} 导出为 HDF5...";
                     hdf5ExportResult = ExportSdkRawCaptureToHdf5(capturePath, ResolveStoragePath(StoragePath));
 
                     if (!keepRawCaptureFile)
@@ -1887,9 +1843,9 @@ public partial class MainWindowViewModel : ObservableObject
 
             string formatText = DescribeSdkCaptureOutputMode();
             string hdf5Suffix = hdf5ExportResult != null
-                ? $"，HDF5 已输出到 {hdf5ExportResult.OutputRootPath}（{hdf5ExportResult.CompressionSummary}）"
+                ? $"，HDF5 已导出到 {hdf5ExportResult.OutputRootPath}（{hdf5ExportResult.CompressionSummary}）"
                 : !string.IsNullOrWhiteSpace(hdf5ExportFailure)
-                    ? $"，HDF5 导出失败: {hdf5ExportFailure}"
+                    ? $"，HDF5 导出失败：{hdf5ExportFailure}"
                     : string.Empty;
             string rawCleanupSuffix = hdf5ExportResult != null && !keepRawCaptureFile
                 ? "，原始临时 BIN 已清理"
@@ -1930,8 +1886,8 @@ public partial class MainWindowViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[SdkRawCapture] 停止写入时出错: {ex.Message}");
-            StorageStatusMessage = $"停止写入时出错: {ex.Message}";
+            Console.WriteLine($"[SdkRawCapture] 鍋滄鍐欏叆鏃跺嚭閿? {ex.Message}");
+            StorageStatusMessage = $"鍋滄鍐欏叆鏃跺嚭閿? {ex.Message}";
         }
         finally
         {
@@ -2020,7 +1976,7 @@ public partial class MainWindowViewModel : ObservableObject
     {
         if (!StorageEnabled) return;
         
-        // 停止写入计时器
+        // 鍋滄鍐欏叆璁℃椂鍣?
         _storageTimer?.Stop();
         _storageTimer = null;
         var finalElapsed = DateTime.Now - _storageStartTime;
@@ -2062,12 +2018,12 @@ public partial class MainWindowViewModel : ObservableObject
             _storage?.Flush();
             compressionSnapshot = _storage?.GetCompressionSessionSnapshot();
 
-            // 在 Stop 之前抓取写入期间的 SHA-256 指纹
+            // 鍦?Stop 涔嬪墠鎶撳彇鍐欏叆鏈熼棿鐨?SHA-256 指纹
             var hashes = _storage?.GetWriteHashes();
             var counts = _storage?.GetWriteSampleCounts();
             _lastWrittenFiles = _storage?.GetWrittenFiles();
 
-            // 将哈希与文件路径关联，支持后续手动验证任意文件
+            // 灏嗗搱甯屼笌鏂囦欢璺緞鍏宠仈锛屾敮鎸佸悗缁墜鍔ㄩ獙璇佷换鎰忔枃浠?
             if (_lastWrittenFiles != null && hashes != null && counts != null)
             {
                 foreach (var fp in _lastWrittenFiles)
@@ -2075,7 +2031,7 @@ public partial class MainWindowViewModel : ObservableObject
                     _writeHashesByFile[fp] = hashes;
                     _writeSampleCountsByFile[fp] = counts;
 
-                    // ★ 持久化 SHA-256 指纹到 .sha256 文件
+                    // 鈽?鎸佷箙鍖?SHA-256 鎸囩汗鍒?.sha256 文件
                     try
                     {
                         StorageVerifier.SaveManifest(fp, hashes, counts);
@@ -2088,9 +2044,9 @@ public partial class MainWindowViewModel : ObservableObject
             }
 
             _storage?.Stop();
-            _storage?.Dispose(); // 确保释放所有资源
+            _storage?.Dispose(); // 纭繚閲婃斁鎵€鏈夎祫婧?
             
-            // ★ 将文件整理到以时间命名的文件夹中
+            // 鈽?将文件整理到以时间命名的文件夹中
             var (organizedFolder, newPaths) = StorageGuard.OrganizeToTimestampFolder(_lastWrittenFiles);
             if (organizedFolder != null && newPaths.Count > 0)
             {
@@ -2108,17 +2064,17 @@ public partial class MainWindowViewModel : ObservableObject
                 foreach (var kv in newHashByFile) _writeHashesByFile[kv.Key] = kv.Value;
                 foreach (var kv in newCountByFile) _writeSampleCountsByFile[kv.Key] = kv.Value;
                 
-                StorageStatusMessage = $"写入已停止，文件已整理到: {Path.GetFileName(organizedFolder)}，正在自动验证…";
+                StorageStatusMessage = $"写入已停止，文件已整理到: {Path.GetFileName(organizedFolder)}，正在自动验证...";
             }
             else
             {
-                StorageStatusMessage = "写入已停止，正在自动验证文件无损性…";
+                StorageStatusMessage = "写入已停止，正在自动验证文件无损性...";
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[Storage] 停止写入时出错: {ex.Message}");
-            StorageStatusMessage = $"停止写入时出错: {ex.Message}";
+            Console.WriteLine($"[Storage] 鍋滄鍐欏叆鏃跺嚭閿? {ex.Message}");
+            StorageStatusMessage = $"鍋滄鍐欏叆鏃跺嚭閿? {ex.Message}";
         }
         finally 
         { 
@@ -2185,9 +2141,9 @@ public partial class MainWindowViewModel : ObservableObject
 
             FileVerifyPassed = allPassed;
             FileVerifyResult = allResults.Count > 0
-                ? string.Join("\n───────────────────\n", allResults)
-                : "未找到可验证的文件";
-            StorageStatusMessage = allPassed ? "写入已停止 ✅ 自动验证通过" : "写入已停止 ❌ 自动验证发现差异";
+                ? string.Join("\n鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€\n", allResults)
+                : "未找到可验证的文件。";
+            StorageStatusMessage = allPassed ? "鍐欏叆宸插仠姝?鉁?自动验证通过" : "鍐欏叆宸插仠姝?鉂?自动验证发现差异";
         }
         catch (Exception ex)
         {
@@ -2268,11 +2224,11 @@ public partial class MainWindowViewModel : ObservableObject
 
                     var sb = new StringBuilder();
                     sb.AppendLine($"文件: {Path.GetFileName(filePath)}");
-                    sb.AppendLine($"数据集: {datasetName}");
-                    sb.AppendLine($"样本数: {sampleCount:N0}");
+                    sb.AppendLine($"鏁版嵁闆? {datasetName}");
+                    sb.AppendLine($"鏍锋湰鏁? {sampleCount:N0}");
                     if (previewCount > 0)
                     {
-                        sb.AppendLine($"前 {previewCount} 个样本: {string.Join(", ", preview.Select(value => value.ToString("F3")))}");
+                        sb.AppendLine($"鍓?{previewCount} 涓牱鏈? {string.Join(", ", preview.Select(value => value.ToString("F3")))}");
                     }
 
                     return sb.ToString();
@@ -2414,7 +2370,7 @@ public partial class MainWindowViewModel : ObservableObject
     {
         if (manifest.DeviceSampleCountsBalanced)
         {
-            return "鏄?";
+            return "一致";
         }
 
         return TryGetBoundaryTailSkewInfo(
@@ -2423,8 +2379,8 @@ public partial class MainWindowViewModel : ObservableObject
             out _,
             out _,
             out int affectedDeviceCount)
-            ? $"杈圭晫灏惧樊锛?{affectedDeviceCount} 鍙拌澶囧 1 涓熬鍧楋紝鍙鍑哄榻愶級"
-            : "鍚?";
+            ? $"仅末尾边界存在轻微偏斜（影响 {affectedDeviceCount} 台设备，约 1 个块）"
+            : "不一致";
     }
 
     private static string BuildEffectiveIntegritySummary(SdkRawCaptureManifest manifest)
@@ -2476,7 +2432,7 @@ public partial class MainWindowViewModel : ObservableObject
                     out int samplesPerBlockPerChannel,
                     out int affectedDeviceCount))
                 {
-                    issues.Add($"鍋滃綍杈圭晫灏惧潡宸紓 AI{minDevice.DeviceId:00}={minSamplesPerChannel:N0} 鍒?AI{maxDevice.DeviceId:00}={maxSamplesPerChannel:N0}锛?{affectedDeviceCount} 鍙拌澶囧 1 涓?{samplesPerBlockPerChannel:N0} 鐐瑰熬鍧楋紝TDMS 瀵煎嚭浼氭寜鏈€鐭澶囧榻愶級");
+                    issues.Add($"设备样本范围 AI{minDevice.DeviceId:00}={minSamplesPerChannel:N0} 至 AI{maxDevice.DeviceId:00}={maxSamplesPerChannel:N0}，影响 {affectedDeviceCount} 台设备，约 1 个块（每块 {samplesPerBlockPerChannel:N0} 样本/通道）的尾部边界偏斜");
                 }
                 else
                 {
@@ -2544,7 +2500,7 @@ public partial class MainWindowViewModel : ObservableObject
 
         if (manifest.SampleRateHz <= 0d || derivedWallClockDurationSeconds <= 0d || maxSamplesPerChannel <= 0)
         {
-            return (false, true, derivedWallClockDurationSeconds, 0d, 0d, 0d, 0d, "缺少足够的时基数据");
+            return (false, true, derivedWallClockDurationSeconds, 0d, 0d, 0d, 0d, "缺少足够的时间基数据");
         }
 
         double minSampleDerivedDurationSeconds = minSamplesPerChannel / manifest.SampleRateHz;
@@ -2654,8 +2610,8 @@ public partial class MainWindowViewModel : ObservableObject
         if (!string.IsNullOrWhiteSpace(manifest.Hdf5MirrorDirectory))
         {
             sb.AppendLine(manifest.Hdf5MirrorFaulted
-                ? $"HDF5 支线: 异常，目录={manifest.Hdf5MirrorDirectory}，原因={manifest.Hdf5MirrorFailureReason}"
-                : $"HDF5 支线: {manifest.Hdf5MirrorFileCount:N0} 个通道文件，目录={manifest.Hdf5MirrorDirectory}");
+                ? $"HDF5 支线: 异常，目录 {manifest.Hdf5MirrorDirectory}，原因 {manifest.Hdf5MirrorFailureReason}"
+                : $"HDF5 支线: {manifest.Hdf5MirrorFileCount:N0} 个通道文件，目录 {manifest.Hdf5MirrorDirectory}");
         }
 
         AppendRawCaptureTimingSummary(sb, manifest);
@@ -2677,7 +2633,7 @@ public partial class MainWindowViewModel : ObservableObject
             ? (timingAnalysis.IsConsistent
                 ? $"采样率校验通过: {timingAnalysis.Summary}"
                 : $"采样率校验异常: {timingAnalysis.Summary}")
-            : "采样率校验: 缺少足够的时基数据");
+            : "采样率校验: 缺少足够的时间基数据");
 
         string effectiveIntegritySummary = BuildEffectiveIntegritySummary(manifest);
         if (!string.IsNullOrWhiteSpace(effectiveIntegritySummary))
@@ -2688,13 +2644,13 @@ public partial class MainWindowViewModel : ObservableObject
         if (manifest.ObservedDeviceCount > 0)
         {
             sb.AppendLine($"设备数: {manifest.ObservedDeviceCount}");
-            sb.AppendLine($"设备样本量一致: {GetDeviceSampleConsistencyText(manifest)} ({manifest.MinDeviceSamplesPerChannel:N0} ~ {manifest.MaxDeviceSamplesPerChannel:N0} samples/channel)");
+            sb.AppendLine($"设备样本量一致性: {GetDeviceSampleConsistencyText(manifest)} ({manifest.MinDeviceSamplesPerChannel:N0} ~ {manifest.MaxDeviceSamplesPerChannel:N0} samples/channel)");
         }
 
         int blockIndexIgnoredDeviceCount = manifest.DeviceIntegrity.Count(IsConstantBlockIndexArtifact);
         if (blockIndexIgnoredDeviceCount > 0)
         {
-            sb.AppendLine($"BlockIndex 连续性检查: 已忽略 {blockIndexIgnoredDeviceCount} 台设备（字段未递增）");
+            sb.AppendLine($"BlockIndex 连续性检查已忽略 {blockIndexIgnoredDeviceCount} 台设备（字段未递增）");
         }
 
         foreach (var device in GetMeaningfulDeviceIntegrityIssues(manifest)
@@ -2771,13 +2727,13 @@ public partial class MainWindowViewModel : ObservableObject
         }
         else
         {
-            summary.AppendLine("采样率校验: 缺少足够的时基数据");
+            summary.AppendLine("采样率校验: 缺少足够的时间基数据");
         }
 
         int blockIndexIgnoredDeviceCount = manifest.DeviceIntegrity.Count(IsConstantBlockIndexArtifact);
         if (blockIndexIgnoredDeviceCount > 0)
         {
-            summary.AppendLine($"BlockIndex 连续性检查已忽略 {blockIndexIgnoredDeviceCount} 台设备（字段未递增）。");
+            summary.AppendLine($"BlockIndex 连续性检查已忽略 {blockIndexIgnoredDeviceCount} 台设备（字段未递增）");
         }
 
         foreach (var device in GetMeaningfulDeviceIntegrityIssues(manifest)
@@ -2856,7 +2812,7 @@ public partial class MainWindowViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[OnlineFlush] UI状态合并刷新异常: {ex.Message}");
+            Console.WriteLine($"[OnlineFlush] UI鐘舵€佸悎骞跺埛鏂板紓甯? {ex.Message}");
         }
     }
 
@@ -2907,7 +2863,7 @@ public partial class MainWindowViewModel : ObservableObject
     {
         try
         {
-            // 检查存储是否已启用（可能在写入过程中被停止）
+            // 妫€鏌ュ瓨鍌ㄦ槸鍚﹀凡鍚敤锛堝彲鑳藉湪鍐欏叆杩囩▼涓鍋滄锛?
             if (!StorageEnabled || _storage == null) return;
             
             // 检查通道是否在线
@@ -2922,15 +2878,15 @@ public partial class MainWindowViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            // 记录错误但不中断数据流
-            Console.WriteLine($"[Storage] 写入通道 {e.ChannelId} 数据时出错: {ex.Message}");
+            // 璁板綍閿欒浣嗕笉涓柇鏁版嵁娴?
+            Console.WriteLine($"[Storage] 写入通道 {e.ChannelId} 鏁版嵁鏃跺嚭閿? {ex.Message}");
             // 如果是严重错误，考虑停止存储
             if (ex is IOException || ex is ObjectDisposedException)
             {
                 Avalonia.Threading.Dispatcher.UIThread.Post(() =>
                 {
                     StorageStatusMessage = $"写入错误: {ex.Message}";
-                    // 不自动停止，让用户决定
+                    // 涓嶈嚜鍔ㄥ仠姝紝璁╃敤鎴峰喅瀹?
                 });
             }
         }
@@ -2952,14 +2908,6 @@ public partial class MainWindowViewModel : ObservableObject
             {
                 Title = "选择压缩性能测试文件",
                 AllowMultiple = false,
-/*                FileTypeFilter = new[]
-                {
-                    new Avalonia.Platform.Storage.FilePickerFileType("支持的测试文件")
-                    {
-                        Patterns = new[] { "*.sdkraw.bin", "*.tdms", "*.tdm", "*.h5", "*.hdf5" }
-                    }
-                }
-*/
                 FileTypeFilter = new[]
                 {
                     new Avalonia.Platform.Storage.FilePickerFileType("支持的测试文件")
@@ -2995,14 +2943,6 @@ public partial class MainWindowViewModel : ObservableObject
     private async Task RunCompressionBenchmarkFromFileAsync()
     {
         string filePath = (CompressionBenchmarkInputPath ?? string.Empty).Trim();
-/*        if (!CompressionBenchmarkInputBuilder.IsSupportedFile(filePath) || !File.Exists(filePath))
-        {
-            CompressionReportStatusMessage = "请选择可用于压缩性能测试的文件。";
-            OnPropertyChanged(nameof(CompressionBenchmarkPageStatusText));
-            return;
-        }
-
-*/
         if (!CompressionBenchmarkInputBuilder.IsSupportedFile(filePath) || !File.Exists(filePath))
         {
             CompressionReportStatusMessage = "请选择受支持的测试输入文件。";
@@ -3106,15 +3046,13 @@ public partial class MainWindowViewModel : ObservableObject
         if (!CompressionBenchmarkService.HasBenchmarkInput(snapshot))
         {
             IsCompressionReportGenerating = false;
-            CompressionReportStatusMessage = "压缩性能报告已生成，仅包含真实写入指标，未获得可用于算法对比的基准数据。";
-            CompressionReportStatusMessage = "压缩性能报告已生成，仅包含真实写入指标，未获得可用于算法对比的基准数据。";
+            CompressionReportStatusMessage = "压缩性能报告已生成，但仅包含真实写入指标，未获得可用于算法对比的基准数据。";
             OnPropertyChanged(nameof(CompressionBenchmarkStatusText));
             OnPropertyChanged(nameof(CompressionBenchmarkPageStatusText));
             return;
         }
 
         IsCompressionReportGenerating = true;
-        CompressionReportStatusMessage = $"正在生成压缩性能报告（对比基准：{DescribeCompressionBenchmarkSource(snapshot)}）...";
         CompressionReportStatusMessage = snapshot.BenchmarkSource == CompressionBenchmarkSource.RawCaptureReplay
             ? $"正在生成压缩性能报告（对比基准：{DescribeCompressionBenchmarkSource(snapshot)}，模式：{DescribeCompressionBenchmarkReplayMode(snapshot.BenchmarkReplayMode)}）..."
             : $"正在生成压缩性能报告（对比基准：{DescribeCompressionBenchmarkSource(snapshot)}）...";
@@ -3142,9 +3080,6 @@ public partial class MainWindowViewModel : ObservableObject
                     CompressionReportStatusMessage = update.StatusText;
                 }
 
-                CompressionReportStatusMessage = snapshot.BenchmarkSource == CompressionBenchmarkSource.RawCaptureReplay
-                    ? $"压缩性能报告已生成（对比基准：{DescribeCompressionBenchmarkSource(snapshot)}，模式：{DescribeCompressionBenchmarkReplayMode(snapshot.BenchmarkReplayMode)}）。"
-                    : $"压缩性能报告已生成（对比基准：{DescribeCompressionBenchmarkSource(snapshot)}）。";
                 CompressionReportStatusMessage = update.StatusText;
                 OnPropertyChanged(nameof(CompressionBenchmarkStatusText));
                 OnPropertyChanged(nameof(CompressionBenchmarkPageStatusText));
@@ -3178,7 +3113,7 @@ public partial class MainWindowViewModel : ObservableObject
                 CompressionBenchmarkProgressPercent = 100d;
                 CompressionBenchmarkProgressIsIndeterminate = false;
                 CompressionBenchmarkProgressText = snapshot.BenchmarkSource == CompressionBenchmarkSource.RawCaptureReplay
-                    ? $"已完成基于{DescribeCompressionBenchmarkSource(snapshot)}的算法对比（{DescribeCompressionBenchmarkReplayMode(snapshot.BenchmarkReplayMode)}）。"
+                    ? $"已完成基于 {DescribeCompressionBenchmarkSource(snapshot)} 的算法对比（{DescribeCompressionBenchmarkReplayMode(snapshot.BenchmarkReplayMode)}）"
                     : "已完成基于采样批次的算法对比。";
                 CompressionReportStatusMessage = $"压缩性能报告已生成（对比基准：{DescribeCompressionBenchmarkSource(snapshot)}）。";
                 OnPropertyChanged(nameof(CompressionBenchmarkStatusText));
@@ -3198,7 +3133,7 @@ public partial class MainWindowViewModel : ObservableObject
                 }
 
                 IsCompressionReportGenerating = false;
-                CompressionReportStatusMessage = $"压缩性能报告生成失败（对比基准：{DescribeCompressionBenchmarkSource(snapshot)}）: {ex.Message}";
+                CompressionReportStatusMessage = $"压缩性能报告生成失败（对比基准：{DescribeCompressionBenchmarkSource(snapshot)}）：{ex.Message}";
                 OnPropertyChanged(nameof(CompressionBenchmarkStatusText));
                 OnPropertyChanged(nameof(CompressionBenchmarkPageStatusText));
             });
@@ -3236,7 +3171,7 @@ public partial class MainWindowViewModel : ObservableObject
         {
             CompressionBenchmarkSource.RawCaptureReplay => "已保存原始数据",
             CompressionBenchmarkSource.SampledBatches => "采样批次",
-            _ => "无"
+            _ => "未知"
         };
 
     private static string DescribeCompressionBenchmarkReplayMode(CompressionBenchmarkReplayMode replayMode)
@@ -3292,7 +3227,7 @@ public partial class MainWindowViewModel : ObservableObject
         {
             Title = "总耗时",
             Value = snapshot.ElapsedText,
-            Hint = $"端到端 {snapshot.EndToEndBandwidthText}"
+            Hint = $"绔埌绔?{snapshot.EndToEndBandwidthText}"
         });
     }
 
@@ -3389,7 +3324,7 @@ public partial class MainWindowViewModel : ObservableObject
     
     partial void OnStorageEnabledChanged(bool value)
     {
-        // 当存储状态改变时，通知命令重新评估可用性
+        // 褰撳瓨鍌ㄧ姸鎬佹敼鍙樻椂锛岄€氱煡鍛戒护閲嶆柊璇勪及鍙敤鎬?
         (StartStorageCommand as AsyncRelayCommand)?.NotifyCanExecuteChanged();
         (StopStorageCommand as RelayCommand)?.NotifyCanExecuteChanged();
         (ConvertSelectedToTdmsCommand as AsyncRelayCommand)?.NotifyCanExecuteChanged();
@@ -3443,18 +3378,18 @@ public partial class MainWindowViewModel : ObservableObject
     partial void OnBzip2BlockSizeChanged(int value) => _compressionOptions.BZip2BlockSize = value;
     partial void OnLz4hcLevelChanged(int value) => _compressionOptions.LZ4HCLevel = value;
 
-    /// <summary>手动验证选中的 TDMS 文件（使用上次写入的哈希或仅回读验证）</summary>
+    /// <summary>鎵嬪姩楠岃瘉閫変腑鐨?TDMS 鏂囦欢锛堜娇鐢ㄤ笂娆″啓鍏ョ殑鍝堝笇鎴栦粎鍥炶楠岃瘉锛?/summary>
     private async Task VerifyStoredFileAsync()
     {
         var filePath = SelectedTdmsFile?.FullPath;
         if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath))
         {
-            FileVerifyResult = "请先从列表中选择一个文件";
+            FileVerifyResult = "请先从列表中选择一个文件。";
             FileVerifyPassed = false;
             return;
         }
 
-        FileVerifyResult = "正在验证…";
+        FileVerifyResult = "正在验证...";
         try
         {
             if (SdkRawCaptureFormat.IsRawCaptureFile(filePath))
@@ -3476,7 +3411,7 @@ public partial class MainWindowViewModel : ObservableObject
             if (!IsTdmsLikeFile(filePath))
             {
                 FileVerifyPassed = false;
-                FileVerifyResult = $"暂不支持校验该文件格式: {Path.GetExtension(filePath)}";
+                FileVerifyResult = $"鏆備笉鏀寔鏍￠獙璇ユ枃浠舵牸寮? {Path.GetExtension(filePath)}";
                 return;
             }
 
@@ -3690,14 +3625,14 @@ public partial class MainWindowViewModel : ObservableObject
             if (string.IsNullOrWhiteSpace(StoragePath)) return;
             var path = ResolveStoragePath(StoragePath);
             Directory.CreateDirectory(path);
-            // 递归搜索子目录（文件整理后 .tdms 位于时间命名的子文件夹中）
+            // 閫掑綊鎼滅储瀛愮洰褰曪紙鏂囦欢鏁寸悊鍚?.tdms 浣嶄簬鏃堕棿鍛藉悕鐨勫瓙鏂囦欢澶逛腑锛?
             var tdmsFiles = Directory.EnumerateFiles(path, "*.tdms", SearchOption.AllDirectories)
                 .Where(f => !f.EndsWith("_index", StringComparison.OrdinalIgnoreCase));
             var tdmFiles = Directory.EnumerateFiles(path, "*.tdm", SearchOption.AllDirectories)
                 .Where(f => !f.EndsWith("_index", StringComparison.OrdinalIgnoreCase));
             var rawCaptureFiles = Directory.EnumerateFiles(path, $"*{SdkRawCaptureFormat.FileSuffix}", SearchOption.AllDirectories);
             var hdf5Files = Directory.EnumerateFiles(path, "*.h5", SearchOption.AllDirectories);
-            // 也收集公共文档下的 TDMS/TDM（ASCII 路径回退时产生）
+            // 涔熸敹闆嗗叕鍏辨枃妗ｄ笅鐨?TDMS/TDM锛圓SCII 路径回退时产生）
             var altBase = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonDocuments), "DH", "TDMS");
             var altTdmsFiles = Directory.Exists(altBase)
                 ? Directory.EnumerateFiles(altBase, "*.tdms", SearchOption.AllDirectories)
@@ -3785,61 +3720,220 @@ public partial class MainWindowViewModel : ObservableObject
             return;
         }
 
-        bool perChannel = StorageMode == StorageModeOption.PerChannel;
-        string modeText = perChannel ? "每通道 TDMS" : "单文件 TDMS";
-        var selectedChannelIds = ResolveSelectedRawTdmsChannelIds();
-        int selectedChannelCount = selectedChannelIds?.Count ?? 0;
-        string selectionText = selectedChannelCount > 0
-            ? $"{selectedChannelCount} 个通道"
+        bool enqueuePerChannel = StorageMode == StorageModeOption.PerChannel;
+        string enqueueModeText = enqueuePerChannel ? "每通道TDMS" : "单文件TDMS";
+        var enqueueSelectedChannelIds = ResolveSelectedRawTdmsChannelIds();
+        int enqueueSelectedChannelCount = enqueueSelectedChannelIds?.Count ?? 0;
+        string enqueueSelectionText = enqueueSelectedChannelCount > 0
+            ? $"{enqueueSelectedChannelCount} 个通道"
             : "全部通道";
 
-        FileVerifyPassed = false;
-        FileVerifyResult = $"正在将 {Path.GetFileName(capturePath)} 转换为 {modeText}（{selectionText}）…";
-        StorageStatusMessage = $"正在将 {Path.GetFileName(capturePath)} 转换为 {modeText}（{selectionText}）…";
+        var job = new TdmsExportJobItem(
+            capturePath,
+            enqueuePerChannel,
+            SelectedCompressionType,
+            SelectedPreprocessType,
+            _compressionOptions.Clone(),
+            enqueueSelectedChannelIds,
+            enqueueSelectionText);
+
+        TdmsExportJobs.Insert(0, job);
+        _tdmsExportJobQueue.Enqueue(job);
+        EnsureTdmsExportWorkerStarted();
+        _tdmsExportJobSignal.Release();
+
+        FileVerifyPassed = true;
+        FileVerifyResult = $"已加入后台导出队列: {Path.GetFileName(capturePath)} -> {enqueueModeText} ({enqueueSelectionText})";
+        StorageStatusMessage = $"已加入后台TDMS导出队列: {Path.GetFileName(capturePath)} -> {enqueueModeText} ({enqueueSelectionText})";
+        UpdateTdmsExportQueueStatus();
+        await Task.CompletedTask;
+    }
+
+    private void EnsureTdmsExportWorkerStarted()
+    {
+        if (_tdmsExportWorkerTask is { IsCompleted: false, IsCanceled: false, IsFaulted: false })
+        {
+            return;
+        }
+
+        _tdmsExportWorkerTask = Task.Run(() => RunTdmsExportWorkerAsync(_tdmsExportJobCts.Token));
+    }
+
+    private async Task RunTdmsExportWorkerAsync(CancellationToken token)
+    {
+        while (!token.IsCancellationRequested)
+        {
+            try
+            {
+                await _tdmsExportJobSignal.WaitAsync(token);
+            }
+            catch (OperationCanceledException)
+            {
+                break;
+            }
+
+            if (!_tdmsExportJobQueue.TryDequeue(out var job))
+            {
+                continue;
+            }
+
+            await RunSingleTdmsExportJobAsync(job, token);
+        }
+    }
+
+    private async Task RunSingleTdmsExportJobAsync(TdmsExportJobItem job, CancellationToken token)
+    {
+        while (StorageEnabled && !token.IsCancellationRequested)
+        {
+            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                job.StateText = "等待录制结束";
+                job.ProgressText = "当前正在录制，后台TDMS导出暂缓启动";
+                job.IsProgressIndeterminate = true;
+                UpdateTdmsExportQueueStatus();
+            });
+
+            try
+            {
+                await Task.Delay(1000, token);
+            }
+            catch (OperationCanceledException)
+            {
+                return;
+            }
+        }
+
+        if (token.IsCancellationRequested)
+        {
+            return;
+        }
+
+        await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            job.StartedAtLocal = DateTime.Now;
+            job.StateText = "导出中";
+            job.ProgressText = "正在初始化TDMS导出...";
+            job.IsProgressIndeterminate = true;
+            job.ProgressPercent = 0d;
+            UpdateTdmsExportQueueStatus();
+        });
 
         IProgress<SdkRawCaptureConversionProgress> progress = new Progress<SdkRawCaptureConversionProgress>(p =>
         {
+            double percent = p.TotalBlocks > 0
+                ? Math.Clamp((double)p.BlocksProcessed / p.TotalBlocks * 100d, 0d, 100d)
+                : 0d;
             string totalText = p.TotalBlocks > 0 ? $"/{p.TotalBlocks:N0}" : "";
-            StorageStatusMessage = $"正在转换原始采集 -> TDMS: {p.BlocksProcessed:N0}{totalText} blocks, {p.SamplesProcessed:N0} samples";
+            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            {
+                job.IsProgressIndeterminate = p.TotalBlocks <= 0;
+                job.ProgressPercent = percent;
+                job.ProgressText = $"已处理 {p.BlocksProcessed:N0}{totalText} 块，{p.SamplesProcessed:N0} 个样本";
+                UpdateTdmsExportQueueStatus();
+            });
         });
 
         try
         {
             var converter = new SdkRawCaptureConverter();
-            var options = _compressionOptions.Clone();
             var result = await Task.Run(() => converter.Convert(
-                capturePath,
-                perChannel,
-                SelectedCompressionType,
-                SelectedPreprocessType,
-                options,
-                selectedChannelIds,
-                progress.Report));
+                job.CapturePath,
+                job.PerChannel,
+                job.CompressionType,
+                job.PreprocessType,
+                job.CompressionOptions.Clone(),
+                job.SelectedChannelIds,
+                progress.Report), token);
 
             if (result.WrittenFiles.Count == 0)
             {
-                throw new InvalidOperationException("转换未生成任何 TDMS 文件。");
+                throw new InvalidOperationException("后台导出未生成任何TDMS文件。");
             }
 
-            _lastWrittenFiles = result.WrittenFiles;
-            foreach (var fp in result.WrittenFiles)
+            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
             {
-                _writeHashesByFile[fp] = result.Hashes;
-                _writeSampleCountsByFile[fp] = result.SampleCounts;
-            }
+                _lastWrittenFiles = result.WrittenFiles;
+                foreach (var fp in result.WrittenFiles)
+                {
+                    _writeHashesByFile[fp] = result.Hashes;
+                    _writeSampleCountsByFile[fp] = result.SampleCounts;
+                }
 
-            StorageStatusMessage = result.Summary;
-            FileVerifyPassed = true;
-            FileVerifyResult = result.Summary;
-            RefreshRecentFiles();
+                job.IsCompleted = true;
+                job.IsFailed = false;
+                job.IsProgressIndeterminate = false;
+                job.ProgressPercent = 100d;
+                job.StateText = "已完成";
+                job.ProgressText = $"完成，共生成 {result.WrittenFiles.Count} 个文件";
+                job.SummaryText = result.Summary;
+                job.CompletedAtLocal = DateTime.Now;
 
+                StorageStatusMessage = result.Summary;
+                FileVerifyPassed = true;
+                FileVerifyResult = result.Summary;
+                RefreshRecentFiles();
+                UpdateTdmsExportQueueStatus();
+            });
+        }
+        catch (OperationCanceledException)
+        {
+            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                job.IsCompleted = true;
+                job.IsFailed = true;
+                job.IsProgressIndeterminate = false;
+                job.StateText = "已取消";
+                job.ProgressText = "后台TDMS导出已取消";
+                job.SummaryText = "后台TDMS导出已取消";
+                job.CompletedAtLocal = DateTime.Now;
+                UpdateTdmsExportQueueStatus();
+            });
         }
         catch (Exception ex)
         {
-            StorageStatusMessage = $"转换失败: {ex.Message}";
-            FileVerifyPassed = false;
-            FileVerifyResult = StorageStatusMessage;
+            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                job.IsCompleted = true;
+                job.IsFailed = true;
+                job.IsProgressIndeterminate = false;
+                job.StateText = "失败";
+                job.ProgressText = ex.Message;
+                job.SummaryText = $"后台TDMS导出失败: {ex.Message}";
+                job.CompletedAtLocal = DateTime.Now;
+                StorageStatusMessage = job.SummaryText;
+                FileVerifyPassed = false;
+                FileVerifyResult = job.SummaryText;
+                UpdateTdmsExportQueueStatus();
+            });
         }
+    }
+
+    private void ClearCompletedTdmsExportJobs()
+    {
+        var finishedJobs = TdmsExportJobs
+            .Where(job => job.IsCompleted || job.IsFailed)
+            .ToList();
+        foreach (var job in finishedJobs)
+        {
+            TdmsExportJobs.Remove(job);
+        }
+
+        UpdateTdmsExportQueueStatus();
+    }
+
+    private void UpdateTdmsExportQueueStatus()
+    {
+        int runningCount = TdmsExportJobs.Count(job => !job.IsCompleted && !job.IsFailed && job.StartedAtLocal != null);
+        int waitingCount = TdmsExportJobs.Count(job => !job.IsCompleted && !job.IsFailed && job.StartedAtLocal == null);
+        int failedCount = TdmsExportJobs.Count(job => job.IsFailed);
+
+        TdmsExportQueueStatusMessage = TdmsExportJobs.Count == 0
+            ? "暂无后台TDMS导出任务"
+            : $"运行中 {runningCount} 个，排队中 {waitingCount} 个，失败 {failedCount} 个";
+
+        OnPropertyChanged(nameof(HasTdmsExportJobs));
+        OnPropertyChanged(nameof(HasCompletedTdmsExportJobs));
+        (ClearCompletedTdmsExportJobsCommand as RelayCommand)?.NotifyCanExecuteChanged();
     }
 
     private void TestReadSelectedFile()
@@ -3852,7 +3946,7 @@ public partial class MainWindowViewModel : ObservableObject
             {
                 if (!SdkRawCaptureFormat.TryLoadManifest(fp, out var manifest) || manifest == null)
                 {
-                    throw new InvalidOperationException($"找不到原始采集清单: {SdkRawCaptureFormat.GetManifestPath(fp)}");
+                    throw new InvalidOperationException($"鎵句笉鍒板師濮嬮噰闆嗘竻鍗? {SdkRawCaptureFormat.GetManifestPath(fp)}");
                 }
 
                 FileVerifyResult = BuildRawCaptureSummary(fp, manifest);
@@ -3869,7 +3963,7 @@ public partial class MainWindowViewModel : ObservableObject
 
             if (!IsTdmsLikeFile(fp))
             {
-                throw new InvalidOperationException($"暂不支持读取该文件格式: {Path.GetExtension(fp)}");
+                throw new InvalidOperationException($"鏆備笉鏀寔璇诲彇璇ユ枃浠舵牸寮? {Path.GetExtension(fp)}");
             }
 
             var map = TdmsReaderUtil.ListGroupsAndChannels(fp);
@@ -3877,7 +3971,7 @@ public partial class MainWindowViewModel : ObservableObject
             sb.AppendLine($"文件: {Path.GetFileName(fp)}");
             foreach (var kv in map)
             {
-                sb.AppendLine($"组: {kv.Key} 通道: {string.Join(", ", kv.Value)}");
+                sb.AppendLine($"缁? {kv.Key} 通道: {string.Join(", ", kv.Value)}");
             }
             var g = map.Keys.FirstOrDefault();
             var ch = g != null ? map[g].FirstOrDefault() : null;
@@ -3906,10 +4000,10 @@ public partial class MainWindowViewModel : ObservableObject
         SampleRate = newSampleRate;
         Console.WriteLine($"[MainWindowViewModel] Sample rate changed to: {SampleRate} Hz");
         
-        // 通知所有曲线面板更新采样频率
+        // 閫氱煡鎵€鏈夋洸绾块潰鏉挎洿鏂伴噰鏍烽鐜?
         UpdateAllCurvePanelsSampleRate();
         
-        // 如果模拟数据正在运行，重启它以应用新的采样频率
+        // 濡傛灉妯℃嫙鏁版嵁姝ｅ湪杩愯锛岄噸鍚畠浠ュ簲鐢ㄦ柊鐨勯噰鏍烽鐜?
         
     }
     
@@ -4007,6 +4101,7 @@ public partial class MainWindowViewModel : ObservableObject
     {
         CleanupSdkRawCaptureSubscription();
         SetSdkRealtimePublishEnabled(true);
+        _tdmsExportJobCts.Cancel();
         _sdkRawCaptureWriter?.Dispose();
         _sdkRawCaptureWriter = null;
         _sdkRawCaptureProtectionStopPending = false;
@@ -4023,3 +4118,4 @@ public partial class MainWindowViewModel : ObservableObject
         _channelTimeUpdateTimer = null;
     }
 }
+

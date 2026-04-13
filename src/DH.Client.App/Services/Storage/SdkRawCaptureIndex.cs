@@ -9,6 +9,7 @@ namespace DH.Client.App.Services.Storage;
 internal static class SdkRawCaptureIndexFormat
 {
     public const int IndexVersion = 1;
+    private const int RawCaptureHeaderBytes = sizeof(ulong) + sizeof(int) + sizeof(long) + sizeof(double) + sizeof(int) + sizeof(int);
 
     public static string GetIndexPath(string capturePath)
     {
@@ -52,7 +53,14 @@ internal static class SdkRawCaptureIndexFormat
     {
         if (TryLoadIndex(capturePath, out var existing) && existing != null)
         {
-            return existing;
+            if (!NeedsTailRebuild(existing, capturePath))
+            {
+                return existing;
+            }
+
+            var repaired = BuildFromCapture(capturePath, existing);
+            TryPersistIndex(capturePath, repaired);
+            return repaired;
         }
 
         var rebuilt = BuildFromCapture(capturePath);
@@ -74,7 +82,7 @@ internal static class SdkRawCaptureIndexFormat
             {
                 WriteIndented = true
             });
-            File.WriteAllText(indexPath, json);
+            SdkRawCapturePersistenceUtil.WriteAllTextAtomically(indexPath, json);
         }
         catch (Exception ex)
         {
@@ -82,7 +90,7 @@ internal static class SdkRawCaptureIndexFormat
         }
     }
 
-    public static SdkRawCaptureIndex BuildFromCapture(string capturePath)
+    public static SdkRawCaptureIndex BuildFromCapture(string capturePath, SdkRawCaptureIndex? existingIndex = null)
     {
         if (string.IsNullOrWhiteSpace(capturePath))
         {
@@ -102,9 +110,24 @@ internal static class SdkRawCaptureIndexFormat
 
         var blocks = new List<SdkRawCaptureBlockIndexEntry>();
         var deviceStates = new Dictionary<int, DeviceIndexState>();
+        long indexedCaptureFileBytes = reader.BaseStream.Position;
+
+        if (existingIndex != null && TryPrepareResumeState(existingIndex, stream.Length, out var resumedBlocks, out var resumedDeviceStates, out long resumeOffset))
+        {
+            blocks = resumedBlocks;
+            deviceStates = resumedDeviceStates;
+            indexedCaptureFileBytes = Math.Max(indexedCaptureFileBytes, resumeOffset);
+            reader.BaseStream.Position = resumeOffset;
+        }
 
         while (TryReadBlockHeader(reader, out var header, out long blockOffset, out long payloadOffset))
         {
+            long blockEndOffset = payloadOffset + Math.Max(0, header.PayloadBytes);
+            if (blockEndOffset > reader.BaseStream.Length)
+            {
+                break;
+            }
+
             int deviceId = SdkRawCaptureWriter.ResolveChannelDeviceId(header.GroupId, header.MachineId);
             if (!deviceStates.TryGetValue(deviceId, out var deviceState))
             {
@@ -136,6 +159,7 @@ internal static class SdkRawCaptureIndexFormat
             });
 
             reader.BaseStream.Seek(header.PayloadBytes, SeekOrigin.Current);
+            indexedCaptureFileBytes = blockEndOffset;
         }
 
         var devices = deviceStates.Values
@@ -149,9 +173,21 @@ internal static class SdkRawCaptureIndexFormat
             })
             .ToList();
 
-        var channelSampleCounts = manifest?.ChannelSampleCounts != null && manifest.ChannelSampleCounts.Count > 0
-            ? new Dictionary<string, long>(manifest.ChannelSampleCounts, StringComparer.OrdinalIgnoreCase)
-            : BuildChannelSampleCountsFromDevices(devices);
+        var channelSampleCounts = BuildChannelSampleCountsFromDevices(devices);
+        if (manifest?.ChannelSampleCounts != null && manifest.ChannelSampleCounts.Count > 0)
+        {
+            foreach (var kvp in manifest.ChannelSampleCounts)
+            {
+                if (channelSampleCounts.TryGetValue(kvp.Key, out long current))
+                {
+                    channelSampleCounts[kvp.Key] = Math.Max(current, kvp.Value);
+                }
+                else
+                {
+                    channelSampleCounts[kvp.Key] = kvp.Value;
+                }
+            }
+        }
 
         return new SdkRawCaptureIndex
         {
@@ -161,10 +197,14 @@ internal static class SdkRawCaptureIndexFormat
                 : SdkRawCaptureFormat.GetCaptureStem(capturePath),
             CaptureFileName = Path.GetFileName(capturePath),
             CaptureFileBytes = stream.Length,
+            IndexedCaptureFileBytes = indexedCaptureFileBytes,
             SampleRateHz = fileHeader.SampleRateHz > 0d
                 ? fileHeader.SampleRateHz
                 : manifest?.SampleRateHz ?? 0d,
             CreatedAtUtc = DateTime.UtcNow,
+            LastUpdatedAtUtc = DateTime.UtcNow,
+            IndexedBlockCount = blocks.Count,
+            IsFinalized = indexedCaptureFileBytes >= stream.Length,
             Devices = devices,
             Blocks = blocks,
             ChannelSampleCounts = channelSampleCounts
@@ -189,7 +229,7 @@ internal static class SdkRawCaptureIndexFormat
 
     private static bool IsUsable(SdkRawCaptureIndex? index, string capturePath)
     {
-        if (index == null || index.Version != IndexVersion || index.Blocks.Count == 0)
+        if (index == null || index.Version != IndexVersion)
         {
             return false;
         }
@@ -200,7 +240,13 @@ internal static class SdkRawCaptureIndexFormat
         }
 
         long actualBytes = new FileInfo(capturePath).Length;
-        return index.CaptureFileBytes <= 0 || index.CaptureFileBytes == actualBytes;
+        long indexedBytes = ResolveIndexedCaptureFileBytes(index);
+        if (indexedBytes < RawCaptureHeaderBytes || indexedBytes > actualBytes)
+        {
+            return false;
+        }
+
+        return index.Blocks.Count > 0 || actualBytes <= RawCaptureHeaderBytes;
     }
 
     private static RawFileHeader ReadFileHeader(BinaryReader reader)
@@ -240,34 +286,128 @@ internal static class SdkRawCaptureIndexFormat
         }
 
         blockOffset = reader.BaseStream.Position;
-        uint magic = reader.ReadUInt32();
+        if ((reader.BaseStream.Length - blockOffset) < (sizeof(uint) + (12 * sizeof(int)) + sizeof(long) + sizeof(float) + sizeof(long)))
+        {
+            return false;
+        }
+
+        uint magic;
+        try
+        {
+            magic = reader.ReadUInt32();
+        }
+        catch (EndOfStreamException)
+        {
+            return false;
+        }
+
         if (magic != SdkRawCaptureFormat.BlockMagic)
         {
             throw new InvalidDataException("Invalid raw capture block marker.");
         }
 
-        int version = reader.ReadInt32();
+        int version;
+        try
+        {
+            version = reader.ReadInt32();
+        }
+        catch (EndOfStreamException)
+        {
+            return false;
+        }
+
         if (version != SdkRawCaptureFormat.FormatVersion)
         {
             throw new InvalidDataException($"Unsupported raw capture block version: {version}.");
         }
 
-        header = new IndexedRawBlockHeader(
-            reader.ReadInt64(),
-            reader.ReadInt32(),
-            reader.ReadInt32(),
-            reader.ReadInt32(),
-            reader.ReadInt64(),
-            reader.ReadInt32(),
-            reader.ReadInt32(),
-            reader.ReadInt32(),
-            reader.ReadInt32(),
-            reader.ReadSingle(),
-            reader.ReadInt64(),
-            reader.ReadInt32(),
-            reader.ReadInt32());
+        try
+        {
+            header = new IndexedRawBlockHeader(
+                reader.ReadInt64(),
+                reader.ReadInt32(),
+                reader.ReadInt32(),
+                reader.ReadInt32(),
+                reader.ReadInt64(),
+                reader.ReadInt32(),
+                reader.ReadInt32(),
+                reader.ReadInt32(),
+                reader.ReadInt32(),
+                reader.ReadSingle(),
+                reader.ReadInt64(),
+                reader.ReadInt32(),
+                reader.ReadInt32());
+        }
+        catch (EndOfStreamException)
+        {
+            header = default;
+            blockOffset = 0L;
+            payloadOffset = 0L;
+            return false;
+        }
 
         payloadOffset = reader.BaseStream.Position;
+        return true;
+    }
+
+    private static bool NeedsTailRebuild(SdkRawCaptureIndex index, string capturePath)
+    {
+        if (!File.Exists(capturePath))
+        {
+            return false;
+        }
+
+        long actualBytes = new FileInfo(capturePath).Length;
+        long indexedBytes = ResolveIndexedCaptureFileBytes(index);
+        return indexedBytes < actualBytes || !index.IsFinalized;
+    }
+
+    private static long ResolveIndexedCaptureFileBytes(SdkRawCaptureIndex index)
+        => index.IndexedCaptureFileBytes > 0
+            ? index.IndexedCaptureFileBytes
+            : index.CaptureFileBytes;
+
+    private static bool TryPrepareResumeState(
+        SdkRawCaptureIndex existingIndex,
+        long actualFileBytes,
+        out List<SdkRawCaptureBlockIndexEntry> blocks,
+        out Dictionary<int, DeviceIndexState> deviceStates,
+        out long resumeOffset)
+    {
+        blocks = new List<SdkRawCaptureBlockIndexEntry>();
+        deviceStates = new Dictionary<int, DeviceIndexState>();
+        resumeOffset = RawCaptureHeaderBytes;
+
+        var orderedBlocks = existingIndex.Blocks
+            .OrderBy(entry => entry.Offset)
+            .ToList();
+
+        if (orderedBlocks.Count == 0)
+        {
+            return false;
+        }
+
+        var lastBlock = orderedBlocks[^1];
+        long lastBlockEnd = lastBlock.PayloadOffset + Math.Max(0, lastBlock.PayloadBytes);
+        if (lastBlockEnd < RawCaptureHeaderBytes || lastBlockEnd > actualFileBytes)
+        {
+            return false;
+        }
+
+        blocks = orderedBlocks;
+        foreach (var groupedBlocks in orderedBlocks.GroupBy(entry => entry.DeviceId))
+        {
+            var deviceBlockList = groupedBlocks.OrderBy(entry => entry.Offset).ToList();
+            var tail = deviceBlockList[^1];
+            deviceStates[groupedBlocks.Key] = new DeviceIndexState(groupedBlocks.Key)
+            {
+                ChannelCount = deviceBlockList.Max(entry => entry.ChannelCount),
+                BlockCount = deviceBlockList.Count,
+                NextSampleStartPerChannel = tail.SampleStartPerChannel + tail.DataCountPerChannel
+            };
+        }
+
+        resumeOffset = lastBlockEnd;
         return true;
     }
 
@@ -352,9 +492,17 @@ internal sealed class SdkRawCaptureIndex
 
     public long CaptureFileBytes { get; set; }
 
+    public long IndexedCaptureFileBytes { get; set; }
+
     public double SampleRateHz { get; set; }
 
     public DateTime CreatedAtUtc { get; set; }
+
+    public DateTime LastUpdatedAtUtc { get; set; }
+
+    public int IndexedBlockCount { get; set; }
+
+    public bool IsFinalized { get; set; } = true;
 
     public List<SdkRawCaptureDeviceIndexSummary> Devices { get; set; } = new();
 
@@ -403,4 +551,43 @@ internal sealed class SdkRawCaptureBlockIndexEntry
     public long SampleTime { get; set; }
 
     public long ReceivedAtUtcTicks { get; set; }
+}
+
+internal static class SdkRawCapturePersistenceUtil
+{
+    public static void WriteAllTextAtomically(string path, string content)
+    {
+        string? directory = Path.GetDirectoryName(path);
+        if (!string.IsNullOrWhiteSpace(directory))
+        {
+            Directory.CreateDirectory(directory);
+        }
+
+        string tempPath = path + ".tmp";
+        try
+        {
+            File.WriteAllText(tempPath, content);
+            if (File.Exists(path))
+            {
+                File.Replace(tempPath, path, null, ignoreMetadataErrors: true);
+            }
+            else
+            {
+                File.Move(tempPath, path);
+            }
+        }
+        finally
+        {
+            try
+            {
+                if (File.Exists(tempPath))
+                {
+                    File.Delete(tempPath);
+                }
+            }
+            catch
+            {
+            }
+        }
+    }
 }

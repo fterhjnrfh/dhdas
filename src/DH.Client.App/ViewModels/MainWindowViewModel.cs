@@ -1660,7 +1660,14 @@ public partial class MainWindowViewModel : ObservableObject
         CleanupSdkRawCaptureSubscription();
         _sdkRawCaptureWriter?.Dispose();
         _sdkRawCaptureWriter = new SdkRawCaptureWriter();
-        _sdkRawCaptureWriter.Start(basePath, StorageSessionName, SampleRate, channelIds);
+        _sdkRawCaptureWriter.Start(
+            basePath,
+            StorageSessionName,
+            SampleRate,
+            channelIds,
+            SelectedCompressionType,
+            SelectedPreprocessType,
+            _compressionOptions.Clone());
         _sdkRawCaptureProtectionStopPending = false;
         SetSdkRealtimePublishEnabled(false);
 
@@ -2318,7 +2325,11 @@ public partial class MainWindowViewModel : ObservableObject
         sb.AppendLine($"采样率: {manifest.SampleRateHz:N0} Hz");
         sb.AppendLine($"块数: {manifest.BlockCount:N0}");
         sb.AppendLine($"总样本: {manifest.TotalSamples:N0}");
+        sb.AppendLine($"压缩算法: {CompressionReportFormatting.FormatCompressionType(manifest.CompressionType)}");
+        sb.AppendLine($"预处理: {CompressionReportFormatting.FormatPreprocessType(manifest.PreprocessType)}");
+        sb.AppendLine($"压缩参数: {CompressionReportFormatting.FormatCompressionOptions(manifest.CompressionType, manifest.CompressionOptions)}");
         sb.AppendLine($"原始载荷: {FormatStorageSize(manifest.RawPayloadBytes)}");
+        sb.AppendLine($"编码载荷: {FormatStorageSize(manifest.CodecPayloadBytes > 0 ? manifest.CodecPayloadBytes : manifest.RawPayloadBytes)}");
         sb.AppendLine($"捕获文件大小: {FormatStorageSize(manifest.CaptureFileBytes)}");
         sb.AppendLine($"通道数: 期望 {manifest.ExpectedChannelCount} / 实际 {manifest.ObservedChannelCount}");
         sb.AppendLine($"入队块/写入块: {manifest.EnqueuedBlockCount:N0} / {manifest.WrittenBlockCount:N0}");

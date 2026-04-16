@@ -93,9 +93,9 @@ internal static class SdkRawCompressionBenchmarkService
 
         using var stream = new FileStream(capturePath, FileMode.Open, FileAccess.Read, FileShare.Read);
         using var reader = new BinaryReader(stream);
-        SdkRawCaptureConverter.SkipFileHeader(reader);
+        var fileHeader = SdkRawCaptureConverter.SkipFileHeader(reader);
 
-        while (SdkRawCaptureConverter.TryReadRawBlock(reader, out var rawBlock))
+        while (SdkRawCaptureConverter.TryReadRawBlock(reader, fileHeader, out var rawBlock))
         {
             cancellationToken.ThrowIfCancellationRequested();
 

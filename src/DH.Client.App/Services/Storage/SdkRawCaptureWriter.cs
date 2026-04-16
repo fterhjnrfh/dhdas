@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
@@ -19,7 +18,11 @@ internal static class SdkRawCaptureFormat
     public const string FileSuffix = ".sdkraw.bin";
     public const ulong FileMagic = 0x3157415248444448UL; // "DHDHRAW1"
     public const uint BlockMagic = 0x314B4244U; // "DBK1"
-    public const int FormatVersion = 1;
+    public const int LegacyFormatVersion = 1;
+    public const int FormatVersion = 2;
+
+    public static bool IsSupportedVersion(int version)
+        => version == LegacyFormatVersion || version == FormatVersion;
 
     public static bool IsRawCaptureFile(string path)
         => path.EndsWith(FileSuffix, StringComparison.OrdinalIgnoreCase);
@@ -70,6 +73,12 @@ internal sealed class SdkRawCaptureManifest
 
     public string CaptureFileName { get; set; } = "";
 
+    public CompressionType CompressionType { get; set; }
+
+    public PreprocessType PreprocessType { get; set; }
+
+    public CompressionOptions CompressionOptions { get; set; } = new();
+
     public DateTime StartedAtUtc { get; set; }
 
     public DateTime StoppedAtUtc { get; set; }
@@ -86,7 +95,11 @@ internal sealed class SdkRawCaptureManifest
 
     public long RawPayloadBytes { get; set; }
 
+    public long CodecPayloadBytes { get; set; }
+
     public long CaptureFileBytes { get; set; }
+
+    public double EncodeSeconds { get; set; }
 
     public double WriteSeconds { get; set; }
 
@@ -384,12 +397,18 @@ internal sealed class SdkRawCaptureWriter : IDisposable
     private string _sessionName = "session";
     private double _sampleRateHz;
     private int _expectedChannelCount;
+    private CompressionType _compressionType;
+    private PreprocessType _preprocessType;
+    private CompressionOptions _compressionOptions = new();
+    private int _formatVersion = SdkRawCaptureFormat.LegacyFormatVersion;
     private DateTime _startedAtUtc;
     private DateTime _stoppedAtUtc;
     private bool _started;
     private long _blockCount;
     private long _totalSamples;
     private long _rawPayloadBytes;
+    private long _codecPayloadBytes;
+    private double _encodeSeconds;
     private double _writeSeconds;
     private long _enqueuedBlockCount;
     private long _writtenBlockCount;
@@ -410,7 +429,14 @@ internal sealed class SdkRawCaptureWriter : IDisposable
 
     public bool ProtectionTriggered => Volatile.Read(ref _protectionTriggered) != 0;
 
-    public void Start(string basePath, string sessionName, double sampleRateHz, IReadOnlyCollection<int> expectedChannelIds)
+    public void Start(
+        string basePath,
+        string sessionName,
+        double sampleRateHz,
+        IReadOnlyCollection<int> expectedChannelIds,
+        CompressionType compressionType = CompressionType.None,
+        PreprocessType preprocessType = PreprocessType.None,
+        CompressionOptions? compressionOptions = null)
     {
         if (_started)
         {
@@ -426,6 +452,10 @@ internal sealed class SdkRawCaptureWriter : IDisposable
         _sessionName = safeName;
         _sampleRateHz = sampleRateHz;
         _expectedChannelCount = expectedChannelIds?.Count ?? 0;
+        _compressionType = compressionType;
+        _preprocessType = preprocessType;
+        _compressionOptions = compressionOptions?.Clone() ?? new CompressionOptions();
+        _formatVersion = SdkRawCaptureFormatCodec.SelectFormatVersion(compressionType, preprocessType);
         _startedAtUtc = DateTime.UtcNow;
         (_pendingBlockLimit, _pendingPayloadByteLimit) = ComputePendingLimits(sampleRateHz, _expectedChannelCount);
         _capturePath = Path.Combine(sessionFolder, $"{safeName}{SdkRawCaptureFormat.FileSuffix}");
@@ -502,7 +532,7 @@ internal sealed class SdkRawCaptureWriter : IDisposable
             PendingPayloadByteLimit = _pendingPayloadByteLimit,
             ProtectionTriggered = ProtectionTriggered,
             ProtectionReason = _protectionReason,
-            WrittenPayloadBytes = Interlocked.Read(ref _rawPayloadBytes),
+            WrittenPayloadBytes = Interlocked.Read(ref _codecPayloadBytes),
             WriteSeconds = _writeSeconds,
             LastError = _writerFault?.Message ?? _protectionReason,
             HasTimingAnalysis = liveTimingAnalysis.HasData,
@@ -608,6 +638,8 @@ internal sealed class SdkRawCaptureWriter : IDisposable
         _blockCount = 0;
         _totalSamples = 0;
         _rawPayloadBytes = 0;
+        _codecPayloadBytes = 0;
+        _encodeSeconds = 0d;
         _writeSeconds = 0d;
         _enqueuedBlockCount = 0;
         _writtenBlockCount = 0;
@@ -623,6 +655,10 @@ internal sealed class SdkRawCaptureWriter : IDisposable
         _pendingBlockLimit = MinimumPendingBlockLimit;
         _pendingPayloadByteLimit = MinimumPendingPayloadByteLimit;
         _writePosition = 0;
+        _compressionType = CompressionType.None;
+        _preprocessType = PreprocessType.None;
+        _compressionOptions = new CompressionOptions();
+        _formatVersion = SdkRawCaptureFormat.LegacyFormatVersion;
     }
 
     private async Task ProcessQueueAsync()
@@ -716,11 +752,13 @@ internal sealed class SdkRawCaptureWriter : IDisposable
         }
 
         _writer.Write(SdkRawCaptureFormat.FileMagic);
-        _writer.Write(SdkRawCaptureFormat.FormatVersion);
+        _writer.Write(_formatVersion);
         _writer.Write(_startedAtUtc.Ticks);
         _writer.Write(_sampleRateHz);
         _writer.Write(_expectedChannelCount);
-        _writer.Write(0);
+        _writer.Write(_formatVersion >= SdkRawCaptureFormat.FormatVersion
+            ? SdkRawCaptureFormatCodec.PackStorageSettings(_compressionType, _preprocessType)
+            : 0);
         _writePosition = FileHeaderBytes;
     }
 
@@ -731,17 +769,26 @@ internal sealed class SdkRawCaptureWriter : IDisposable
             throw new InvalidOperationException("Raw capture writer is not initialized.");
         }
 
-        var payload = MemoryMarshal.AsBytes(rawBlock.PayloadSpan);
-        var writeStopwatch = Stopwatch.StartNew();
-
         try
         {
+            var encodeStopwatch = Stopwatch.StartNew();
+            var encodeResult = SdkRawCapturePayloadCodec.Encode(
+                rawBlock.PayloadSpan,
+                rawBlock.ChannelCount,
+                rawBlock.DataCountPerChannel,
+                _compressionType,
+                _preprocessType,
+                _compressionOptions);
+            encodeStopwatch.Stop();
+
             int deviceId = ResolveChannelDeviceId(rawBlock.GroupId, rawBlock.MachineId);
             _deviceWrittenSampleCounts.TryGetValue(deviceId, out long firstSampleIndexPerChannel);
             long blockOffset = _writePosition;
+            int payloadBytes = encodeResult.PayloadBytes.Length;
+            var writeStopwatch = Stopwatch.StartNew();
 
             _writer.Write(SdkRawCaptureFormat.BlockMagic);
-            _writer.Write(SdkRawCaptureFormat.FormatVersion);
+            _writer.Write(_formatVersion);
             _writer.Write(rawBlock.SampleTime);
             _writer.Write(rawBlock.MessageType);
             _writer.Write(rawBlock.GroupId);
@@ -754,21 +801,23 @@ internal sealed class SdkRawCaptureWriter : IDisposable
             _writer.Write(rawBlock.SampleRateHz);
             _writer.Write(rawBlock.ReceivedAtUtc.Ticks);
             _writer.Write(rawBlock.PayloadFloatCount);
-            _writer.Write(rawBlock.PayloadBytes);
+            _writer.Write(payloadBytes);
             long payloadOffset = blockOffset + BlockHeaderBytes;
-            _writer.Write(payload);
-            _writePosition = payloadOffset + rawBlock.PayloadBytes;
+            _writer.Write(encodeResult.PayloadBytes);
+            _writePosition = payloadOffset + payloadBytes;
 
             writeStopwatch.Stop();
+            _encodeSeconds += encodeStopwatch.Elapsed.TotalSeconds;
             _writeSeconds += writeStopwatch.Elapsed.TotalSeconds;
             _blockCount++;
             _totalSamples += (long)rawBlock.ChannelCount * rawBlock.DataCountPerChannel;
-            _rawPayloadBytes += rawBlock.PayloadBytes;
+            _rawPayloadBytes += encodeResult.RawBytes;
+            _codecPayloadBytes += payloadBytes;
             Interlocked.Increment(ref _writtenBlockCount);
             _indexEntries.Add(new SdkRawCaptureIndexEntry(
                 blockOffset,
                 payloadOffset,
-                rawBlock.PayloadBytes,
+                payloadBytes,
                 deviceId,
                 rawBlock.GroupId,
                 rawBlock.MachineId,
@@ -1079,9 +1128,12 @@ internal sealed class SdkRawCaptureWriter : IDisposable
 
         return new SdkRawCaptureManifest
         {
-            Version = SdkRawCaptureFormat.FormatVersion,
+            Version = _formatVersion,
             SessionName = _sessionName,
             CaptureFileName = Path.GetFileName(capturePath),
+            CompressionType = _compressionType,
+            PreprocessType = _preprocessType,
+            CompressionOptions = _compressionOptions.Clone(),
             StartedAtUtc = _startedAtUtc,
             StoppedAtUtc = _stoppedAtUtc,
             SampleRateHz = _sampleRateHz,
@@ -1090,7 +1142,9 @@ internal sealed class SdkRawCaptureWriter : IDisposable
             BlockCount = _blockCount,
             TotalSamples = _totalSamples,
             RawPayloadBytes = _rawPayloadBytes,
+            CodecPayloadBytes = _codecPayloadBytes,
             CaptureFileBytes = captureBytes,
+            EncodeSeconds = _encodeSeconds,
             WriteSeconds = _writeSeconds,
             EnqueuedBlockCount = Interlocked.Read(ref _enqueuedBlockCount),
             WrittenBlockCount = Interlocked.Read(ref _writtenBlockCount),
@@ -1410,6 +1464,9 @@ internal sealed class SdkRawCaptureWriter : IDisposable
             .Select(kvp =>
             {
                 long rawBytes = kvp.Value * sizeof(float);
+                double rawShare = manifest.RawPayloadBytes > 0
+                    ? (double)rawBytes / manifest.RawPayloadBytes
+                    : 0d;
                 _channelBatchCounts.TryGetValue(kvp.Key, out var batchCount);
                 return new CompressionChannelSnapshot
                 {
@@ -1417,9 +1474,18 @@ internal sealed class SdkRawCaptureWriter : IDisposable
                     BatchCount = batchCount,
                     SampleCount = kvp.Value,
                     RawBytes = rawBytes,
-                    CodecBytes = rawBytes,
-                    TdmsPayloadBytes = rawBytes,
-                    WriteSeconds = _writeSeconds
+                    CodecBytes = manifest.CodecPayloadBytes > 0
+                        ? (long)Math.Round(manifest.CodecPayloadBytes * rawShare)
+                        : rawBytes,
+                    TdmsPayloadBytes = manifest.CodecPayloadBytes > 0
+                        ? (long)Math.Round(manifest.CodecPayloadBytes * rawShare)
+                        : rawBytes,
+                    EncodeSeconds = manifest.EncodeSeconds > 0d
+                        ? manifest.EncodeSeconds * rawShare
+                        : 0d,
+                    WriteSeconds = manifest.WriteSeconds > 0d
+                        ? manifest.WriteSeconds * rawShare
+                        : 0d
                 };
             })
             .ToArray();
@@ -1428,18 +1494,18 @@ internal sealed class SdkRawCaptureWriter : IDisposable
         {
             SessionName = manifest.SessionName,
             StorageMode = CompressionStorageMode.SingleFile,
-            CompressionType = CompressionType.None,
-            PreprocessType = PreprocessType.None,
-            CompressionOptions = new CompressionOptions(),
+            CompressionType = manifest.CompressionType,
+            PreprocessType = manifest.PreprocessType,
+            CompressionOptions = manifest.CompressionOptions?.Clone() ?? new CompressionOptions(),
             SampleRateHz = manifest.SampleRateHz,
             ChannelCount = Math.Max(manifest.ObservedChannelCount, manifest.ExpectedChannelCount),
             BatchCount = manifest.BlockCount,
             TotalSamples = manifest.TotalSamples,
             RawBytes = manifest.RawPayloadBytes,
-            CodecBytes = manifest.RawPayloadBytes,
-            TdmsPayloadBytes = manifest.RawPayloadBytes,
+            CodecBytes = manifest.CodecPayloadBytes > 0 ? manifest.CodecPayloadBytes : manifest.RawPayloadBytes,
+            TdmsPayloadBytes = manifest.CodecPayloadBytes > 0 ? manifest.CodecPayloadBytes : manifest.RawPayloadBytes,
             StoredBytes = manifest.CaptureFileBytes,
-            EncodeSeconds = 0d,
+            EncodeSeconds = manifest.EncodeSeconds,
             WriteSeconds = manifest.WriteSeconds,
             StartedAt = manifest.StartedAtUtc.ToLocalTime(),
             StoppedAt = manifest.StoppedAtUtc.ToLocalTime(),

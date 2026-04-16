@@ -44,14 +44,15 @@ internal static class SdkRawCaptureReaderUtil
 
         int deviceId = ChannelNaming.GetDeviceId(channelId);
         int channelNumber = ChannelNaming.GetChannelNumber(channelId);
+        var fileHeader = ReadFileHeader(capturePath);
 
         if (SdkRawCaptureIndexFormat.TryLoad(capturePath, out var index)
             && index.Entries.Count > 0)
         {
-            return ReadChannelDataFromIndex(capturePath, index, deviceId, channelNumber);
+            return ReadChannelDataFromIndex(capturePath, index, fileHeader, deviceId, channelNumber);
         }
 
-        return ReadChannelDataSequential(capturePath, deviceId, channelNumber);
+        return ReadChannelDataSequential(capturePath, fileHeader, deviceId, channelNumber);
     }
 
     public static IReadOnlyDictionary<string, object> ReadChannelProperties(string capturePath, string groupName, string channelName)
@@ -110,6 +111,7 @@ internal static class SdkRawCaptureReaderUtil
     private static double[] ReadChannelDataFromIndex(
         string capturePath,
         SdkRawCaptureIndex index,
+        SdkRawCaptureFileHeaderInfo fileHeader,
         int deviceId,
         int channelNumber)
     {
@@ -142,23 +144,36 @@ internal static class SdkRawCaptureReaderUtil
             stream.Position = entry.PayloadOffset;
             ReadExactly(stream, payloadBuffer, entry.PayloadBytes);
 
-            var interleaved = MemoryMarshal.Cast<byte, float>(payloadBuffer.AsSpan(0, entry.PayloadBytes));
-            AppendChannelValues(values, interleaved, entry.ChannelCount, channelNumber - 1, entry.DataCountPerChannel);
+            if (fileHeader.UsesEncodedPayload)
+            {
+                var interleaved = SdkRawCapturePayloadCodec.Decode(
+                    payloadBuffer.AsSpan(0, entry.PayloadBytes),
+                    entry.ChannelCount,
+                    entry.DataCountPerChannel,
+                    fileHeader.CompressionType,
+                    fileHeader.PreprocessType);
+                AppendChannelValues(values, interleaved, entry.ChannelCount, channelNumber - 1, entry.DataCountPerChannel);
+            }
+            else
+            {
+                var interleaved = MemoryMarshal.Cast<byte, float>(payloadBuffer.AsSpan(0, entry.PayloadBytes));
+                AppendChannelValues(values, interleaved, entry.ChannelCount, channelNumber - 1, entry.DataCountPerChannel);
+            }
         }
 
         return values.ToArray();
     }
 
-    private static double[] ReadChannelDataSequential(string capturePath, int deviceId, int channelNumber)
+    private static double[] ReadChannelDataSequential(string capturePath, SdkRawCaptureFileHeaderInfo fileHeader, int deviceId, int channelNumber)
     {
         int capacity = TryGetExpectedSampleCount(capturePath, ChannelNaming.ChannelName(deviceId, channelNumber), entries: null);
         var values = new List<double>(capacity);
 
         using var stream = new FileStream(capturePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
         using var reader = new BinaryReader(stream);
-        SkipFileHeader(reader);
+        _ = SdkRawCaptureConverter.SkipFileHeader(reader);
 
-        while (SdkRawCaptureConverter.TryReadRawBlock(reader, out var rawBlock))
+        while (SdkRawCaptureConverter.TryReadRawBlock(reader, fileHeader, out var rawBlock))
         {
             int rawDeviceId = SdkRawCaptureWriter.ResolveChannelDeviceId(rawBlock.GroupId, rawBlock.MachineId);
             if (rawDeviceId != deviceId || channelNumber > rawBlock.ChannelCount)
@@ -204,51 +219,13 @@ internal static class SdkRawCaptureReaderUtil
     }
 
     private static double ReadSampleRateHz(string capturePath)
-    {
-        if (SdkRawCaptureFormat.TryLoadManifest(capturePath, out var manifest)
-            && manifest != null
-            && manifest.SampleRateHz > 0d)
-        {
-            return manifest.SampleRateHz;
-        }
+        => ReadFileHeader(capturePath).SampleRateHz;
 
+    private static SdkRawCaptureFileHeaderInfo ReadFileHeader(string capturePath)
+    {
         using var stream = new FileStream(capturePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
         using var reader = new BinaryReader(stream);
-
-        ulong magic = reader.ReadUInt64();
-        if (magic != SdkRawCaptureFormat.FileMagic)
-        {
-            throw new InvalidDataException("The selected file is not a valid SDK raw capture.");
-        }
-
-        int version = reader.ReadInt32();
-        if (version != SdkRawCaptureFormat.FormatVersion)
-        {
-            throw new InvalidDataException($"Unsupported raw capture version: {version}.");
-        }
-
-        _ = reader.ReadInt64();
-        return reader.ReadDouble();
-    }
-
-    private static void SkipFileHeader(BinaryReader reader)
-    {
-        ulong magic = reader.ReadUInt64();
-        if (magic != SdkRawCaptureFormat.FileMagic)
-        {
-            throw new InvalidDataException("The selected file is not a valid SDK raw capture.");
-        }
-
-        int version = reader.ReadInt32();
-        if (version != SdkRawCaptureFormat.FormatVersion)
-        {
-            throw new InvalidDataException($"Unsupported raw capture version: {version}.");
-        }
-
-        _ = reader.ReadInt64();
-        _ = reader.ReadDouble();
-        _ = reader.ReadInt32();
-        _ = reader.ReadInt32();
+        return SdkRawCaptureConverter.SkipFileHeader(reader);
     }
 
     private static void AppendChannelValues(

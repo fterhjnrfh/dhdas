@@ -113,9 +113,9 @@ internal sealed class SdkRawCaptureConverter
 
             using var stream = new FileStream(capturePath, FileMode.Open, FileAccess.Read, FileShare.Read);
             using var reader = new BinaryReader(stream);
-            _ = ReadFileHeader(reader);
+            var fileHeader = ReadFileHeader(reader);
 
-            while (TryReadBlock(reader, out var rawBlock))
+            while (TryReadBlock(reader, fileHeader, out var rawBlock))
             {
                 samplesProcessed += WriteRawBlockToStorage(storage, rawBlock, selectedChannelSet, alignmentPlan, writtenSamplesPerDevice);
                 blocksProcessed++;
@@ -441,41 +441,20 @@ internal sealed class SdkRawCaptureConverter
             || device.SamplesPerChannel <= 0;
     }
 
-    private static RawFileHeader ReadFileHeader(string capturePath)
+    private static SdkRawCaptureFileHeaderInfo ReadFileHeader(string capturePath)
     {
         using var stream = new FileStream(capturePath, FileMode.Open, FileAccess.Read, FileShare.Read);
         using var reader = new BinaryReader(stream);
         return ReadFileHeader(reader);
     }
 
-    internal static void SkipFileHeader(BinaryReader reader)
-    {
-        _ = ReadFileHeader(reader);
-    }
+    internal static SdkRawCaptureFileHeaderInfo SkipFileHeader(BinaryReader reader)
+        => ReadFileHeader(reader);
 
-    private static RawFileHeader ReadFileHeader(BinaryReader reader)
-    {
-        ulong magic = reader.ReadUInt64();
-        if (magic != SdkRawCaptureFormat.FileMagic)
-        {
-            throw new InvalidDataException("The selected file is not a valid SDK raw capture.");
-        }
+    private static SdkRawCaptureFileHeaderInfo ReadFileHeader(BinaryReader reader)
+        => SdkRawCaptureFormatCodec.ReadFileHeader(reader);
 
-        int version = reader.ReadInt32();
-        if (version != SdkRawCaptureFormat.FormatVersion)
-        {
-            throw new InvalidDataException($"Unsupported raw capture version: {version}.");
-        }
-
-        _ = reader.ReadInt64();
-        double sampleRateHz = reader.ReadDouble();
-        _ = reader.ReadInt32();
-        _ = reader.ReadInt32();
-
-        return new RawFileHeader(sampleRateHz);
-    }
-
-    private static bool TryReadBlock(BinaryReader reader, out SdkRawBlock rawBlock)
+    private static bool TryReadBlock(BinaryReader reader, SdkRawCaptureFileHeaderInfo fileHeader, out SdkRawBlock rawBlock)
     {
         rawBlock = new SdkRawBlock();
 
@@ -484,14 +463,20 @@ internal sealed class SdkRawCaptureConverter
             return false;
         }
 
+        if (header.Version != fileHeader.Version)
+        {
+            throw new InvalidDataException("Raw capture block version does not match file header version.");
+        }
+
         if (header.PayloadBytes < 0 || header.PayloadFloatCount < 0)
         {
             throw new InvalidDataException("Invalid payload length in raw capture block.");
         }
 
-        if (header.PayloadFloatCount * sizeof(float) != header.PayloadBytes)
+        int expectedFloatCount = checked(header.ChannelCount * header.DataCountPerChannel);
+        if (header.PayloadFloatCount != expectedFloatCount)
         {
-            throw new InvalidDataException("Raw capture payload metadata is inconsistent.");
+            throw new InvalidDataException("Raw capture payload sample count is inconsistent.");
         }
 
         byte[] payloadBytes = reader.ReadBytes(header.PayloadBytes);
@@ -500,8 +485,26 @@ internal sealed class SdkRawCaptureConverter
             throw new EndOfStreamException("Unexpected end of file while reading raw capture payload.");
         }
 
-        var interleavedSamples = new float[header.PayloadFloatCount];
-        Buffer.BlockCopy(payloadBytes, 0, interleavedSamples, 0, header.PayloadBytes);
+        float[] interleavedSamples;
+        if (fileHeader.UsesEncodedPayload)
+        {
+            interleavedSamples = SdkRawCapturePayloadCodec.Decode(
+                payloadBytes,
+                header.ChannelCount,
+                header.DataCountPerChannel,
+                fileHeader.CompressionType,
+                fileHeader.PreprocessType);
+        }
+        else
+        {
+            if (header.PayloadFloatCount * sizeof(float) != header.PayloadBytes)
+            {
+                throw new InvalidDataException("Raw capture payload metadata is inconsistent.");
+            }
+
+            interleavedSamples = new float[header.PayloadFloatCount];
+            Buffer.BlockCopy(payloadBytes, 0, interleavedSamples, 0, header.PayloadBytes);
+        }
 
         rawBlock = new SdkRawBlock
         {
@@ -523,8 +526,8 @@ internal sealed class SdkRawCaptureConverter
         return true;
     }
 
-    internal static bool TryReadRawBlock(BinaryReader reader, out SdkRawBlock rawBlock)
-        => TryReadBlock(reader, out rawBlock);
+    internal static bool TryReadRawBlock(BinaryReader reader, SdkRawCaptureFileHeaderInfo fileHeader, out SdkRawBlock rawBlock)
+        => TryReadBlock(reader, fileHeader, out rawBlock);
 
     private static bool TryReadBlockHeader(BinaryReader reader, out RawBlockHeader header)
     {
@@ -541,12 +544,13 @@ internal sealed class SdkRawCaptureConverter
         }
 
         int version = reader.ReadInt32();
-        if (version != SdkRawCaptureFormat.FormatVersion)
+        if (!SdkRawCaptureFormat.IsSupportedVersion(version))
         {
             throw new InvalidDataException($"Unsupported raw capture block version: {version}.");
         }
 
         header = new RawBlockHeader(
+            version,
             reader.ReadInt64(),
             reader.ReadInt32(),
             reader.ReadInt32(),
@@ -564,18 +568,10 @@ internal sealed class SdkRawCaptureConverter
         return true;
     }
 
-    private readonly struct RawFileHeader
-    {
-        public double SampleRateHz { get; }
-
-        public RawFileHeader(double sampleRateHz)
-        {
-            SampleRateHz = sampleRateHz;
-        }
-    }
-
     private readonly struct RawBlockHeader
     {
+        public int Version { get; }
+
         public long SampleTime { get; }
 
         public int MessageType { get; }
@@ -603,6 +599,7 @@ internal sealed class SdkRawCaptureConverter
         public int PayloadBytes { get; }
 
         public RawBlockHeader(
+            int version,
             long sampleTime,
             int messageType,
             int groupId,
@@ -617,6 +614,7 @@ internal sealed class SdkRawCaptureConverter
             int payloadFloatCount,
             int payloadBytes)
         {
+            Version = version;
             SampleTime = sampleTime;
             MessageType = messageType;
             GroupId = groupId;

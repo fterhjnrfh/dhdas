@@ -22,6 +22,8 @@
     <Compile Remove="AlgorithmModule\**\*.cs" />
     <EmbeddedResource Remove="AlgorithmModule\**\*" />
     <None Remove="AlgorithmModule\**\*" />
+    <Compile Remove="Controls\SimplifiedWaveformDisplay.cs" />
+    <AvaloniaXaml Remove="Controls\SimplifiedWaveformDisplay.axaml" />
   </ItemGroup>
 
   <ItemGroup>

@@ -27,7 +27,5 @@ namespace DH.Client.App.Services.Storage
 
         /// <summary>获取每个通道写入的总样本数（通道名 → sample count）</summary>
         IReadOnlyDictionary<string, long> GetWriteSampleCounts();
-
-        CompressionSessionSnapshot? GetCompressionSessionSnapshot();
     }
 }

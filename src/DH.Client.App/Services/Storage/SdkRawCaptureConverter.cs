@@ -25,8 +25,6 @@ internal sealed class SdkRawCaptureConversionResult
 
     public IReadOnlyDictionary<string, long> SampleCounts { get; init; } = new Dictionary<string, long>();
 
-    public CompressionSessionSnapshot? Snapshot { get; init; }
-
     public string OutputBasePath { get; init; } = "";
 
     public string Summary { get; init; } = "";
@@ -133,7 +131,6 @@ internal sealed class SdkRawCaptureConverter
             }
 
             storage.Flush();
-            var snapshot = storage.GetCompressionSessionSnapshot();
             var hashes = storage.GetWriteHashes();
             var counts = storage.GetWriteSampleCounts();
             var writtenFiles = storage.GetWrittenFiles();
@@ -154,27 +151,11 @@ internal sealed class SdkRawCaptureConverter
 
             stopwatch.Stop();
 
-            if (snapshot != null)
-            {
-                snapshot.StartedAt = startedAt;
-                snapshot.StoppedAt = DateTime.Now;
-                snapshot.Elapsed = stopwatch.Elapsed;
-                snapshot.WrittenFiles = writtenFiles.ToArray();
-                snapshot.StoredBytes = writtenFiles
-                    .Where(File.Exists)
-                    .Select(path => new FileInfo(path).Length)
-                    .Sum();
-                snapshot.BenchmarkSource = CompressionBenchmarkSource.RawCaptureReplay;
-                snapshot.BenchmarkSourcePath = capturePath;
-                snapshot.BenchmarkBatchSize = CompressionBenchmarkDefaults.BatchSize;
-            }
-
             return new SdkRawCaptureConversionResult
             {
                 WrittenFiles = writtenFiles,
                 Hashes = hashes,
                 SampleCounts = counts,
-                Snapshot = snapshot,
                 OutputBasePath = basePath,
                 Summary = BuildSummary(capturePath, perChannel, writtenFiles, counts, targetChannelIds.Count, channelIds.Count, alignmentPlan)
             };

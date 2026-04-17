@@ -1,6 +1,0 @@
-D:\办公\vsProject\tdms\bin\Debug\tdms.exe
-D:\办公\vsProject\tdms\bin\Debug\tdms.pdb
-D:\办公\vsProject\tdms\obj\Debug\tdms.csprojAssemblyReference.cache
-D:\办公\vsProject\tdms\obj\Debug\tdms.csproj.CoreCompileInputs.cache
-D:\办公\vsProject\tdms\obj\Debug\tdms.exe
-D:\办公\vsProject\tdms\obj\Debug\tdms.pdb

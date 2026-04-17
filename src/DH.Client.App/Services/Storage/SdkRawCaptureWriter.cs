@@ -330,8 +330,6 @@ internal sealed class SdkRawCaptureResult
 
     public IReadOnlyDictionary<string, long> SampleCounts { get; init; } = new Dictionary<string, long>();
 
-    public CompressionSessionSnapshot Snapshot { get; init; } = new();
-
     public SdkRawCaptureWriterStatistics Statistics { get; init; } = new();
 
     public SdkRawCaptureManifest Manifest { get; init; } = new();
@@ -381,7 +379,6 @@ internal sealed class SdkRawCaptureWriter : IDisposable
         });
 
     private readonly ConcurrentDictionary<int, long> _channelSampleCounts = new();
-    private readonly ConcurrentDictionary<int, long> _channelBatchCounts = new();
     private readonly Dictionary<int, SdkRawCaptureDeviceIntegrityState> _deviceIntegrityStates = new();
     private readonly Dictionary<int, long> _deviceWrittenSampleCounts = new();
     private readonly List<SdkRawCaptureIndexEntry> _indexEntries = new();
@@ -598,7 +595,6 @@ internal sealed class SdkRawCaptureWriter : IDisposable
                 ? Array.Empty<string>()
                 : new[] { capturePath }.Where(File.Exists).ToArray(),
             SampleCounts = sampleCounts,
-            Snapshot = BuildSnapshot(manifest),
             Statistics = GetStatistics(),
             Manifest = manifest
         };
@@ -624,7 +620,6 @@ internal sealed class SdkRawCaptureWriter : IDisposable
     private void ResetState()
     {
         _channelSampleCounts.Clear();
-        _channelBatchCounts.Clear();
         _deviceIntegrityStates.Clear();
         _deviceWrittenSampleCounts.Clear();
         _indexEntries.Clear();
@@ -834,7 +829,6 @@ internal sealed class SdkRawCaptureWriter : IDisposable
             {
                 int channelId = deviceId * 100 + (ch + 1);
                 _channelSampleCounts.AddOrUpdate(channelId, rawBlock.DataCountPerChannel, (_, current) => current + rawBlock.DataCountPerChannel);
-                _channelBatchCounts.AddOrUpdate(channelId, 1, static (_, current) => current + 1);
             }
 
             if ((_blockCount % FlushBlockStride) == 0)
@@ -1455,69 +1449,6 @@ internal sealed class SdkRawCaptureWriter : IDisposable
         {
             Console.WriteLine($"[SdkRawCapture] Failed to persist index: {ex.Message}");
         }
-    }
-
-    private CompressionSessionSnapshot BuildSnapshot(SdkRawCaptureManifest manifest)
-    {
-        var channels = _channelSampleCounts
-            .OrderBy(kvp => kvp.Key)
-            .Select(kvp =>
-            {
-                long rawBytes = kvp.Value * sizeof(float);
-                double rawShare = manifest.RawPayloadBytes > 0
-                    ? (double)rawBytes / manifest.RawPayloadBytes
-                    : 0d;
-                _channelBatchCounts.TryGetValue(kvp.Key, out var batchCount);
-                return new CompressionChannelSnapshot
-                {
-                    ChannelId = kvp.Key,
-                    BatchCount = batchCount,
-                    SampleCount = kvp.Value,
-                    RawBytes = rawBytes,
-                    CodecBytes = manifest.CodecPayloadBytes > 0
-                        ? (long)Math.Round(manifest.CodecPayloadBytes * rawShare)
-                        : rawBytes,
-                    TdmsPayloadBytes = manifest.CodecPayloadBytes > 0
-                        ? (long)Math.Round(manifest.CodecPayloadBytes * rawShare)
-                        : rawBytes,
-                    EncodeSeconds = manifest.EncodeSeconds > 0d
-                        ? manifest.EncodeSeconds * rawShare
-                        : 0d,
-                    WriteSeconds = manifest.WriteSeconds > 0d
-                        ? manifest.WriteSeconds * rawShare
-                        : 0d
-                };
-            })
-            .ToArray();
-
-        return new CompressionSessionSnapshot
-        {
-            SessionName = manifest.SessionName,
-            StorageMode = CompressionStorageMode.SingleFile,
-            PayloadKind = CompressionPayloadKind.RawCaptureBlockPayload,
-            CompressionType = manifest.CompressionType,
-            PreprocessType = manifest.PreprocessType,
-            CompressionOptions = manifest.CompressionOptions?.Clone() ?? new CompressionOptions(),
-            SampleRateHz = manifest.SampleRateHz,
-            ChannelCount = Math.Max(manifest.ObservedChannelCount, manifest.ExpectedChannelCount),
-            BatchCount = manifest.BlockCount,
-            TotalSamples = manifest.TotalSamples,
-            RawBytes = manifest.RawPayloadBytes,
-            CodecBytes = manifest.CodecPayloadBytes > 0 ? manifest.CodecPayloadBytes : manifest.RawPayloadBytes,
-            TdmsPayloadBytes = manifest.CodecPayloadBytes > 0 ? manifest.CodecPayloadBytes : manifest.RawPayloadBytes,
-            StoredBytes = manifest.CaptureFileBytes,
-            EncodeSeconds = manifest.EncodeSeconds,
-            WriteSeconds = manifest.WriteSeconds,
-            StartedAt = manifest.StartedAtUtc.ToLocalTime(),
-            StoppedAt = manifest.StoppedAtUtc.ToLocalTime(),
-            Elapsed = manifest.StoppedAtUtc - manifest.StartedAtUtc,
-            Channels = channels,
-            ChannelMetricsEstimated = true,
-            BenchmarkSource = CompressionBenchmarkSource.RawCaptureReplay,
-            BenchmarkSourcePath = _capturePath ?? "",
-            BenchmarkBatchSize = CompressionBenchmarkDefaults.BatchSize,
-            BenchmarkSamples = Array.Empty<CompressionBenchmarkSample>()
-        };
     }
 
     private static void UpdatePeak(ref long target, long candidate)

@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Text;
 
@@ -24,7 +23,6 @@ namespace DH.Client.App.Services.Storage
         private CompressionType _compressionType;
         private PreprocessType _preprocessType;
         private CompressionOptions? _compressionOptions;
-        private CompressionMetricsCollector? _metricsCollector;
         private double _incrementSeconds = 0.001;
 
         private const int BatchSize = 4096;
@@ -44,15 +42,6 @@ namespace DH.Client.App.Services.Storage
             _compressionType = compressionType;
             _preprocessType = preprocessType;
             _compressionOptions = compressionOptions ?? new CompressionOptions();
-            _metricsCollector = new CompressionMetricsCollector(
-                CompressionStorageMode.SingleFile,
-                sessionName,
-                compressionType,
-                preprocessType,
-                _compressionOptions,
-                sampleRateHz,
-                new HashSet<int>(channelIds).Count,
-                BatchSize);
 
             if (!_useTdms)
             {
@@ -190,11 +179,7 @@ namespace DH.Client.App.Services.Storage
                 hasher.Append(flushArr);
             }
 
-            var encodeStopwatch = Stopwatch.StartNew();
             var encodeResult = StorageCodec.EncodeWithMetrics(flushArr, _compressionType, _preprocessType, _compressionOptions);
-            encodeStopwatch.Stop();
-
-            var writeStopwatch = Stopwatch.StartNew();
             if (encodeResult.EncodedSamples != null)
             {
                 int err = TdmsNative.DDC_AppendDataValuesDouble(ch, encodeResult.EncodedSamples, (uint)encodeResult.EncodedSamples.Length);
@@ -211,9 +196,6 @@ namespace DH.Client.App.Services.Storage
                     throw new IOException($"DDC_AppendDataValuesDouble failed, channel={channelId}: {err} {TdmsNative.DescribeError(err)}");
                 }
             }
-            writeStopwatch.Stop();
-
-            _metricsCollector?.RecordBatch(channelId, flushArr, encodeResult, encodeStopwatch.Elapsed, writeStopwatch.Elapsed);
             _totalSamplesWritten[channelId] += flushArr.Length;
             buf.Clear();
         }
@@ -317,11 +299,6 @@ namespace DH.Client.App.Services.Storage
             }
 
             return dict;
-        }
-
-        public CompressionSessionSnapshot? GetCompressionSessionSnapshot()
-        {
-            return _metricsCollector?.CreateSnapshot();
         }
 
         public void Dispose()

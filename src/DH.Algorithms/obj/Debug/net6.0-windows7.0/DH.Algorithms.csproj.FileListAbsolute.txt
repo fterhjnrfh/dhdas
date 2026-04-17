@@ -1,57 +1,3 @@
-D:\desktop\东华\DH\src\DH.Algorithms\bin\Debug\net6.0-windows7.0\DH.Algorithms.deps.json
-D:\desktop\东华\DH\src\DH.Algorithms\bin\Debug\net6.0-windows7.0\DH.Algorithms.dll
-D:\desktop\东华\DH\src\DH.Algorithms\bin\Debug\net6.0-windows7.0\DH.Algorithms.pdb
-D:\desktop\东华\DH\src\DH.Algorithms\bin\Debug\net6.0-windows7.0\DH.Contracts.dll
-D:\desktop\东华\DH\src\DH.Algorithms\bin\Debug\net6.0-windows7.0\DH.Datamanage.dll
-D:\desktop\东华\DH\src\DH.Algorithms\bin\Debug\net6.0-windows7.0\DH.Contracts.pdb
-D:\desktop\东华\DH\src\DH.Algorithms\bin\Debug\net6.0-windows7.0\DH.Datamanage.pdb
-D:\desktop\东华\DH\src\DH.Algorithms\obj\Debug\net6.0-windows7.0\DH.Algorithms.csproj.AssemblyReference.cache
-D:\desktop\东华\DH\src\DH.Algorithms\obj\Debug\net6.0-windows7.0\DH.Algorithms.GeneratedMSBuildEditorConfig.editorconfig
-D:\desktop\东华\DH\src\DH.Algorithms\obj\Debug\net6.0-windows7.0\DH.Algorithms.AssemblyInfoInputs.cache
-D:\desktop\东华\DH\src\DH.Algorithms\obj\Debug\net6.0-windows7.0\DH.Algorithms.AssemblyInfo.cs
-D:\desktop\东华\DH\src\DH.Algorithms\obj\Debug\net6.0-windows7.0\DH.Algorithms.csproj.CoreCompileInputs.cache
-D:\desktop\东华\DH\src\DH.Algorithms\obj\Debug\net6.0-windows7.0\DH.Algorithms.sourcelink.json
-D:\desktop\东华\DH\src\DH.Algorithms\obj\Debug\net6.0-windows7.0\DH.Algor.4B7F03C3.Up2Date
-D:\desktop\东华\DH\src\DH.Algorithms\obj\Debug\net6.0-windows7.0\DH.Algorithms.dll
-D:\desktop\东华\DH\src\DH.Algorithms\obj\Debug\net6.0-windows7.0\refint\DH.Algorithms.dll
-D:\desktop\东华\DH\src\DH.Algorithms\obj\Debug\net6.0-windows7.0\DH.Algorithms.pdb
-D:\desktop\东华\DH\src\DH.Algorithms\obj\Debug\net6.0-windows7.0\ref\DH.Algorithms.dll
-D:\desktop\东华性能最新测试\DH\src\DH.Algorithms\bin\Debug\net6.0-windows7.0\DH.Algorithms.deps.json
-D:\desktop\东华性能最新测试\DH\src\DH.Algorithms\bin\Debug\net6.0-windows7.0\DH.Algorithms.dll
-D:\desktop\东华性能最新测试\DH\src\DH.Algorithms\bin\Debug\net6.0-windows7.0\DH.Algorithms.pdb
-D:\desktop\东华性能最新测试\DH\src\DH.Algorithms\bin\Debug\net6.0-windows7.0\DH.Contracts.dll
-D:\desktop\东华性能最新测试\DH\src\DH.Algorithms\bin\Debug\net6.0-windows7.0\DH.Datamanage.dll
-D:\desktop\东华性能最新测试\DH\src\DH.Algorithms\bin\Debug\net6.0-windows7.0\DH.Contracts.pdb
-D:\desktop\东华性能最新测试\DH\src\DH.Algorithms\bin\Debug\net6.0-windows7.0\DH.Datamanage.pdb
-D:\desktop\东华性能最新测试\DH\src\DH.Algorithms\obj\Debug\net6.0-windows7.0\DH.Algorithms.csproj.AssemblyReference.cache
-D:\desktop\东华性能最新测试\DH\src\DH.Algorithms\obj\Debug\net6.0-windows7.0\DH.Algorithms.GeneratedMSBuildEditorConfig.editorconfig
-D:\desktop\东华性能最新测试\DH\src\DH.Algorithms\obj\Debug\net6.0-windows7.0\DH.Algorithms.AssemblyInfoInputs.cache
-D:\desktop\东华性能最新测试\DH\src\DH.Algorithms\obj\Debug\net6.0-windows7.0\DH.Algorithms.AssemblyInfo.cs
-D:\desktop\东华性能最新测试\DH\src\DH.Algorithms\obj\Debug\net6.0-windows7.0\DH.Algorithms.csproj.CoreCompileInputs.cache
-D:\desktop\东华性能最新测试\DH\src\DH.Algorithms\obj\Debug\net6.0-windows7.0\DH.Algorithms.sourcelink.json
-D:\desktop\东华性能最新测试\DH\src\DH.Algorithms\obj\Debug\net6.0-windows7.0\DH.Algor.4B7F03C3.Up2Date
-D:\desktop\东华性能最新测试\DH\src\DH.Algorithms\obj\Debug\net6.0-windows7.0\DH.Algorithms.dll
-D:\desktop\东华性能最新测试\DH\src\DH.Algorithms\obj\Debug\net6.0-windows7.0\refint\DH.Algorithms.dll
-D:\desktop\东华性能最新测试\DH\src\DH.Algorithms\obj\Debug\net6.0-windows7.0\DH.Algorithms.pdb
-D:\desktop\东华性能最新测试\DH\src\DH.Algorithms\obj\Debug\net6.0-windows7.0\ref\DH.Algorithms.dll
-C:\DASH Project\DH\src\DH.Algorithms\bin\Debug\net6.0-windows7.0\DH.Algorithms.deps.json
-C:\DASH Project\DH\src\DH.Algorithms\bin\Debug\net6.0-windows7.0\DH.Algorithms.dll
-C:\DASH Project\DH\src\DH.Algorithms\bin\Debug\net6.0-windows7.0\DH.Algorithms.pdb
-C:\DASH Project\DH\src\DH.Algorithms\bin\Debug\net6.0-windows7.0\DH.Contracts.dll
-C:\DASH Project\DH\src\DH.Algorithms\bin\Debug\net6.0-windows7.0\DH.Datamanage.dll
-C:\DASH Project\DH\src\DH.Algorithms\bin\Debug\net6.0-windows7.0\DH.Contracts.pdb
-C:\DASH Project\DH\src\DH.Algorithms\bin\Debug\net6.0-windows7.0\DH.Datamanage.pdb
-C:\DASH Project\DH\src\DH.Algorithms\obj\Debug\net6.0-windows7.0\DH.Algorithms.csproj.AssemblyReference.cache
-C:\DASH Project\DH\src\DH.Algorithms\obj\Debug\net6.0-windows7.0\DH.Algorithms.GeneratedMSBuildEditorConfig.editorconfig
-C:\DASH Project\DH\src\DH.Algorithms\obj\Debug\net6.0-windows7.0\DH.Algorithms.AssemblyInfoInputs.cache
-C:\DASH Project\DH\src\DH.Algorithms\obj\Debug\net6.0-windows7.0\DH.Algorithms.AssemblyInfo.cs
-C:\DASH Project\DH\src\DH.Algorithms\obj\Debug\net6.0-windows7.0\DH.Algorithms.csproj.CoreCompileInputs.cache
-C:\DASH Project\DH\src\DH.Algorithms\obj\Debug\net6.0-windows7.0\DH.Algorithms.sourcelink.json
-C:\DASH Project\DH\src\DH.Algorithms\obj\Debug\net6.0-windows7.0\DH.Algor.4B7F03C3.Up2Date
-C:\DASH Project\DH\src\DH.Algorithms\obj\Debug\net6.0-windows7.0\DH.Algorithms.dll
-C:\DASH Project\DH\src\DH.Algorithms\obj\Debug\net6.0-windows7.0\refint\DH.Algorithms.dll
-C:\DASH Project\DH\src\DH.Algorithms\obj\Debug\net6.0-windows7.0\DH.Algorithms.pdb
-C:\DASH Project\DH\src\DH.Algorithms\obj\Debug\net6.0-windows7.0\ref\DH.Algorithms.dll
 C:\GIt\dhdas\src\DH.Algorithms\bin\Debug\net6.0-windows7.0\DH.Algorithms.deps.json
 C:\GIt\dhdas\src\DH.Algorithms\bin\Debug\net6.0-windows7.0\DH.Algorithms.dll
 C:\GIt\dhdas\src\DH.Algorithms\bin\Debug\net6.0-windows7.0\DH.Algorithms.pdb
@@ -70,21 +16,3 @@ C:\GIt\dhdas\src\DH.Algorithms\obj\Debug\net6.0-windows7.0\DH.Algorithms.dll
 C:\GIt\dhdas\src\DH.Algorithms\obj\Debug\net6.0-windows7.0\refint\DH.Algorithms.dll
 C:\GIt\dhdas\src\DH.Algorithms\obj\Debug\net6.0-windows7.0\DH.Algorithms.pdb
 C:\GIt\dhdas\src\DH.Algorithms\obj\Debug\net6.0-windows7.0\ref\DH.Algorithms.dll
-D:\GIT-PROJECT\dhdas\src\DH.Algorithms\bin\Debug\net6.0-windows7.0\DH.Algorithms.deps.json
-D:\GIT-PROJECT\dhdas\src\DH.Algorithms\bin\Debug\net6.0-windows7.0\DH.Algorithms.dll
-D:\GIT-PROJECT\dhdas\src\DH.Algorithms\bin\Debug\net6.0-windows7.0\DH.Algorithms.pdb
-D:\GIT-PROJECT\dhdas\src\DH.Algorithms\bin\Debug\net6.0-windows7.0\DH.Contracts.dll
-D:\GIT-PROJECT\dhdas\src\DH.Algorithms\bin\Debug\net6.0-windows7.0\DH.Datamanage.dll
-D:\GIT-PROJECT\dhdas\src\DH.Algorithms\bin\Debug\net6.0-windows7.0\DH.Contracts.pdb
-D:\GIT-PROJECT\dhdas\src\DH.Algorithms\bin\Debug\net6.0-windows7.0\DH.Datamanage.pdb
-D:\GIT-PROJECT\dhdas\src\DH.Algorithms\obj\Debug\net6.0-windows7.0\DH.Algorithms.csproj.AssemblyReference.cache
-D:\GIT-PROJECT\dhdas\src\DH.Algorithms\obj\Debug\net6.0-windows7.0\DH.Algorithms.GeneratedMSBuildEditorConfig.editorconfig
-D:\GIT-PROJECT\dhdas\src\DH.Algorithms\obj\Debug\net6.0-windows7.0\DH.Algorithms.AssemblyInfoInputs.cache
-D:\GIT-PROJECT\dhdas\src\DH.Algorithms\obj\Debug\net6.0-windows7.0\DH.Algorithms.AssemblyInfo.cs
-D:\GIT-PROJECT\dhdas\src\DH.Algorithms\obj\Debug\net6.0-windows7.0\DH.Algorithms.csproj.CoreCompileInputs.cache
-D:\GIT-PROJECT\dhdas\src\DH.Algorithms\obj\Debug\net6.0-windows7.0\DH.Algorithms.sourcelink.json
-D:\GIT-PROJECT\dhdas\src\DH.Algorithms\obj\Debug\net6.0-windows7.0\DH.Algor.4B7F03C3.Up2Date
-D:\GIT-PROJECT\dhdas\src\DH.Algorithms\obj\Debug\net6.0-windows7.0\DH.Algorithms.dll
-D:\GIT-PROJECT\dhdas\src\DH.Algorithms\obj\Debug\net6.0-windows7.0\refint\DH.Algorithms.dll
-D:\GIT-PROJECT\dhdas\src\DH.Algorithms\obj\Debug\net6.0-windows7.0\DH.Algorithms.pdb
-D:\GIT-PROJECT\dhdas\src\DH.Algorithms\obj\Debug\net6.0-windows7.0\ref\DH.Algorithms.dll

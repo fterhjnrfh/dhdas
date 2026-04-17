@@ -23,9 +23,6 @@ build_property.EnableCodeStyleSeverity =
 [C:/GIt/dhdas/src/DH.UI/App.axaml]
 build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml
 
-[C:/GIt/dhdas/src/DH.UI/Controls/SimplifiedWaveformDisplay.axaml]
-build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml
-
 [C:/GIt/dhdas/src/DH.UI/Controls/WaveformAlgorithmParameterControl.axaml]
 build_metadata.AdditionalFiles.SourceItemGroup = AvaloniaXaml
 

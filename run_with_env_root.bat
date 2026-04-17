@@ -1,7 +1,59 @@
 @echo off
-setlocal
+setlocal EnableExtensions
 
-REM --- Locate VS C++ environment (same list as DH.UI script) ---
+cd /d "%~dp0"
+
+set "FORCE_BUILD=0"
+set "SKIP_ENV=0"
+set "APP_ARGS="
+
+:parse_args
+if "%~1"=="" goto after_parse
+if /I "%~1"=="--build" (
+    set "FORCE_BUILD=1"
+    shift
+    goto parse_args
+)
+if /I "%~1"=="--rebuild" (
+    set "FORCE_BUILD=1"
+    shift
+    goto parse_args
+)
+if /I "%~1"=="--no-env" (
+    set "SKIP_ENV=1"
+    shift
+    goto parse_args
+)
+if /I "%~1"=="--help" goto help
+call set "APP_ARGS=%%APP_ARGS%% \"%~1\""
+shift
+goto parse_args
+
+:after_parse
+if not "%SKIP_ENV%"=="1" call :load_vs_env
+
+set "Platform="
+set "PlatformTarget="
+
+call :pick_existing_target
+if "%FORCE_BUILD%"=="1" goto build_and_run
+if defined RUN_TARGET goto run_existing
+
+:build_and_run
+call :prep_before_build
+echo [run] Building Debug output...
+dotnet build DH.AppHost.csproj -c Debug /nr:false -m:1
+if errorlevel 1 goto build_failed
+call :pick_existing_target
+if not defined RUN_TARGET goto missing_output
+
+:run_existing
+for %%I in ("%RUN_TARGET%") do set "RUN_DIR=%%~dpI"
+echo [run] Starting "%RUN_TARGET%"
+start "" /D "%RUN_DIR%" "%RUN_TARGET%" %APP_ARGS%
+goto end
+
+:load_vs_env
 set "VS_PATH="
 if exist "C:\Program Files\Microsoft Visual Studio\2022\Professional\VC\Auxiliary\Build\vcvars64.bat" set "VS_PATH=C:\Program Files\Microsoft Visual Studio\2022\Professional\VC\Auxiliary\Build\vcvars64.bat"
 if "%VS_PATH%"=="" if exist "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat" set "VS_PATH=C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat"
@@ -9,38 +61,45 @@ if "%VS_PATH%"=="" if exist "C:\Program Files\Microsoft Visual Studio\2022\Enter
 if "%VS_PATH%"=="" if exist "D:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat" set "VS_PATH=D:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat"
 if "%VS_PATH%"=="" if exist "C:\Program Files (x86)\Microsoft Visual Studio\2019\Professional\VC\Auxiliary\Build\vcvars64.bat" set "VS_PATH=C:\Program Files (x86)\Microsoft Visual Studio\2019\Professional\VC\Auxiliary\Build\vcvars64.bat"
 if "%VS_PATH%"=="" if exist "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvars64.bat" set "VS_PATH=C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvars64.bat"
-
 if "%VS_PATH%"=="" (
-    echo [警告] 未找到 Visual Studio C++ 编译器环境。
-    echo 正在尝试直接启动...
-) else (
-    call "%VS_PATH%"
+    echo [warn] Visual Studio C++ environment was not found. Continuing without vcvars64.
+    exit /b 0
 )
+call "%VS_PATH%" >nul
+exit /b 0
 
-REM --- Move to repository root (this script location) ---
-cd /d "%~dp0"
-
-REM 清理解耦變量，避免 VS 腳本殘留配置影響 dotnet build
-set Platform=
-set PlatformTarget=
-
-REM 同步 DH.UI 腳本的快取清理（避免舊架構殘留）
+:prep_before_build
 if exist "src\DH.UI\AlgorithmModule\obj\x64" rd /s /q "src\DH.UI\AlgorithmModule\obj\x64"
 if exist "src\DH.UI\AlgorithmModule\bin\x64" rd /s /q "src\DH.UI\AlgorithmModule\bin\x64"
+exit /b 0
 
-REM 需要時可解開下一行對整個解決方案進行乾淨構建
-REM dotnet clean DH.sln
+:pick_existing_target
+set "RUN_TARGET="
+if exist "%~dp0bin\Debug\net6.0-windows7.0\DH.Client.App.exe" set "RUN_TARGET=%~dp0bin\Debug\net6.0-windows7.0\DH.Client.App.exe"
+if not defined RUN_TARGET if exist "%~dp0src\DH.Client.App\bin\Debug\net6.0-windows7.0\DH.Client.App.exe" set "RUN_TARGET=%~dp0src\DH.Client.App\bin\Debug\net6.0-windows7.0\DH.Client.App.exe"
+exit /b 0
 
-REM 啟動主應用 (DH.AppHost)；透傳附加參數
-dotnet run --project DH.AppHost.csproj %*
-if errorlevel 1 goto :run_failed
+:build_failed
+echo.
+echo [error] dotnet build failed.
+pause
+goto end
 
-goto :end
+:missing_output
+echo.
+echo [error] Build finished but no runnable executable was found.
+pause
+goto end
 
-:run_failed
-echo .
-echo dotnet run 失敗，請檢查輸出以了解詳細原因。
+:help
+echo Usage:
+echo   run_with_env_root.bat
+echo   run_with_env_root.bat --rebuild
+echo   run_with_env_root.bat --no-env
+echo.
+echo Default mode reuses an existing executable and only builds when output is missing.
+echo --rebuild forces a fresh Debug build before launch.
+echo --no-env skips vcvars64 loading and starts faster, but MSVC-based features may be unavailable.
 
 :end
 endlocal
-pause

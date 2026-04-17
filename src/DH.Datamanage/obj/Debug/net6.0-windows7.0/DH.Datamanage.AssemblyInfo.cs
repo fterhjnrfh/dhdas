@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("DH.Datamanage")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+c81c080369670c4add04855c8769ddaf3a28e37c")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+ae849f38cec1992eb2a3aa05dac8d1e97827c09a")]
 [assembly: System.Reflection.AssemblyProductAttribute("DH.Datamanage")]
 [assembly: System.Reflection.AssemblyTitleAttribute("DH.Datamanage")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

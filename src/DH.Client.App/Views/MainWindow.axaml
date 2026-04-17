@@ -302,20 +302,7 @@
 								<Button Content="查看性能报告" Command="{Binding ViewCompressionReportCommand}" IsEnabled="{Binding CanViewCompressionReport}" Padding="16,6"/>
 								<TextBlock Text="{Binding CompressionReportStatusMessage}" VerticalAlignment="Center" Foreground="#555555"/>
 							</StackPanel>
-							<WrapPanel Orientation="Horizontal">
-								<TextBlock Text="算法对比模式" VerticalAlignment="Center" Foreground="#555555"/>
-								<ComboBox SelectedIndex="{Binding CompressionBenchmarkReplayModeIndex}" Width="220">
-									<ComboBoxItem Content="自动（大文件快速）"/>
-									<ComboBoxItem Content="快速（部分通道+部分批次）"/>
-									<ComboBoxItem Content="全量（完整原始数据）"/>
-								</ComboBox>
-								<TextBlock Text="仅影响压缩性能报告的算法对比，不影响实时原始写入与 TDMS 转换。"
-								           VerticalAlignment="Center"
-								           MaxWidth="420"
-								           Foreground="#777777"
-								           TextWrapping="Wrap"/>
-							</WrapPanel>
-						</StackPanel>
+					</StackPanel>
 						
 						<TextBlock Grid.Column="2" Text="{Binding StorageStatusMessage}" VerticalAlignment="Center" 
 								   Foreground="{Binding StorageEnabled, Converter={x:Static converters:BoolToTextColorConverter.Instance}}" 
@@ -526,15 +513,53 @@
                                            TextWrapping="Wrap"/>
                             </StackPanel>
                         </Grid>
-                    </Border>
+					</Border>
 
-                    <Border Background="#ffffff" CornerRadius="6" Padding="20" BorderBrush="#e0e0e0" BorderThickness="1"
-                            IsVisible="{Binding ShowCompressionReportPlaceholder}">
-                        <StackPanel Spacing="8">
-                            <TextBlock Text="停止写入后会自动生成压缩性能报告。" FontSize="15" FontWeight="SemiBold" Foreground="#333333"/>
-                            <TextBlock Text="报告会包含本次真实写入的压缩比、压缩带宽、写盘带宽，以及基于已保存原始数据或采样批次的多算法对比结果。" Foreground="#666666" TextWrapping="Wrap"/>
-                        </StackPanel>
-                    </Border>
+					<Border Background="#ffffff" CornerRadius="6" Padding="15" BorderBrush="#e0e0e0" BorderThickness="1">
+						<StackPanel Spacing="10">
+							<TextBlock Text="手动测试" FontSize="14" FontWeight="Bold" Foreground="#333333"/>
+							<TextBlock Text="选择已保存的 .sdkraw.bin 文件后，再按当前算法对比模式生成压缩性能报告；保存流程不再自动触发测试。"
+							           Foreground="#666666"
+							           TextWrapping="Wrap"/>
+							<Grid ColumnDefinitions="*,Auto,Auto">
+								<TextBox Text="{Binding CompressionBenchmarkFilePath}"
+								         IsReadOnly="True"
+								         Watermark="请选择 .sdkraw.bin 文件"/>
+								<Button Grid.Column="1"
+								        Margin="8,0,0,0"
+								        Content="选择 BIN"
+								        Command="{Binding BrowseCompressionBenchmarkFileCommand}"
+								        Padding="14,6"/>
+								<Button Grid.Column="2"
+								        Margin="8,0,0,0"
+								        Content="开始测试"
+								        Command="{Binding RunCompressionBenchmarkFromFileCommand}"
+								        IsEnabled="{Binding CanRunCompressionBenchmarkFromFile}"
+								        Padding="14,6"/>
+							</Grid>
+							<WrapPanel Orientation="Horizontal">
+								<TextBlock Text="算法对比模式" VerticalAlignment="Center" Foreground="#555555"/>
+								<ComboBox SelectedIndex="{Binding CompressionBenchmarkReplayModeIndex}" Width="220">
+									<ComboBoxItem Content="自动（大文件快速）"/>
+									<ComboBoxItem Content="快速（部分通道+部分批次）"/>
+									<ComboBoxItem Content="全量（完整原始数据）"/>
+								</ComboBox>
+								<TextBlock Text="仅影响压缩性能报告的算法对比，不影响实时原始写入与 TDMS 转换。"
+								           VerticalAlignment="Center"
+								           MaxWidth="420"
+								           Foreground="#777777"
+								           TextWrapping="Wrap"/>
+							</WrapPanel>
+						</StackPanel>
+					</Border>
+
+					<Border Background="#ffffff" CornerRadius="6" Padding="20" BorderBrush="#e0e0e0" BorderThickness="1"
+							IsVisible="{Binding ShowCompressionReportPlaceholder}">
+						<StackPanel Spacing="8">
+							<TextBlock Text="选择 BIN 文件后即可手动生成压缩性能报告。" FontSize="15" FontWeight="SemiBold" Foreground="#333333"/>
+							<TextBlock Text="报告会包含当前文件的压缩比、压缩带宽、写盘带宽，以及基于所选算法对比模式的多算法对比结果。" Foreground="#666666" TextWrapping="Wrap"/>
+						</StackPanel>
+					</Border>
 
                     <StackPanel Spacing="12" IsVisible="{Binding HasCompressionReport}">
                         <Border Background="#fdfdfd" CornerRadius="6" Padding="15" BorderBrush="#e0e0e0" BorderThickness="1">
@@ -575,13 +600,13 @@
 
                         <Border Background="#fdfdfd" CornerRadius="6" Padding="15" BorderBrush="#e0e0e0" BorderThickness="1">
                             <StackPanel Spacing="10">
-                                <TextBlock Text="当前算法真实表现" FontSize="14" FontWeight="Bold"/>
+                                <TextBlock Text="{Binding CurrentCompressionReport.CurrentAlgorithmSectionTitle}" FontSize="14" FontWeight="Bold"/>
                                 <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto">
                                     <TextBlock Margin="0,0,20,0" Text="{Binding CurrentCompressionReport.RawBytesText, StringFormat='原始数据: {0}'}"/>
-                                    <TextBlock Grid.Column="1" Text="{Binding CurrentCompressionReport.CodecBytesText, StringFormat='压缩载荷: {0}'}"/>
-                                    <TextBlock Grid.Row="1" Margin="0,6,20,0" Text="{Binding CurrentCompressionReport.TdmsPayloadBytesText, StringFormat='TDMS载荷: {0}'}"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding CurrentCompressionReport.CodecSizeSummaryText}"/>
+                                    <TextBlock Grid.Row="1" Margin="0,6,20,0" Text="{Binding CurrentCompressionReport.PayloadSizeSummaryText}"/>
                                     <TextBlock Grid.Row="1" Grid.Column="1" Margin="0,6,0,0" Text="{Binding CurrentCompressionReport.StoredBytesText, StringFormat='最终文件: {0}'}"/>
-                                    <TextBlock Grid.Row="2" Margin="0,6,20,0" Text="{Binding CurrentCompressionReport.PayloadCompressionRatioText, StringFormat='落盘压缩比: {0}'}"/>
+                                    <TextBlock Grid.Row="2" Margin="0,6,20,0" Text="{Binding CurrentCompressionReport.PayloadCompressionRatioSummaryText}"/>
                                     <TextBlock Grid.Row="2" Grid.Column="1" Margin="0,6,0,0" Text="{Binding CurrentCompressionReport.SpaceSavingText, StringFormat='空间节省率: {0}'}"/>
                                     <TextBlock Grid.Row="3" Margin="0,6,20,0" Text="{Binding CurrentCompressionReport.P50EncodeText, StringFormat='P50压缩耗时: {0}'}"/>
                                     <TextBlock Grid.Row="3" Grid.Column="1" Margin="0,6,0,0" Text="{Binding CurrentCompressionReport.P95EncodeText, StringFormat='P95压缩耗时: {0}'}"/>
@@ -595,6 +620,10 @@
                             <StackPanel Spacing="8">
                                 <TextBlock Text="算法对比" FontSize="14" FontWeight="Bold"/>
                                 <TextBlock Text="{Binding CompressionBenchmarkStatusText}" Foreground="#666666" TextWrapping="Wrap"/>
+                                <TextBlock Text="{Binding CurrentCompressionReport.BenchmarkEstimateHintText}"
+                                           IsVisible="{Binding CurrentCompressionReport.HasBenchmarkEstimateHint}"
+                                           Foreground="#8a6d3b"
+                                           TextWrapping="Wrap"/>
                                 <Border Background="#f3f5f7" Padding="8" CornerRadius="4">
                                     <Grid ColumnDefinitions="80,180,80,80,110,90,120,50">
                                         <TextBlock Text="算法" FontWeight="Bold"/>
@@ -603,7 +632,7 @@
                                         <TextBlock Grid.Column="3" Text="节省率" FontWeight="Bold"/>
                                         <TextBlock Grid.Column="4" Text="压缩带宽" FontWeight="Bold"/>
                                         <TextBlock Grid.Column="5" Text="P95耗时" FontWeight="Bold"/>
-                                        <TextBlock Grid.Column="6" Text="预计文件" FontWeight="Bold"/>
+                                        <TextBlock Grid.Column="6" Text="估算文件" FontWeight="Bold"/>
                                         <TextBlock Grid.Column="7" Text="标记" FontWeight="Bold"/>
                                     </Grid>
                                 </Border>
@@ -631,16 +660,20 @@
                         <Border Background="#fdfdfd" CornerRadius="6" Padding="15" BorderBrush="#e0e0e0" BorderThickness="1">
                             <StackPanel Spacing="8">
                                 <TextBlock Text="通道明细" FontSize="14" FontWeight="Bold"/>
+                                <TextBlock Text="{Binding CurrentCompressionReport.ChannelMetricsHintText}"
+                                           IsVisible="{Binding CurrentCompressionReport.HasChannelMetricsHint}"
+                                           Foreground="#8a6d3b"
+                                           TextWrapping="Wrap"/>
                                 <Border Background="#f3f5f7" Padding="8" CornerRadius="4">
                                     <Grid ColumnDefinitions="70,90,90,100,100,100,100,90">
                                         <TextBlock Text="通道" FontWeight="Bold"/>
                                         <TextBlock Grid.Column="1" Text="样本数" FontWeight="Bold"/>
                                         <TextBlock Grid.Column="2" Text="批次数" FontWeight="Bold"/>
                                         <TextBlock Grid.Column="3" Text="原始数据" FontWeight="Bold"/>
-                                        <TextBlock Grid.Column="4" Text="压缩载荷" FontWeight="Bold"/>
-                                        <TextBlock Grid.Column="5" Text="TDMS载荷" FontWeight="Bold"/>
-                                        <TextBlock Grid.Column="6" Text="压缩带宽" FontWeight="Bold"/>
-                                        <TextBlock Grid.Column="7" Text="最慢批次" FontWeight="Bold"/>
+                                        <TextBlock Grid.Column="4" Text="{Binding CurrentCompressionReport.ChannelCodecColumnTitle}" FontWeight="Bold"/>
+                                        <TextBlock Grid.Column="5" Text="{Binding CurrentCompressionReport.ChannelPayloadColumnTitle}" FontWeight="Bold"/>
+                                        <TextBlock Grid.Column="6" Text="{Binding CurrentCompressionReport.ChannelBandwidthColumnTitle}" FontWeight="Bold"/>
+                                        <TextBlock Grid.Column="7" Text="{Binding CurrentCompressionReport.ChannelWorstEncodeColumnTitle}" FontWeight="Bold"/>
                                     </Grid>
                                 </Border>
                                 <ScrollViewer MaxHeight="240" VerticalScrollBarVisibility="Auto">

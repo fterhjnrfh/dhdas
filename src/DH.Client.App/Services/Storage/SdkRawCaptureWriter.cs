@@ -1494,6 +1494,7 @@ internal sealed class SdkRawCaptureWriter : IDisposable
         {
             SessionName = manifest.SessionName,
             StorageMode = CompressionStorageMode.SingleFile,
+            PayloadKind = CompressionPayloadKind.RawCaptureBlockPayload,
             CompressionType = manifest.CompressionType,
             PreprocessType = manifest.PreprocessType,
             CompressionOptions = manifest.CompressionOptions?.Clone() ?? new CompressionOptions(),
@@ -1511,6 +1512,7 @@ internal sealed class SdkRawCaptureWriter : IDisposable
             StoppedAt = manifest.StoppedAtUtc.ToLocalTime(),
             Elapsed = manifest.StoppedAtUtc - manifest.StartedAtUtc,
             Channels = channels,
+            ChannelMetricsEstimated = true,
             BenchmarkSource = CompressionBenchmarkSource.RawCaptureReplay,
             BenchmarkSourcePath = _capturePath ?? "",
             BenchmarkBatchSize = CompressionBenchmarkDefaults.BatchSize,

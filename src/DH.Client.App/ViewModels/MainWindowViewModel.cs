@@ -155,7 +155,8 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty] private CompressionSessionSnapshot _currentCompressionReport = new();
     [ObservableProperty] private bool _hasCompressionReport;
     [ObservableProperty] private bool _isCompressionReportGenerating;
-    [ObservableProperty] private string _compressionReportStatusMessage = "尚未生成压缩性能报告";
+    [ObservableProperty] private string _compressionReportStatusMessage = "请选择 .sdkraw.bin 文件进行压缩性能测试";
+    [ObservableProperty] private string _compressionBenchmarkFilePath = "";
     [ObservableProperty] private int _compressionBenchmarkReplayModeIndex = 0;
     [ObservableProperty] private double _compressionBenchmarkProgressPercent;
     [ObservableProperty] private bool _compressionBenchmarkProgressIsIndeterminate = true;
@@ -179,6 +180,8 @@ public partial class MainWindowViewModel : ObservableObject
     public IRelayCommand ClearRawTdmsChannelsCommand { get; }
     public IRelayCommand ViewCompressionReportCommand { get; }
     public IRelayCommand BackToStorageConfigCommand { get; }
+    public IRelayCommand BrowseCompressionBenchmarkFileCommand { get; }
+    public IRelayCommand RunCompressionBenchmarkFromFileCommand { get; }
     private ITdmsStorage? _storage;
     private SdkRawCaptureWriter? _sdkRawCaptureWriter;
     private Action<SdkRawBlock>? _sdkRawBlockHandler;
@@ -334,8 +337,13 @@ public partial class MainWindowViewModel : ObservableObject
         }
     }
 
-    public bool CanViewCompressionReport => HasCompressionReport || IsCompressionReportGenerating;
+    public bool CanViewCompressionReport => true;
     public bool ShowCompressionReportPlaceholder => !HasCompressionReport && !IsCompressionReportGenerating;
+    public bool CanRunCompressionBenchmarkFromFile =>
+        !IsCompressionReportGenerating
+        && !string.IsNullOrWhiteSpace(CompressionBenchmarkFilePath)
+        && File.Exists(CompressionBenchmarkFilePath)
+        && SdkRawCaptureFormat.IsRawCaptureFile(CompressionBenchmarkFilePath);
     public CompressionBenchmarkReplayMode SelectedCompressionBenchmarkReplayMode => CompressionBenchmarkReplayModeIndex switch
     {
         1 => CompressionBenchmarkReplayMode.Fast,
@@ -348,7 +356,9 @@ public partial class MainWindowViewModel : ObservableObject
         {
             if (!HasCompressionReport && !IsCompressionReportGenerating)
             {
-                return "停止写入后会自动生成压缩性能报告。";
+                return CanRunCompressionBenchmarkFromFile
+                    ? $"已选择 {Path.GetFileName(CompressionBenchmarkFilePath)}，点击“开始测试”生成压缩性能报告。"
+                    : "请选择 .sdkraw.bin 文件并点击“开始测试”。";
             }
 
             if (IsCompressionReportGenerating)
@@ -514,8 +524,10 @@ public partial class MainWindowViewModel : ObservableObject
         ClearRawTdmsDevicesCommand = new RelayCommand(ClearRawTdmsDevices, () => RawTdmsExportDevices.Any(option => option.IsSelected));
         SelectAllRawTdmsChannelsCommand = new RelayCommand(SelectAllRawTdmsChannels, () => RawTdmsExportChannels.Count > 0);
         ClearRawTdmsChannelsCommand = new RelayCommand(ClearRawTdmsChannels, () => RawTdmsExportChannels.Any(option => option.IsSelected));
-        ViewCompressionReportCommand = new RelayCommand(ViewCompressionReport, () => CanViewCompressionReport);
+        ViewCompressionReportCommand = new RelayCommand(ViewCompressionReport);
         BackToStorageConfigCommand = new RelayCommand(() => SelectedTab = StorageConfigTabIndex);
+        BrowseCompressionBenchmarkFileCommand = new AsyncRelayCommand(BrowseCompressionBenchmarkFileAsync);
+        RunCompressionBenchmarkFromFileCommand = new AsyncRelayCommand(RunCompressionBenchmarkFromSelectedFileAsync, () => CanRunCompressionBenchmarkFromFile);
 
         RawTdmsExportDevices.CollectionChanged += (_, _) =>
         {
@@ -1451,7 +1463,6 @@ public partial class MainWindowViewModel : ObservableObject
     private async Task StartStorageAsync()
     {
         if (StorageEnabled) return;
-        ResetCompressionReportState("本次会话停止后将生成压缩性能报告");
         var basePath = ResolveStoragePath(StoragePath);
         Directory.CreateDirectory(basePath);
         var channelIds = ResolveStorageChannelIds();
@@ -1707,10 +1718,8 @@ public partial class MainWindowViewModel : ObservableObject
         _sdkRawBlockHandler = null;
     }
 
-    private void StopSdkRawCaptureStorage(TimeSpan finalElapsed)
+    private void StopSdkRawCaptureStorage()
     {
-        CompressionSessionSnapshot? compressionSnapshot = null;
-
         StorageEnabled = false;
         CleanupSdkRawCaptureSubscription();
 
@@ -1730,16 +1739,6 @@ public partial class MainWindowViewModel : ObservableObject
             _sdkRawCaptureWriter?.Dispose();
             _sdkRawCaptureWriter = null;
             _activeStorageRuntime = null;
-
-            compressionSnapshot = result?.Snapshot;
-            if (compressionSnapshot != null)
-            {
-                compressionSnapshot.StartedAt = _storageStartTime;
-                compressionSnapshot.StoppedAt = DateTime.Now;
-                compressionSnapshot.Elapsed = finalElapsed;
-                compressionSnapshot.WrittenFiles = (_lastWrittenFiles ?? Array.Empty<string>()).ToArray();
-                compressionSnapshot.StoredBytes = CalculateStoredBytes(compressionSnapshot.WrittenFiles);
-            }
 
             bool captureHealthy = result?.Manifest is { } manifest && IsRawCaptureHealthy(manifest);
 
@@ -1777,11 +1776,6 @@ public partial class MainWindowViewModel : ObservableObject
         (StartStorageCommand as AsyncRelayCommand)?.NotifyCanExecuteChanged();
         (StopStorageCommand as RelayCommand)?.NotifyCanExecuteChanged();
 
-        if (compressionSnapshot != null)
-        {
-            BeginCompressionReportGeneration(compressionSnapshot);
-        }
-
         _ = AutoVerifyAfterStopAsync();
     }
 
@@ -1794,11 +1788,10 @@ public partial class MainWindowViewModel : ObservableObject
         _storageTimer = null;
         var finalElapsed = DateTime.Now - _storageStartTime;
         StorageElapsed = finalElapsed.ToString(@"hh\:mm\:ss");
-        CompressionSessionSnapshot? compressionSnapshot = null;
 
         if (_activeStorageRuntime == StorageRuntimeKind.SdkRawCapture)
         {
-            StopSdkRawCaptureStorage(finalElapsed);
+            StopSdkRawCaptureStorage();
             return;
         }
 
@@ -1829,8 +1822,6 @@ public partial class MainWindowViewModel : ObservableObject
         try 
         { 
             _storage?.Flush();
-            compressionSnapshot = _storage?.GetCompressionSessionSnapshot();
-
             // 在 Stop 之前抓取写入期间的 SHA-256 指纹
             var hashes = _storage?.GetWriteHashes();
             var counts = _storage?.GetWriteSampleCounts();
@@ -1893,24 +1884,10 @@ public partial class MainWindowViewModel : ObservableObject
         { 
             _storage = null; 
         }
-
-        if (compressionSnapshot != null)
-        {
-            compressionSnapshot.StartedAt = _storageStartTime;
-            compressionSnapshot.StoppedAt = DateTime.Now;
-            compressionSnapshot.Elapsed = finalElapsed;
-            compressionSnapshot.WrittenFiles = (_lastWrittenFiles ?? Array.Empty<string>()).ToArray();
-            compressionSnapshot.StoredBytes = CalculateStoredBytes(compressionSnapshot.WrittenFiles);
-        }
         
         RefreshRecentFiles();
         (StartStorageCommand as AsyncRelayCommand)?.NotifyCanExecuteChanged();
         (StopStorageCommand as RelayCommand)?.NotifyCanExecuteChanged();
-        if (compressionSnapshot != null)
-        {
-            BeginCompressionReportGeneration(compressionSnapshot);
-        }
-
         // 自动执行文件无损验证
         _ = AutoVerifyAfterStopAsync();
     }
@@ -2620,12 +2597,65 @@ public partial class MainWindowViewModel : ObservableObject
 
     private void ViewCompressionReport()
     {
-        if (!CanViewCompressionReport)
+        SelectedTab = CompressionReportTabIndex;
+    }
+
+    private async Task BrowseCompressionBenchmarkFileAsync()
+    {
+        try
         {
+            var topLevel = Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop
+                ? desktop.MainWindow
+                : null;
+            if (topLevel == null)
+            {
+                return;
+            }
+
+            var files = await topLevel.StorageProvider.OpenFilePickerAsync(new Avalonia.Platform.Storage.FilePickerOpenOptions
+            {
+                Title = "选择 BIN 测试文件",
+                AllowMultiple = false,
+                FileTypeFilter = new[]
+                {
+                    new Avalonia.Platform.Storage.FilePickerFileType("SDK Raw Capture")
+                    {
+                        Patterns = new[] { $"*{SdkRawCaptureFormat.FileSuffix}" }
+                    }
+                }
+            });
+
+            if (files.Count > 0)
+            {
+                CompressionBenchmarkFilePath = files[0].Path.LocalPath;
+            }
+        }
+        catch (Exception ex)
+        {
+            CompressionReportStatusMessage = $"选择 BIN 文件失败: {ex.Message}";
+        }
+    }
+
+    private async Task RunCompressionBenchmarkFromSelectedFileAsync()
+    {
+        string capturePath = CompressionBenchmarkFilePath;
+        if (!CanRunCompressionBenchmarkFromFile)
+        {
+            CompressionReportStatusMessage = "请先选择有效的 .sdkraw.bin 文件。";
             return;
         }
 
-        SelectedTab = CompressionReportTabIndex;
+        try
+        {
+            CompressionReportStatusMessage = $"正在加载 {Path.GetFileName(capturePath)} 的压缩测试信息…";
+            var snapshot = await Task.Run(() => SdkRawCaptureReportLoader.LoadSnapshot(capturePath));
+            SelectedTab = CompressionReportTabIndex;
+            BeginCompressionReportGeneration(snapshot);
+        }
+        catch (Exception ex)
+        {
+            CompressionReportStatusMessage = $"加载 BIN 测试文件失败: {ex.Message}";
+        }
     }
 
     private void ResetCompressionReportState(string statusMessage)
@@ -2788,9 +2818,11 @@ public partial class MainWindowViewModel : ObservableObject
         });
         CompressionSummaryCards.Add(new CompressionMetricCard
         {
-            Title = "压缩载荷",
+            Title = snapshot.PayloadKind == CompressionPayloadKind.RawCaptureBlockPayload ? "编码载荷" : "压缩载荷",
             Value = snapshot.CodecBytesText,
-            Hint = $"TDMS载荷 {snapshot.TdmsPayloadBytesText}"
+            Hint = snapshot.PayloadKind == CompressionPayloadKind.RawCaptureBlockPayload
+                ? $"{snapshot.PayloadCompressionRatioLabel} {snapshot.PayloadCompressionRatioText}"
+                : $"{snapshot.PayloadBytesLabel} {snapshot.TdmsPayloadBytesText}"
         });
         CompressionSummaryCards.Add(new CompressionMetricCard
         {
@@ -2884,21 +2916,36 @@ public partial class MainWindowViewModel : ObservableObject
         OnPropertyChanged(nameof(CanViewCompressionReport));
         OnPropertyChanged(nameof(ShowCompressionReportPlaceholder));
         OnPropertyChanged(nameof(CompressionBenchmarkStatusText));
-        (ViewCompressionReportCommand as RelayCommand)?.NotifyCanExecuteChanged();
+        (RunCompressionBenchmarkFromFileCommand as AsyncRelayCommand)?.NotifyCanExecuteChanged();
     }
 
     partial void OnIsCompressionReportGeneratingChanged(bool value)
     {
         OnPropertyChanged(nameof(CanViewCompressionReport));
         OnPropertyChanged(nameof(ShowCompressionReportPlaceholder));
+        OnPropertyChanged(nameof(CanRunCompressionBenchmarkFromFile));
         OnPropertyChanged(nameof(CompressionBenchmarkStatusText));
-        (ViewCompressionReportCommand as RelayCommand)?.NotifyCanExecuteChanged();
+        (RunCompressionBenchmarkFromFileCommand as AsyncRelayCommand)?.NotifyCanExecuteChanged();
     }
 
     partial void OnCurrentCompressionReportChanged(CompressionSessionSnapshot value)
     {
         RefreshCompressionMetricCards();
         OnPropertyChanged(nameof(CompressionBenchmarkStatusText));
+    }
+
+    partial void OnCompressionBenchmarkFilePathChanged(string value)
+    {
+        OnPropertyChanged(nameof(CanRunCompressionBenchmarkFromFile));
+        OnPropertyChanged(nameof(CompressionBenchmarkStatusText));
+        (RunCompressionBenchmarkFromFileCommand as AsyncRelayCommand)?.NotifyCanExecuteChanged();
+
+        if (!HasCompressionReport && !IsCompressionReportGenerating)
+        {
+            CompressionReportStatusMessage = CanRunCompressionBenchmarkFromFile
+                ? $"已选择 {Path.GetFileName(value)}，点击“开始测试”生成压缩性能报告。"
+                : "请选择 .sdkraw.bin 文件进行压缩性能测试";
+        }
     }
 
     partial void OnSdkConfigPathChanged(string value)
@@ -3268,10 +3315,6 @@ public partial class MainWindowViewModel : ObservableObject
             FileVerifyResult = result.Summary;
             RefreshRecentFiles();
 
-            if (result.Snapshot != null)
-            {
-                BeginCompressionReportGeneration(result.Snapshot);
-            }
         }
         catch (Exception ex)
         {

@@ -14,6 +14,12 @@ public enum CompressionStorageMode
     PerChannel,
 }
 
+public enum CompressionPayloadKind
+{
+    TdmsEncodedSamples,
+    RawCaptureBlockPayload,
+}
+
 public enum CompressionBenchmarkSource
 {
     None,
@@ -158,6 +164,8 @@ public sealed class CompressionSessionSnapshot
 
     public CompressionStorageMode StorageMode { get; set; }
 
+    public CompressionPayloadKind PayloadKind { get; set; } = CompressionPayloadKind.TdmsEncodedSamples;
+
     public CompressionType CompressionType { get; set; }
 
     public PreprocessType PreprocessType { get; set; }
@@ -200,6 +208,8 @@ public sealed class CompressionSessionSnapshot
 
     public IReadOnlyList<string> WrittenFiles { get; set; } = Array.Empty<string>();
 
+    public bool ChannelMetricsEstimated { get; set; }
+
     public CompressionBenchmarkSource BenchmarkSource { get; set; }
 
     public string BenchmarkSourcePath { get; set; } = "";
@@ -217,6 +227,18 @@ public sealed class CompressionSessionSnapshot
     public string ParameterSummary => CompressionReportFormatting.FormatCompressionOptions(CompressionType, CompressionOptions);
 
     public string BenchmarkReplayModeText => CompressionReportFormatting.FormatBenchmarkReplayMode(BenchmarkReplayMode);
+
+    public string PayloadBytesLabel => PayloadKind == CompressionPayloadKind.RawCaptureBlockPayload
+        ? "编码载荷"
+        : "TDMS载荷";
+
+    public string PayloadCompressionRatioLabel => PayloadKind == CompressionPayloadKind.RawCaptureBlockPayload
+        ? "载荷压缩比"
+        : "落盘压缩比";
+
+    public string CurrentAlgorithmSectionTitle => PayloadKind == CompressionPayloadKind.RawCaptureBlockPayload
+        ? "当前算法真实写入表现"
+        : "当前算法真实表现";
 
     public string SampleRateText => SampleRateHz > 0
         ? $"{SampleRateHz:N0} Hz"
@@ -274,12 +296,68 @@ public sealed class CompressionSessionSnapshot
         ? "-"
         : $"{WrittenFiles.Count} 个文件";
 
+    public string CodecSizeSummaryText => PayloadKind == CompressionPayloadKind.RawCaptureBlockPayload
+        ? $"压缩字节: {CodecBytesText}"
+        : $"压缩载荷: {CodecBytesText}";
+
+    public string PayloadSizeSummaryText => $"{PayloadBytesLabel}: {TdmsPayloadBytesText}";
+
+    public string PayloadCompressionRatioSummaryText => $"{PayloadCompressionRatioLabel}: {PayloadCompressionRatioText}";
+
+    public string ChannelCodecColumnTitle => ChannelMetricsEstimated
+        ? "估算压缩载荷"
+        : "压缩载荷";
+
+    public string ChannelPayloadColumnTitle => ChannelMetricsEstimated
+        ? "估算编码载荷"
+        : PayloadBytesLabel;
+
+    public string ChannelBandwidthColumnTitle => ChannelMetricsEstimated
+        ? "估算带宽"
+        : "压缩带宽";
+
+    public string ChannelWorstEncodeColumnTitle => ChannelMetricsEstimated
+        ? "估算最慢批次"
+        : "最慢批次";
+
+    public string ChannelMetricsHintText => ChannelMetricsEstimated
+        ? "样本数、批次数和原始数据量为真实值；由于 BIN 按整块压缩，单通道载荷、带宽和最慢批次无法精确拆分，以下列按原始数据占比估算。"
+        : "";
+
+    public bool HasChannelMetricsHint => !string.IsNullOrWhiteSpace(ChannelMetricsHintText);
+
+    public string BenchmarkEstimateHintText
+    {
+        get
+        {
+            if (BenchmarkSource != CompressionBenchmarkSource.RawCaptureReplay)
+            {
+                return "";
+            }
+
+            if (BenchmarkReplayMode == CompressionBenchmarkReplayMode.Fast)
+            {
+                return "快速模式只回放部分通道或样本，“估算文件”会按当前样本覆盖率外推；上方真实表现仍来自完整写入结果。";
+            }
+
+            return PayloadKind == CompressionPayloadKind.RawCaptureBlockPayload
+                ? "当前对比结果按 BIN 实际整块编码路径回放，和原始写入口径一致。"
+                : "";
+        }
+    }
+
+    public bool HasBenchmarkEstimateHint => !string.IsNullOrWhiteSpace(BenchmarkEstimateHintText);
+
     public string BenchmarkSampleSummaryText => BenchmarkSamples.Count == 0
         ? BenchmarkSource switch
         {
             CompressionBenchmarkSource.RawCaptureReplay => string.IsNullOrWhiteSpace(BenchmarkSourcePath)
-                ? $"已保存原始数据分层回放，按 {BenchmarkBatchSize:N0} 点/通道重组批次"
-                : $"已保存原始数据 {Path.GetFileName(BenchmarkSourcePath)} 分层回放，按 {BenchmarkBatchSize:N0} 点/通道重组批次",
+                ? PayloadKind == CompressionPayloadKind.RawCaptureBlockPayload
+                    ? "已保存原始数据按原始块回放，与 BIN 实际写入路径一致"
+                    : $"已保存原始数据分层回放，按 {BenchmarkBatchSize:N0} 点/通道重组批次"
+                : PayloadKind == CompressionPayloadKind.RawCaptureBlockPayload
+                    ? $"已保存原始数据 {Path.GetFileName(BenchmarkSourcePath)} 按原始块回放，与 BIN 实际写入路径一致"
+                    : $"已保存原始数据 {Path.GetFileName(BenchmarkSourcePath)} 分层回放，按 {BenchmarkBatchSize:N0} 点/通道重组批次",
             _ => "未采集到 benchmark 样本"
         }
         : $"{BenchmarkSamples.Count} 个采样批次，原始数据 {CompressionReportFormatting.FormatBytes(BenchmarkSampleBytes)}";
@@ -475,6 +553,7 @@ internal sealed class CompressionMetricsCollector
             {
                 SessionName = _sessionName,
                 StorageMode = _storageMode,
+                PayloadKind = CompressionPayloadKind.TdmsEncodedSamples,
                 CompressionType = _compressionType,
                 PreprocessType = _preprocessType,
                 CompressionOptions = _compressionOptions.Clone(),
@@ -493,6 +572,7 @@ internal sealed class CompressionMetricsCollector
                     .OrderBy(static channel => channel.ChannelId)
                     .Select(static channel => channel.ToSnapshot())
                     .ToArray(),
+                ChannelMetricsEstimated = false,
                 BenchmarkSource = _benchmarkSamples.Count > 0
                     ? CompressionBenchmarkSource.SampledBatches
                     : CompressionBenchmarkSource.None,
@@ -626,7 +706,9 @@ public static class CompressionBenchmarkService
         }
 
         long rawBytes = snapshot.RawBytes;
-        if (!string.IsNullOrWhiteSpace(snapshot.BenchmarkSourcePath) && File.Exists(snapshot.BenchmarkSourcePath))
+        if (rawBytes <= 0
+            && !string.IsNullOrWhiteSpace(snapshot.BenchmarkSourcePath)
+            && File.Exists(snapshot.BenchmarkSourcePath))
         {
             try
             {
@@ -724,7 +806,12 @@ public static class CompressionBenchmarkService
             encodeLatencies.Add(sw.Elapsed.TotalMilliseconds);
         }
 
-        long estimatedStoredBytes = EstimateStoredBytes(snapshot.StoredBytes, snapshot.TdmsPayloadBytes, payloadBytes);
+        long estimatedStoredBytes = EstimateStoredBytesForFullDataset(
+            snapshot.RawBytes,
+            rawBytes,
+            snapshot.StoredBytes,
+            snapshot.TdmsPayloadBytes,
+            payloadBytes);
         return new CompressionBenchmarkRow
         {
             CompressionType = algorithm,
@@ -742,15 +829,36 @@ public static class CompressionBenchmarkService
         };
     }
 
-    private static long EstimateStoredBytes(long actualStoredBytes, long actualPayloadBytes, long newPayloadBytes)
+    internal static long EstimatePayloadBytesForFullDataset(long totalRawBytes, long benchmarkRawBytes, long benchmarkPayloadBytes)
     {
+        if (benchmarkPayloadBytes <= 0)
+        {
+            return 0;
+        }
+
+        if (totalRawBytes > 0 && benchmarkRawBytes > 0 && benchmarkRawBytes < totalRawBytes)
+        {
+            return (long)Math.Round(benchmarkPayloadBytes * ((double)totalRawBytes / benchmarkRawBytes));
+        }
+
+        return benchmarkPayloadBytes;
+    }
+
+    internal static long EstimateStoredBytesForFullDataset(
+        long totalRawBytes,
+        long benchmarkRawBytes,
+        long actualStoredBytes,
+        long actualPayloadBytes,
+        long benchmarkPayloadBytes)
+    {
+        long estimatedPayloadBytes = EstimatePayloadBytesForFullDataset(totalRawBytes, benchmarkRawBytes, benchmarkPayloadBytes);
         if (actualStoredBytes <= 0)
         {
-            return newPayloadBytes;
+            return estimatedPayloadBytes;
         }
 
         long fixedOverhead = Math.Max(0, actualStoredBytes - actualPayloadBytes);
-        return fixedOverhead + newPayloadBytes;
+        return fixedOverhead + estimatedPayloadBytes;
     }
 }
 
